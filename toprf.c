@@ -126,7 +126,7 @@ int toprf_recover(const unsigned shares_len,
     dump(shares[i],sizeof(sss_Share),"share");
   }
 
-  err = sss_combine_shares(result, shares, 4);
+  err = sss_combine_shares(result, shares, shares_len);
   if(err) return err;
   dump(result,sss_MLEN,"toprf output");
 
