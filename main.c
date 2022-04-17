@@ -56,9 +56,10 @@ int main(void) {
   }
 
   uint8_t result1[sss_MLEN];
-  err = toprf_recover(3, //servers - 3,
+  err = toprf_recover(2,
                       password, sizeof password,
                       r, betas, shares, result1);
+  if(err) return err;
 
   if(memcmp(result0,result1,sss_MLEN)!=0) return 1;
 
