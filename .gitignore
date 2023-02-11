@@ -1,0 +1,5 @@
+liboprf.a
+*.o
+.arch
+bench
+*.pdf
