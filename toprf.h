@@ -1,28 +1,28 @@
-#ifndef toprf_h
-#define toprf_h
+#ifndef TOPRF_H
+#define TOPRF_H
 
-#include <stdint.h>
 #include <sodium.h>
-#include <sss.h>
+#include <stdint.h>
 
-int toprf_init(const unsigned shares,
-               const uint8_t *input, const size_t input_len,
-               uint8_t r[shares][crypto_core_ristretto255_SCALARBYTES],
-               uint8_t alphas[shares][crypto_core_ristretto255_BYTES]);
+typedef struct {
+  uint8_t index;
+  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
+} __attribute((packed)) TOPRF_Share;
+
+typedef struct {
+  uint8_t index;
+  uint8_t value[crypto_core_ristretto255_BYTES];
+} __attribute((packed)) TOPRF_Part;
 
 
-int toprf_share(const unsigned shares,
-                const unsigned threshold,
-                const uint8_t *input, const size_t input_len,
-                const uint8_t r[shares][crypto_core_ristretto255_SCALARBYTES],
-                const uint8_t betas[shares][crypto_core_ristretto255_BYTES],
-                sss_Share xshares[shares],
-                uint8_t result[sss_MLEN]);
 
-int toprf_recover(const unsigned shares_len,
-                  const uint8_t *input, const size_t input_len,
-                  const uint8_t r[shares_len][crypto_core_ristretto255_SCALARBYTES],
-                  const uint8_t betas[shares_len][crypto_core_ristretto255_BYTES],
-                  sss_Share xshares[shares_len],
-                  uint8_t result[sss_MLEN]);
-#endif
+void create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
+                   const uint8_t n,
+                   const uint8_t threshold,
+                   TOPRF_Share shares[n]);
+
+int TOPRF_thresholdmult(const TOPRF_Part *responses,
+                        const size_t response_len,
+                        uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+
+#endif // TOPRF_H

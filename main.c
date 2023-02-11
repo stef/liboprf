@@ -1,67 +1,64 @@
-#include <sss.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "oprf.h"
 #include "toprf.h"
 
-static void dump(const uint8_t *p, const size_t len, const char* msg) {
-  size_t i;
-  fprintf(stderr,"%s ",msg);
-  for(i=0;i<len;i++)
-    fprintf(stderr,"%02x", p[i]);
-  fprintf(stderr,"\n");
-}
-
 int main(void) {
-  int err;
-  const unsigned servers = 10;
+  // setup
+  // imagine some magical DKG which works with r255 here
+  const unsigned peers = 3, threshold = 2;
+  uint8_t k[crypto_core_ristretto255_SCALARBYTES];
+  crypto_core_ristretto255_scalar_random(k);
+  // split k into shares
+  TOPRF_Share shares[peers];
+  create_shares(k, peers, threshold, shares);
+
+  // start the OPRF
   const uint8_t password[8]="password";
-  uint8_t r[servers][crypto_core_ristretto255_SCALARBYTES];
-  uint8_t alphas[servers][crypto_core_ristretto255_BYTES];
+  uint8_t r[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t alpha[crypto_core_ristretto255_BYTES];
+  // we blind once
+  if(oprf_Blind(password, sizeof password, r, alpha)) return 1;
+  // until here all is like with the non-threshold version
 
-  // setup phase
-  // run N OPRF instantiations in parallel
-  err = toprf_init(servers, password, sizeof password, r, alphas);
-  if(err) return err;
-
-  // send each alpha to one of the configures oprf servers
-  // each generates a new key, and evaluates the alpha into a beta
-  uint8_t keys[servers][crypto_core_ristretto255_SCALARBYTES];
-  uint8_t betas[servers][crypto_core_ristretto255_BYTES];
-  unsigned i;
-  for(i=0;i<servers;i++) {
-    oprf_KeyGen(keys[i]);
-    err = oprf_Evaluate(keys[i], alphas[i], betas[i]);
-    if(err) return err;
-  }
-  // each server sends back it's beta
-
-  sss_Share shares[servers];
-  uint8_t result0[sss_MLEN];
-
-  err = toprf_share(servers, 2,
-                    password, sizeof password,
-                    r, betas, shares, result0);
-
-  // Protocol run phase
-  // blind your input secret N times, and run OPRF with each OPRF server
-  err = toprf_init(servers, password, sizeof password, r, alphas);
-  if(err) return err;
-
-  // each server seperately evaluates
-  for(i=0;i<servers;i++) {
-    err = oprf_Evaluate(keys[i], alphas[i], betas[i]);
-    if(err) return err;
+  // calculate points of shares
+  // this really happens at each peer separately
+  TOPRF_Part xresps[peers];
+  for(size_t i=0;i<peers;i++) { // we calculate all, but we don't need all
+    // xresps[i]=g^k_i
+    xresps[i].index=shares[i].index;
+    if(oprf_Evaluate(shares[i].value, alpha, xresps[i].value)) return 1;
   }
 
-  uint8_t result1[sss_MLEN];
-  err = toprf_recover(2,
-                      password, sizeof password,
-                      r, betas, shares, result1);
-  if(err) return err;
+  // here we select threshold responses debian-randomly
+  // simulating the internet, by reordering and dropping responses
+  const TOPRF_Part responses[]={xresps[2], xresps[0]};
+  const size_t response_len = sizeof responses / sizeof(TOPRF_Part);
 
-  if(memcmp(result0,result1,sss_MLEN)!=0) return 1;
+  // now comes the threshold recovery part, were we do lagrange magic
+  // in the exponent
+  uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
+  if(TOPRF_thresholdmult(responses, response_len, beta)) return 1;
+  // end of magic trick
+  // from here on the threshold and non-threshold version join paths again
 
+  uint8_t unblinded[crypto_core_ristretto255_BYTES];
+  if(oprf_Unblind(r, beta, unblinded)) return 1;
+
+  uint8_t oprf[OPRF_BYTES];
+  if(oprf_Finalize(password, sizeof password, unblinded, oprf)) return 1;
+
+  // verification by doing the non-threshold version as well
+  // g^k
+  if(crypto_scalarmult_ristretto255(beta, k, alpha)) return 1;
+  if(oprf_Unblind(r, beta, unblinded)) return 1;
+  uint8_t oprf0[OPRF_BYTES];
+  if(oprf_Finalize(password, sizeof password, unblinded, oprf0)) return 1;
+  if(memcmp(oprf0,oprf,OPRF_BYTES)!=0) {
+    printf("humiliating failure\n");
+    return 1;
+  }
+  printf("great success!!5!\n");
   return 0;
 }

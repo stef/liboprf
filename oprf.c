@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include "sss/sss.h"
 #include "oprf.h"
 
 #ifndef HAVE_SODIUM_HKDF

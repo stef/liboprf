@@ -16,17 +16,14 @@ asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -f
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
-liboprf.$(SOEXT): oprf.c toprf.c $(EXTRA_OBJECTS) sss/libsss.a
+liboprf.$(SOEXT): oprf.c toprf.c $(EXTRA_OBJECTS)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,liboprf.so -o liboprf.$(SOEXT) $^ $(LDFLAGS)
 
-liboprf.$(STATICEXT): oprf.o toprf.o $(EXTRA_OBJECTS) sss/libsss.a
+liboprf.$(STATICEXT): oprf.o toprf.o $(EXTRA_OBJECTS)
 	ar rcs $@ $^
 
-toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c sss/libsss.a
-	gcc -Isss -o toprf oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c sss/libsss.a -lsodium
-
-sss/libsss.a:
-	cd sss; make
+toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
+	gcc -Isss -o toprf oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c -lsodium
 
 clean:
 	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o
