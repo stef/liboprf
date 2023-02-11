@@ -34,12 +34,12 @@ typedef struct {
 
 
 
-void create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
+void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t n,
                    const uint8_t threshold,
                    TOPRF_Share shares[n]);
 
-int TOPRF_thresholdmult(const TOPRF_Part *responses,
+int toprf_thresholdmult(const TOPRF_Part *responses,
                         const size_t response_len,
                         uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 

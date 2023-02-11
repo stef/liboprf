@@ -74,7 +74,7 @@ static void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uin
   crypto_core_ristretto255_scalar_mul(result, divisor, divident);
 }
 
-void create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
+void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t n,
                    const uint8_t threshold,
                    TOPRF_Share shares[n]) {
@@ -101,7 +101,7 @@ void create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
   }
 }
 
-int TOPRF_thresholdmult(const TOPRF_Part *responses, const size_t response_len, uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
+int toprf_thresholdmult(const TOPRF_Part *responses, const size_t response_len, uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
     uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
     uint8_t gki[crypto_scalarmult_ristretto255_BYTES];
     memset(result,0,crypto_scalarmult_ristretto255_BYTES);

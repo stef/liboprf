@@ -12,7 +12,7 @@ int main(void) {
   crypto_core_ristretto255_scalar_random(k);
   // split k into shares
   TOPRF_Share shares[peers];
-  create_shares(k, peers, threshold, shares);
+  toprf_create_shares(k, peers, threshold, shares);
 
   // start the OPRF
   const uint8_t password[8]="password";
@@ -39,7 +39,7 @@ int main(void) {
   // now comes the threshold recovery part, were we do lagrange magic
   // in the exponent
   uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
-  if(TOPRF_thresholdmult(responses, response_len, beta)) return 1;
+  if(toprf_thresholdmult(responses, response_len, beta)) return 1;
   // end of magic trick
   // from here on the threshold and non-threshold version join paths again
 
