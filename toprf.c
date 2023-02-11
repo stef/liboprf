@@ -2,8 +2,23 @@
 #include "oprf.h"
 #include "toprf.h"
 
-// run with
-// gcc -o toprf -g -Wall toprf.c -lsodium liboprf.a
+/*
+    @copyright 2023, opaque@ctrlc.hu
+    This file is part of liboprf.
+
+    liboprf is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License
+    as published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+
+    liboprf is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with liboprf. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 // implements TOPRF from https://eprint.iacr.org/2017/363
 // quote from page 9 (first line is last on page 8)
@@ -17,15 +32,15 @@
 // user U sends to each of them the same message a = (H′(x))r for random r,
 // exactly as in the single-server OPRF protocol 2HashDH. If each server Si in SE
 // returned bi = aki then U could reconstruct the value ak using standard Lagrange
-// interpolation in the exponent, i.e. ak = �
-// i∈SE bλi
-// i
-// with the Lagrange coefficients
+// interpolation in the exponent, i.e. ak = � i∈SE bλi i with the Lagrange coefficients
 // λi computed using the indexes of servers in SE. After computing ak, the value
 // of fk(x) is computed by U by deblinding ak exactly as in the case of protocol
 // 2HashDH. Note that this takes a single exponentiation for each server and two
 // exponentiations for the user (to compute a and to deblind ak) plus one multi-
 // exponentiation by U to compute the Lagrange interpolation on the bi values.
+
+// run with
+// gcc -o toprf -g -Wall toprf.c -lsodium liboprf.a
 
 static void dump(const uint8_t *p, const size_t len, const char* msg) {
   size_t i;
