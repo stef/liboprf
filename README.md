@@ -3,8 +3,7 @@
 This library implements the basic OPRF(ristretto255, SHA-512) variant
 from the IRTF CFRG Draft: https://github.com/cfrg/draft-irtf-cfrg-voprf/
 
-Additionally it implements a threshold OPRF based on the above in
-combination with Daan Sprenkels excellent sss library
-https://github.com/dsprenkels/sss.
+Additionally it implements a threshold OPRF based on
+https://eprint.iacr.org/2017/363 by Krawczyk et al.
 
-Besides dsprenkels sss this library also depends on libsodium.
+This library depends on libsodium.
