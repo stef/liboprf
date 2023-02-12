@@ -121,3 +121,34 @@ int toprf_thresholdmult(const TOPRF_Part *responses, const size_t response_len, 
     }
     return 0;
 }
+
+int toprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+                   const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                   const uint8_t self, const uint8_t *indexes, const uint16_t index_len,
+                   uint8_t Z[crypto_core_ristretto255_BYTES]) {
+
+
+  TOPRF_Part parts[index_len];
+  for(int i=0;i<index_len;i++) parts[i].index=indexes[i];
+
+  uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
+  coeff(self, parts, index_len, lpoly);
+  // kl = k * lpoly
+
+  uint8_t kl[crypto_core_ristretto255_SCALARBYTES];
+  crypto_core_ristretto255_scalar_mul(kl, k, lpoly);
+
+  if(oprf_Evaluate(kl,blinded, Z)) return 1;
+
+  return 0;
+}
+
+void toprf_thresholdcombine(const TOPRF_Part *responses,
+                            const size_t response_len,
+                            uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
+    memset(result,0,crypto_scalarmult_ristretto255_BYTES);
+
+    for(size_t i=0;i<response_len;i++) {
+        crypto_core_ristretto255_add(result,result,responses[i].value);
+    }
+}

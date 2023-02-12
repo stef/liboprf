@@ -56,9 +56,41 @@ int main(void) {
   uint8_t oprf0[OPRF_BYTES];
   if(oprf_Finalize(password, sizeof password, unblinded, oprf0)) return 1;
   if(memcmp(oprf0,oprf,OPRF_BYTES)!=0) {
-    printf("humiliating failure\n");
+    printf("humiliating failure /o\\\n");
     return 1;
   }
   printf("great success!!5!\n");
+
+  // now lets do the same thing again, but more efficiently but also
+  // knowing in advance the set of shareholders that respond
+
+  // we start at the step where the shareholder got alpha
+  const uint8_t indexes[]={3,1};
+  const size_t index_len = sizeof indexes;
+  for(size_t i=0;i<response_len;i++) { // we calculate only the ones that respond
+    // xresps[i]=g^k_i^lambda_i
+    xresps[i].index=indexes[i];
+    if(toprf_Evaluate(shares[xresps[i].index-1].value, alpha,
+                      xresps[i].index, indexes, index_len,
+                      xresps[i].value)) {
+      return 1;
+    }
+
+  }
+
+  // now comes the threshold combination part, were we do barely do
+  // any lagrange magic in the exponent
+  toprf_thresholdcombine(xresps, response_len, beta);
+
+  // end of magic trick
+  // from here on the threshold and non-threshold version join paths again
+  if(oprf_Unblind(r, beta, unblinded)) return 1;
+  if(oprf_Finalize(password, sizeof password, unblinded, oprf)) return 1;
+  if(memcmp(oprf0,oprf,OPRF_BYTES)!=0) {
+    printf("humiliating failure /o\\\n");
+    return 1;
+  }
+  printf("great success!!5!\n");
+
   return 0;
 }

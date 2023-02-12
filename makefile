@@ -24,7 +24,7 @@ liboprf.$(STATICEXT): oprf.o toprf.o $(EXTRA_OBJECTS)
 	ar rcs $@ $^
 
 toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
-	gcc -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
+	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
 clean:
 	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o

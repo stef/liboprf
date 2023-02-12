@@ -33,14 +33,94 @@ typedef struct {
 } __attribute((packed)) TOPRF_Part;
 
 
-
+/**
+ * This function creates shares of secret in a (threshold, n) scheme
+ * over the curve ristretto255
+ *
+ * @param [in] secret - the scalar value to be secretly shared
+ *
+ * @param [in] n - the number of shares created
+ *
+ * @param [in] threshold - the threshold needed to reconstruct the secret
+ *
+ * @param [out] shares - n shares
+ *
+ * @return The function returns 0 if everything is correct.
+ */
 void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t n,
                    const uint8_t threshold,
                    TOPRF_Share shares[n]);
 
+/**
+ * This function recovers the secret in the exponent using lagrange interpolation
+ * over the curve ristretto255j
+ *
+ * The shareholders are not aware if they are contributing to a
+ * threshold or non-threshold oprf evaluation, from their perspective
+ * nothing changes in this approach.
+ *
+ * @param [in] responses - is an array of shares (k_i) multiplied by a
+ *        point (P) on the r255 curve
+ *
+ * @param [in] responses - is an array of shares (k_i) multiplied by a
+ *
+ * @param [in] responses_len - the number of elements in the response array
+ *
+ * @param [out] result - the reconstructed value of P multipled by k
+ *
+ * @return The function returns 0 if everything is correct.
+ */
 int toprf_thresholdmult(const TOPRF_Part *responses,
                         const size_t response_len,
                         uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+
+/**
+ * This function is the efficient threshold version of oprf_Evaluate.
+ *
+ * This function needs to know in advance the indexes of all the
+ * shares that will be combined later in the toprf_thresholdcombine() function.
+ * by doing so this reduces the total costs and distributes them to the shareholders.
+ *
+ * @param [in] k - a private key (for OPAQUE, this is kU, the user's
+ *        OPRF private key)
+ *
+ * @param [in] blinded - a serialized OPRF group element, a byte array
+ *         of fixed length, an output of oprf_Blind (for OPAQUE, this
+ *         is the blinded pwdU, the user's password)
+ *
+ * @param [in] self - the index of the current shareholder
+ *
+ * @param [in] indexes - the indexes of the all the shareholders
+ *        contributing to this oprf evaluation,
+ *
+ * @param [in] index_len - the length of the indexes array,
+ *
+ * @param [out] Z - a serialized OPRF group element, a byte array of fixed length,
+ *        an input to oprf_Unblind
+ *
+ * @return The function returns 0 if everything is correct.
+ */
+int toprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+                   const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                   const uint8_t self, const uint8_t *indexes, const uint16_t index_len,
+                   uint8_t Z[crypto_core_ristretto255_BYTES]);
+
+/**
+ * This function is combines the results of the toprf_Evaluate()
+ * function to recover the shared secret in the exponent.
+ *
+ * @param [in] responses - is an array of shares (k_i) multiplied by a point (P) on the r255 curve
+ *
+ * @param [in] responses_len - the number of elements in the response array
+ *
+ * @param [out] result - the reconstructed value of P multipled by k
+ *
+ * @return The function returns 0 if everything is correct.
+ */
+void toprf_thresholdcombine(const TOPRF_Part *responses,
+                            const size_t response_len,
+                            uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+
 
 #endif // TOPRF_H
