@@ -22,30 +22,23 @@
 #include <sodium.h>
 #include <stdint.h>
 
-typedef struct {
-  uint8_t index;
-  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
-} __attribute((packed)) TOPRF_Share;
-
-typedef struct {
-  uint8_t index;
-  uint8_t value[crypto_core_ristretto255_BYTES];
-} __attribute((packed)) TOPRF_Part;
+#define TOPRF_Share_BYTES crypto_core_ristretto255_SCALARBYTES+1
+#define TOPRF_Part_BYTES crypto_core_ristretto255_BYTES+1
 
 /**
  * This function calculates a lagrange coefficient based on the index
  * and the indexes of the other contributing shareholders.
  *
- * @param [in] i - the index of the shareholder whose lagrange
- *                 coefficient we're calculating
- *
- * @param [in] peers - the shares that contribute to the reconstruction
+ * @param [in] index - the index of the shareholder whose lagrange
+ *             coefficient we're calculating
  *
  * @param [in] peers_len - the number of shares in peers
  *
+ * @param [in] peers - the shares that contribute to the reconstruction
+ *
  * @param [out] result - the lagrange coefficient
  */
-void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *result);
+void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t *result);
 
 /**
  * This function creates shares of secret in a (threshold, n) scheme
@@ -64,7 +57,7 @@ void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *r
 void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t n,
                    const uint8_t threshold,
-                   TOPRF_Share shares[n]);
+                   uint8_t shares[n][TOPRF_Share_BYTES]);
 
 /**
  * This function recovers the secret in the exponent using lagrange interpolation
@@ -85,8 +78,8 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
  *
  * @return The function returns 0 if everything is correct.
  */
-int toprf_thresholdmult(const TOPRF_Part *responses,
-                        const size_t response_len,
+int toprf_thresholdmult(const size_t response_len,
+                        const uint8_t responses[response_len][TOPRF_Part_BYTES],
                         uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
 /**
@@ -115,10 +108,10 @@ int toprf_thresholdmult(const TOPRF_Part *responses,
  *
  * @return The function returns 0 if everything is correct.
  */
-int toprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+int toprf_Evaluate(const uint8_t k[TOPRF_Share_BYTES],
                    const uint8_t blinded[crypto_core_ristretto255_BYTES],
                    const uint8_t self, const uint8_t *indexes, const uint16_t index_len,
-                   uint8_t Z[crypto_core_ristretto255_BYTES]);
+                   uint8_t Z[TOPRF_Part_BYTES]);
 
 /**
  * This function is combines the results of the toprf_Evaluate()
@@ -132,8 +125,8 @@ int toprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
  *
  * @return The function returns 0 if everything is correct.
  */
-void toprf_thresholdcombine(const TOPRF_Part *responses,
-                            const size_t response_len,
+void toprf_thresholdcombine(const size_t response_len,
+                            const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                             uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
 

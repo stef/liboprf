@@ -11,7 +11,7 @@ int main(void) {
   uint8_t k[crypto_core_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_random(k);
   // split k into shares
-  TOPRF_Share shares[peers];
+  uint8_t shares[peers][TOPRF_Share_BYTES];
   toprf_create_shares(k, peers, threshold, shares);
 
   // start the OPRF
@@ -24,22 +24,24 @@ int main(void) {
 
   // calculate points of shares
   // this really happens at each peer separately
-  TOPRF_Part xresps[peers];
+  uint8_t xresps[peers][TOPRF_Part_BYTES];
   for(size_t i=0;i<peers;i++) { // we calculate all, but we don't need all
     // xresps[i]=g^k_i
-    xresps[i].index=shares[i].index;
-    if(oprf_Evaluate(shares[i].value, alpha, xresps[i].value)) return 1;
+    xresps[i][0]=shares[i][0];
+    if(oprf_Evaluate(shares[i]+1, alpha, xresps[i]+1)) return 1;
   }
 
   // here we select threshold responses debian-randomly
   // simulating the internet, by reordering and dropping responses
-  const TOPRF_Part responses[]={xresps[2], xresps[0]};
-  const size_t response_len = sizeof responses / sizeof(TOPRF_Part);
+  const size_t response_len = 2;
+  uint8_t responses[response_len][TOPRF_Part_BYTES];
+  memcpy(&responses[0], xresps[2], TOPRF_Part_BYTES);
+  memcpy(&responses[1], xresps[0], TOPRF_Part_BYTES);
 
   // now comes the threshold recovery part, were we do lagrange magic
   // in the exponent
   uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
-  if(toprf_thresholdmult(responses, response_len, beta)) return 1;
+  if(toprf_thresholdmult(response_len, responses, beta)) return 1;
   // end of magic trick
   // from here on the threshold and non-threshold version join paths again
 
@@ -69,10 +71,10 @@ int main(void) {
   const size_t index_len = sizeof indexes;
   for(size_t i=0;i<response_len;i++) { // we calculate only the ones that respond
     // xresps[i]=g^k_i^lambda_i
-    xresps[i].index=indexes[i];
-    if(toprf_Evaluate(shares[xresps[i].index-1].value, alpha,
-                      xresps[i].index, indexes, index_len,
-                      xresps[i].value)) {
+    xresps[i][0]=indexes[i];
+    if(toprf_Evaluate(shares[xresps[i][0]-1], alpha,
+                      xresps[i][0], indexes, index_len,
+                      xresps[i])) {
       return 1;
     }
 
@@ -80,7 +82,7 @@ int main(void) {
 
   // now comes the threshold combination part, were we do barely do
   // any lagrange magic in the exponent
-  toprf_thresholdcombine(xresps, response_len, beta);
+  toprf_thresholdcombine(response_len, xresps, beta);
 
   // end of magic trick
   // from here on the threshold and non-threshold version join paths again

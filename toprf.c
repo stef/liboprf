@@ -42,9 +42,20 @@
 // run with
 // gcc -o toprf -g -Wall toprf.c -lsodium liboprf.a
 
-void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *result) {
+typedef struct {
+  uint8_t index;
+  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
+} __attribute((packed)) TOPRF_Share;
+
+typedef struct {
+  uint8_t index;
+  uint8_t value[crypto_core_ristretto255_BYTES];
+} __attribute((packed)) TOPRF_Part;
+
+void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t *result) {
+
   uint8_t iscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
-  iscalar[0]=i;
+  iscalar[0]=index;
 
   uint8_t divident[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   divident[0]=1;
@@ -53,9 +64,9 @@ void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *r
   divisor[0]=1;
 
   for(int j=0;j<peers_len;j++) {
-    if(peers[j].index==i) continue;
+    if(peers[j]==index) continue;
     uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
-    tmp[0]=peers[j].index;
+    tmp[0]=peers[j];
     //divident*=peers[j];
     crypto_core_ristretto255_scalar_mul(divident, divident, tmp);
     //divisor*=peers[j]-i;
@@ -69,7 +80,9 @@ void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *r
 void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t n,
                    const uint8_t threshold,
-                   TOPRF_Share shares[n]) {
+                   uint8_t _shares[n][TOPRF_Share_BYTES]) {
+  TOPRF_Share *shares= (TOPRF_Share*)_shares;
+
   uint8_t a[threshold-1][crypto_core_ristretto255_SCALARBYTES];
   int i;
   for(i=0;i<threshold-1;i++) {
@@ -93,50 +106,56 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
   }
 }
 
-int toprf_thresholdmult(const TOPRF_Part *responses, const size_t response_len, uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
-    uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
-    uint8_t gki[crypto_scalarmult_ristretto255_BYTES];
-    memset(result,0,crypto_scalarmult_ristretto255_BYTES);
+int toprf_thresholdmult(const size_t response_len,
+                        const uint8_t _responses[response_len][TOPRF_Part_BYTES],
+                        uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
+  const TOPRF_Part *responses=(TOPRF_Part*) _responses;
+  uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t gki[crypto_scalarmult_ristretto255_BYTES];
+  memset(result,0,crypto_scalarmult_ristretto255_BYTES);
 
-    for(size_t i=0;i<response_len;i++) {
-        coeff(responses[i].index, responses, response_len, lpoly);
+  uint8_t indexes[response_len];
+  for(size_t i=0;i<response_len;i++) {
+    indexes[i]=responses[i].index;
+  }
+  for(size_t i=0;i<response_len;i++) {
+    coeff(responses[i].index, response_len, indexes, lpoly);
 
-        // betaki = g^{k_i}^{lpoly}
-        if(crypto_scalarmult_ristretto255(gki, lpoly, responses[i].value)) {
-          return 1;
-        }
-        crypto_core_ristretto255_add(result,result,gki);
+    // betaki = g^{k_i}^{lpoly}
+    if(crypto_scalarmult_ristretto255(gki, lpoly, responses[i].value)) {
+      return 1;
     }
-    return 0;
+    crypto_core_ristretto255_add(result,result,gki);
+  }
+  return 0;
 }
 
-int toprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+int toprf_Evaluate(const uint8_t _k[TOPRF_Share_BYTES],
                    const uint8_t blinded[crypto_core_ristretto255_BYTES],
                    const uint8_t self, const uint8_t *indexes, const uint16_t index_len,
-                   uint8_t Z[crypto_core_ristretto255_BYTES]) {
-
-
-  TOPRF_Part parts[index_len];
-  for(int i=0;i<index_len;i++) parts[i].index=indexes[i];
-
+                   uint8_t _Z[TOPRF_Part_BYTES]) {
   uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
-  coeff(self, parts, index_len, lpoly);
+  coeff(self, index_len, indexes, lpoly);
   // kl = k * lpoly
 
   uint8_t kl[crypto_core_ristretto255_SCALARBYTES];
-  crypto_core_ristretto255_scalar_mul(kl, k, lpoly);
+  const TOPRF_Share *k=(TOPRF_Share*) _k;
+  crypto_core_ristretto255_scalar_mul(kl, k->value, lpoly);
 
-  if(oprf_Evaluate(kl,blinded, Z)) return 1;
+  TOPRF_Part *Z=(TOPRF_Part*) _Z;
+  if(oprf_Evaluate(kl,blinded, Z->value)) return 1;
 
   return 0;
 }
 
-void toprf_thresholdcombine(const TOPRF_Part *responses,
-                            const size_t response_len,
+void toprf_thresholdcombine(const size_t response_len,
+                            const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                             uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
-    memset(result,0,crypto_scalarmult_ristretto255_BYTES);
 
-    for(size_t i=0;i<response_len;i++) {
-        crypto_core_ristretto255_add(result,result,responses[i].value);
-    }
+  const TOPRF_Part *responses=(TOPRF_Part*) _responses;
+  memset(result,0,crypto_scalarmult_ristretto255_BYTES);
+
+  for(size_t i=0;i<response_len;i++) {
+    crypto_core_ristretto255_add(result,result,responses[i].value);
+  }
 }
