@@ -13,20 +13,28 @@ else
    CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf matrices thmult
+
 asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
-liboprf.$(SOEXT): oprf.c toprf.c $(EXTRA_SOURCES)
+liboprf.$(SOEXT): oprf.c toprf.c matrices.c $(EXTRA_SOURCES)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,liboprf.so -o liboprf.$(SOEXT) $^ $(LDFLAGS)
 
-liboprf.$(STATICEXT): oprf.o toprf.o $(EXTRA_OBJECTS)
+liboprf.$(STATICEXT): oprf.o toprf.o matrices.c $(EXTRA_OBJECTS)
 	ar rcs $@ $^
 
 toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
 	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
+matrices: matrices.c
+	gcc -g -Wall -o matrices -DUNIT_TEST=1 matrices.c -lsodium
+
+toprf: thmult.c liboprf.a
+	gcc -g -o thmult thmult.c liboprf.a -lsodium
+
 clean:
-	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o
+	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o matrices
 
 PHONY: clean
