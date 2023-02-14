@@ -42,15 +42,7 @@
 // run with
 // gcc -o toprf -g -Wall toprf.c -lsodium liboprf.a
 
-static void dump(const uint8_t *p, const size_t len, const char* msg) {
-  size_t i;
-  fprintf(stderr,"%s ",msg);
-  for(i=0;i<len;i++)
-    fprintf(stderr,"%02x", p[i]);
-  fprintf(stderr,"\n");
-}
-
-static void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *result) {
+void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *result) {
   uint8_t iscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   iscalar[0]=i;
 
@@ -110,11 +102,7 @@ int toprf_thresholdmult(const TOPRF_Part *responses, const size_t response_len, 
         coeff(responses[i].index, responses, response_len, lpoly);
 
         // betaki = g^{k_i}^{lpoly}
-        //dump(lpoly, sizeof lpoly, "lpoly");
-        //dump(xresps[responses[i]-1], crypto_scalarmult_ristretto255_BYTES, "gki");
         if(crypto_scalarmult_ristretto255(gki, lpoly, responses[i].value)) {
-          dump(gki, sizeof gki, "meh");
-          dump(responses[i].value,crypto_scalarmult_ristretto255_BYTES,"xrespi");
           return 1;
         }
         crypto_core_ristretto255_add(result,result,gki);

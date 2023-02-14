@@ -32,6 +32,20 @@ typedef struct {
   uint8_t value[crypto_core_ristretto255_BYTES];
 } __attribute((packed)) TOPRF_Part;
 
+/**
+ * This function calculates a lagrange coefficient based on the index
+ * and the indexes of the other contributing shareholders.
+ *
+ * @param [in] i - the index of the shareholder whose lagrange
+ *                 coefficient we're calculating
+ *
+ * @param [in] peers - the shares that contribute to the reconstruction
+ *
+ * @param [in] peers_len - the number of shares in peers
+ *
+ * @param [out] result - the lagrange coefficient
+ */
+void coeff(const int i, const TOPRF_Part *peers, const int peers_len, uint8_t *result);
 
 /**
  * This function creates shares of secret in a (threshold, n) scheme
