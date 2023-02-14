@@ -3,3 +3,5 @@ liboprf.a
 .arch
 bench
 *.pdf
+matrices
+liboprf.so
