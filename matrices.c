@@ -119,6 +119,7 @@ void invert(const uint8_t n,
 
 void genVDMmatrix(const uint8_t indexes[], const uint8_t index_len,
                   uint8_t matrix[index_len][index_len][crypto_core_ristretto255_SCALARBYTES]) {
+  memset(matrix,0,index_len*index_len*crypto_core_ristretto255_SCALARBYTES);
   for(uint8_t i=0;i<index_len;i++) {
     uint8_t base[crypto_core_ristretto255_SCALARBYTES]={0};
     base[0]=indexes[i];
