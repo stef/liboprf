@@ -32,7 +32,7 @@ matrices: matrices.c
 	gcc -g -Wall -o matrices -DUNIT_TEST=1 matrices.c -lsodium
 
 thmult: thmult.c liboprf.a
-	gcc -g -o thmult thmult.c liboprf.a -lsodium
+	gcc -g -DUNIT_TEST=1 -o thmult thmult.c liboprf.a -lsodium
 
 clean:
 	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o matrices
