@@ -22,7 +22,7 @@ asan: all
 liboprf.$(SOEXT): oprf.c toprf.c matrices.c $(EXTRA_SOURCES)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,liboprf.so -o liboprf.$(SOEXT) $^ $(LDFLAGS)
 
-liboprf.$(STATICEXT): oprf.o toprf.o matrices.c $(EXTRA_OBJECTS)
+liboprf.$(STATICEXT): oprf.o toprf.o matrices.o $(EXTRA_OBJECTS)
 	ar rcs $@ $^
 
 toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
@@ -31,7 +31,7 @@ toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
 matrices: matrices.c
 	gcc -g -Wall -o matrices -DUNIT_TEST=1 matrices.c -lsodium
 
-toprf: thmult.c liboprf.a
+thmult: thmult.c liboprf.a
 	gcc -g -o thmult thmult.c liboprf.a -lsodium
 
 clean:
