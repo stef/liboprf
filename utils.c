@@ -27,3 +27,12 @@ void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
     fprintf(stderr,"%02x", p[i]);
   fprintf(stderr,"\n");
 }
+
+void fail(char* msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  fprintf(stderr, "\e[0;31m");
+  vfprintf(stderr, msg, args);
+  va_end(args);
+  fprintf(stderr, "\e[0m\n");
+}
