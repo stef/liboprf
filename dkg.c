@@ -147,7 +147,9 @@ int dkg_verify_commitments(const uint8_t n,
       complaints[*complaints_len++]=i;
       //return 1;
     } else {
-      fprintf(stderr, "\e[0;32mP_%d stage 1 correct!\e[0m\n", i);
+#ifdef UNIT_TEST
+      if(debug) fprintf(stderr, "\e[0;32mP_%d stage 1 correct!\e[0m\n", i);
+#endif // UNIT_TEST
     }
   }
   return 0;
