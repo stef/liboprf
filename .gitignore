@@ -5,3 +5,8 @@ bench
 *.pdf
 matrices
 liboprf.so
+dkg
+thmult
+toprf
+tuokms
+uokms
