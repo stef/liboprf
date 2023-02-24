@@ -6,7 +6,7 @@
 
 int main(void) {
   // setup
-  // imagine some magical DKG which works with r255 here
+  // todo use dkg
   const unsigned peers = 3, threshold = 2;
   uint8_t k[crypto_core_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_random(k);
