@@ -26,7 +26,7 @@
 #include "aux/crypto_kdf_hkdf_sha512.h"
 #endif
 
-#define VOPRF "VOPRF09"
+#define VOPRF "OPRFV1"
 
 /**
  * This function generates an OPRF private key.
@@ -67,7 +67,7 @@ int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IRTF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
-  //                                              htons(len("Finalize-"VOPRF"-\x00\x00\x01"))||"Finalize-"VOPRF"-\x00\x00\x01")
+  //                                              htons(len("Finalize-"VOPRF"-\x00-ristretto255-SHA512"))||"Finalize-"VOPRF"-\x00-ristretto255-SHA512")
   crypto_hash_sha512_state state;
   if(-1==sodium_mlock(&state,sizeof state)) {
     return -1;
@@ -275,13 +275,13 @@ static int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const u
 /* hash-to-ristretto255 - as defined by  https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/blob/master/draft-irtf-cfrg-hash-to-curve.md#hashing-to-ristretto255-appx-ristretto255
  * Steps:
  * -1. context-string = \x0 + htons(1) // contextString = I2OSP(modeBase(==0), 1) || I2OSP(suite.ID(==1), 2)
- * 0. dst="VOPRF06-HashToGroup-" + context-string (==\x00\x00\x01)
+ * 0. dst="HashToGroup-OPRFV1-\x00-ristretto255-SHA512")
  * 1. uniform_bytes = expand_message(msg, DST, 64)
  * 2. P = ristretto255_map(uniform_bytes)
  * 3. return P
  */
 static int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]) {
-  const uint8_t dst[] = "HashToGroup-"VOPRF"-\x00\x00\x01";
+  const uint8_t dst[] = "HashToGroup-"VOPRF"-\x00-ristretto255-SHA512";
   const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
   if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
