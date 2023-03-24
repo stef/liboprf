@@ -21,6 +21,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "oprf.h"
+#ifdef CFRG_TEST_VEC
+#include "opaquetests/cfrg_test_vectors.h"
+#include "utils.h"
+#endif
 
 #ifndef HAVE_SODIUM_HKDF
 #include "aux/crypto_kdf_hkdf_sha512.h"
