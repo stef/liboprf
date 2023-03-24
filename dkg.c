@@ -18,7 +18,7 @@ static const uint8_t H[crypto_core_ristretto255_BYTES]= {
   0xf4, 0x4d, 0x1b, 0x60, 0x28, 0x97, 0x8f, 0x07};
 
 #ifdef UNIT_TEST
-const int debug=1;
+extern int debug;
 #endif //UNIT_TEST
 
 static void polynom(const uint8_t j, const uint8_t threshold,
