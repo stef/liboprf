@@ -90,4 +90,9 @@ int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
 int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                  const uint8_t Z[crypto_core_ristretto255_BYTES],
                  uint8_t N[crypto_core_ristretto255_BYTES]);
+
+// TODO comment/document
+int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]);
+int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
+
 #endif
