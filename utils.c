@@ -3,7 +3,7 @@
 #include <string.h>
 #include <sodium.h>
 
-extern int debug;
+const int debug = 1;
 
 void debian_rng_scalar(uint8_t *scalar) {
   static uint8_t rng_i=2;
