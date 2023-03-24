@@ -15,7 +15,7 @@ endif
 SOURCES=oprf.c toprf.c dkg.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf dkg
 
 asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 asan: LDFLAGS+= -fsanitize=address -static-libasan
@@ -30,7 +30,10 @@ liboprf.$(STATICEXT): $(OBJECTS)
 toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
 	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
+dkg: dkg.c utils.c liboprf.a
+	gcc -g -DUNIT_TEST -o dkg dkg.c utils.c liboprf.a -lsodium
+
 clean:
-	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o
+	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o dkg
 
 PHONY: clean
