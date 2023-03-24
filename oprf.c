@@ -21,9 +21,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "oprf.h"
+#include "utils.h"
+
 #ifdef CFRG_TEST_VEC
 #include "tests/cfrg_test_vector_decl.h"
-#include "utils.h"
 #endif
 
 #ifndef HAVE_SODIUM_HKDF
