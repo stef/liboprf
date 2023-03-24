@@ -22,7 +22,7 @@
 #include <arpa/inet.h>
 #include "oprf.h"
 #ifdef CFRG_TEST_VEC
-#include "opaquetests/cfrg_test_vectors.h"
+#include "tests/cfrg_test_vector_decl.h"
 #include "utils.h"
 #endif
 

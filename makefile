@@ -15,7 +15,7 @@ endif
 SOURCES=oprf.c toprf.c dkg.c utils.c  $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf dkg liboprf-testvecs.$(SOEXT)
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf dkg
 
 asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 asan: LDFLAGS+= -fsanitize=address -static-libasan
@@ -23,9 +23,6 @@ asan: all
 
 liboprf.$(SOEXT): $(SOURCES)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,$@ -o $@ $^ $(LDFLAGS)
-
-liboprf-testvecs.$(SOEXT): $(SOURCES)
-	$(CC) -shared -DCFRG_TEST_VEC $(CFLAGS) -Wl,-soname,$@ -o $@ $^ $(LDFLAGS)
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	ar rcs $@ $^
@@ -37,18 +34,15 @@ dkg: dkg.c utils.c liboprf.a
 	gcc -g -DUNIT_TEST -o dkg dkg.c utils.c liboprf.a -lsodium
 
 clean:
-	@rm -f *.o liboprf.so liboprf.a toprf aux/*.o dkg
+	rm -f *.o liboprf.so liboprf.a toprf aux/*.o dkg
 
-install: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf-testvecs.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
+install: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
 
-uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf-testvecs.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
+uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
 	rm $^
 	rmdir $(PREFIX)/include/oprf/
 
 $(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
-	cp $< $@
-
-$(PREFIX)/lib/liboprf-testvecs.$(SOEXT): liboprf-testvecs.$(SOEXT)
 	cp $< $@
 
 $(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
