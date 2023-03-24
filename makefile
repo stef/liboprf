@@ -7,11 +7,13 @@ STATICEXT=a
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
    CFLAGS+= -Iaux
-   EXTRA_OBJECTS+= aux/kdf_hkdf_sha512.o
    EXTRA_SOURCES+= aux/kdf_hkdf_sha512.c
 else
    CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
+
+SOURCES=oprf.c toprf.c dkg.c $(EXTRA_SOURCES)
+OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf
 
@@ -19,10 +21,10 @@ asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -f
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
-liboprf.$(SOEXT): oprf.c toprf.c dkg.c $(EXTRA_SOURCES)
+liboprf.$(SOEXT): $(SOURCES)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,liboprf.so -o liboprf.$(SOEXT) $^ $(LDFLAGS)
 
-liboprf.$(STATICEXT): oprf.o toprf.o dkg.o $(EXTRA_OBJECTS)
+liboprf.$(STATICEXT): $(OBJECTS)
 	ar rcs $@ $^
 
 toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
