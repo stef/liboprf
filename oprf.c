@@ -110,6 +110,7 @@ int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   memcpy(hardened, y, crypto_hash_sha512_BYTES);
 #else
   // salt - according to the irtf draft this could be all zeroes
+  // TODO parametrize via params and fall back to default
   uint8_t salt[crypto_pwhash_SALTBYTES]={0};
   if (crypto_pwhash(hardened, crypto_hash_sha512_BYTES,
                     (const char*) y, crypto_hash_sha512_BYTES, salt,
