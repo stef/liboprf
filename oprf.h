@@ -95,4 +95,15 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
 int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]);
 int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
 
+#ifdef __EMSCRIPTEN__
+// Per
+// https://emscripten.org/docs/compiling/Building-Projects.html#detecting-emscripten-in-preprocessor,
+// "The preprocessor define __EMSCRIPTEN__ is always defined when compiling
+// programs with Emscripten". For why we are replacing sodium_m(un)?lock, see
+// common.c for more details.
+#define sodium_mlock(a,l) (0)
+#define sodium_munlock(a,l) (0)
+#endif //__EMSCRIPTEN__
+
+
 #endif
