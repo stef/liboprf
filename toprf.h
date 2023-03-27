@@ -129,5 +129,26 @@ void toprf_thresholdcombine(const size_t response_len,
                             const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                             uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
+/**
+ * This struct type is used as a parameter to toprf_evalproxy()
+ *
+ * it provides a threshold configuration and a callback through which
+ * a caller can provide a callback that handles communication with the
+ * shareholders.
+ *
+ * @param []
+ *
+ */
+
+typedef int (*toprf_evalcb)(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+                            const uint8_t alpha[crypto_core_ristretto255_BYTES],
+                            uint8_t beta[crypto_core_ristretto255_BYTES]);
+
+typedef int (*toprf_keygencb)(uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
+
+typedef struct {
+  toprf_evalcb eval;
+  toprf_keygencb keygen;
+} toprf_cfg;
 
 #endif // TOPRF_H

@@ -22,6 +22,7 @@
 #include <arpa/inet.h>
 #include "oprf.h"
 #include "utils.h"
+#include "toprf.h"
 
 #ifdef CFRG_TEST_VEC
 #include "tests/cfrg_test_vector_decl.h"
@@ -32,6 +33,8 @@
 #endif
 
 #define VOPRF "OPRFV1"
+
+static toprf_cfg proxy_cfg={0};
 
 /**
  * This function generates an OPRF private key.
@@ -46,7 +49,8 @@ void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
 #ifdef CFRG_TEST_VEC
   memcpy(kU,oprf_key,oprf_key_len);
 #else
-  crypto_core_ristretto255_scalar_random(kU);
+  if(proxy_cfg.keygen) proxy_cfg.keygen(kU);
+  else crypto_core_ristretto255_scalar_random(kU);
 #endif
 }
 
@@ -367,10 +371,12 @@ int oprf_Blind(const uint8_t *x, const uint16_t x_len,
  * This function evaluates input element blinded using private key k, yielding output
  * element Z.
  *
- * This is the Evaluate OPRF function defined in the RFC.
+ * This is the Evaluate OPRF function defined in the RFC. If the
+ * internal proxy_cfg variable has been set using oprf_set_evalproxy() then
+ * the Evaluation will be a threshold computation.
  *
  * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
- * key)
+ * key) - if proxy_cfg is set, than this value will be ignored!
  * @param [in] blinded - a serialized OPRF group element, a byte array of fixed length,
  * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
  * password)
@@ -379,8 +385,9 @@ int oprf_Blind(const uint8_t *x, const uint16_t x_len,
  * @return The function returns 0 if everything is correct.
  */
 int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
-                         const uint8_t blinded[crypto_core_ristretto255_BYTES],
-                         uint8_t Z[crypto_core_ristretto255_BYTES]) {
+                  const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                  uint8_t Z[crypto_core_ristretto255_BYTES]) {
+  if(proxy_cfg.eval) return proxy_cfg.eval(k, blinded, Z);
   return crypto_scalarmult_ristretto255(Z, k, blinded);
 }
 
@@ -431,4 +438,17 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
 
   sodium_munlock(ir, sizeof ir);
   return 0;
+}
+
+int oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen) {
+  if(eval == NULL) return 1;
+  if(keygen == NULL) return 1;
+  proxy_cfg.eval=eval;
+  proxy_cfg.keygen=keygen;
+  return 0;
+}
+
+void oprf_clear_evalproxy(void) {
+  proxy_cfg.eval=0;
+  proxy_cfg.keygen=0;
 }
