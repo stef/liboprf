@@ -36,25 +36,25 @@ dkg: dkg.c utils.c liboprf.a
 clean:
 	rm -f *.o liboprf.so liboprf.a toprf aux/*.o dkg
 
-install: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
+install: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h
 
 uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
 	rm $^
 	rmdir $(PREFIX)/include/oprf/
 
-$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
+$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
 	cp $< $@
 
-$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
+$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
 	cp $< $@
 
-$(PREFIX)/include/oprf/oprf.h: oprf.h
+$(DESTDIR)$(PREFIX)/include/oprf/oprf.h: oprf.h
 	install -D $< $@
 
-$(PREFIX)/include/oprf/toprf.h: toprf.h
+$(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
 	install -D $< $@
 	
-$(PREFIX)/include/oprf/dkg.h: dkg.h
+$(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 	install -D $< $@
 
 PHONY: clean
