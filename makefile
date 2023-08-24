@@ -43,10 +43,10 @@ uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(P
 	rmdir $(PREFIX)/include/oprf/
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
-	cp $< $@
+	install -D $< $@
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
-	cp $< $@
+	install -D $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/oprf.h: oprf.h
 	install -D $< $@
