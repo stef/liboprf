@@ -1,8 +1,17 @@
-CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack
+CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,relro -ftrapv -Wl,-z,noexecstack
 LDFLAGS?=-lsodium
 CC?=gcc
 SOEXT?=so
 STATICEXT?=a
+
+ifeq ($(UNAME),Darwin)
+	SOEXT=dylib
+	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
+else
+	CFLAGS+=-Wl,-z,defs
+	SOEXT=so
+	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).0
+endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
@@ -22,7 +31,7 @@ asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
 liboprf.$(SOEXT): $(SOURCES)
-	$(CC) -shared $(CFLAGS) -Wl,-soname,$@ -o $@ $^ $(LDFLAGS)
+	$(CC) -shared $(CFLAGS) $(SOFLAGS) -o $@ $^ $(LDFLAGS)
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	ar rcs $@ $^
