@@ -3,6 +3,7 @@ LDFLAGS?=-lsodium
 CC?=gcc
 SOEXT?=so
 STATICEXT?=a
+SOVER=0
 
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
@@ -10,7 +11,7 @@ ifeq ($(UNAME),Darwin)
 else
 	CFLAGS+=-Wl,-z,defs
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).0
+	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
@@ -52,7 +53,8 @@ uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(P
 	rmdir $(PREFIX)/include/oprf/
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
-	install -D $< $@
+	install -D $< $@.$(SOVER)
+	ln -s $@.$(SOVER) $@
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
 	install -D $< $@
