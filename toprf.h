@@ -1,5 +1,5 @@
 /*
-    @copyright 2023, opaque@ctrlc.hu
+    @copyright 2023, Stefan Marsiske toprf@ctrlc.hu
     This file is part of liboprf.
 
     liboprf is free software: you can redistribute it and/or
