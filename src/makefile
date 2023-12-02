@@ -55,7 +55,7 @@ uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(P
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
 	install -D $< $@.$(SOVER)
-	ln -s $@.$(SOVER) $@
+	ln -sf $@.$(SOVER) $@
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
 	install -D $< $@
