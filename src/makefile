@@ -32,7 +32,7 @@ asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
 liboprf.$(SOEXT): $(SOURCES)
-	$(CC) -shared $(CFLAGS) $(SOFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	ar rcs $@ $^
