@@ -45,6 +45,7 @@ dkg: dkg.c utils.c liboprf.a
 
 clean:
 	rm -f *.o liboprf.so liboprf.a toprf dkg
+	make -C tests clean
 
 install: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h
 
@@ -64,8 +65,11 @@ $(DESTDIR)$(PREFIX)/include/oprf/oprf.h: oprf.h
 
 $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
 	install -D $< $@
-	
+
 $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 	install -D $< $@
+
+test:
+	make -C tests tests
 
 PHONY: clean
