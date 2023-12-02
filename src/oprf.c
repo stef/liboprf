@@ -28,10 +28,6 @@
 #include "tests/cfrg_test_vector_decl.h"
 #endif
 
-#ifndef HAVE_SODIUM_HKDF
-#include "aux/crypto_kdf_hkdf_sha512.h"
-#endif
-
 #define VOPRF "OPRFV1"
 
 static toprf_cfg proxy_cfg={0};

@@ -22,14 +22,6 @@ else
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
 
-SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
-ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
-   CFLAGS+= -Iaux
-   EXTRA_SOURCES+= aux/kdf_hkdf_sha512.c
-else
-   CFLAGS+= -DHAVE_SODIUM_HKDF=1
-endif
-
 SOURCES=oprf.c toprf.c dkg.c utils.c  $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
@@ -45,14 +37,14 @@ liboprf.$(SOEXT): $(SOURCES)
 liboprf.$(STATICEXT): $(OBJECTS)
 	ar rcs $@ $^
 
-toprf: oprf.c toprf.c main.c aux/kdf_hkdf_sha512.c
+toprf: oprf.c toprf.c main.c
 	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
 dkg: dkg.c utils.c liboprf.a
 	gcc -g -DUNIT_TEST -o dkg dkg.c utils.c liboprf.a -lsodium
 
 clean:
-	rm -f *.o liboprf.so liboprf.a toprf aux/*.o dkg
+	rm -f *.o liboprf.so liboprf.a toprf dkg
 
 install: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h
 
