@@ -3,9 +3,9 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -Wformat=2 -Wconversion -Wtrampolines -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -fstack-clash-protection -fstrict-flex-arrays=3 \
+		  -fstack-clash-protection \
 		  -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -Wl,-z,nodlopen -Wl,-z,now \
-		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full #-mbranch-protection=standard
+		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full #-mbranch-protection=standard -fstrict-flex-arrays=3 
 
 LDFLAGS?=-lsodium
 CC?=gcc
