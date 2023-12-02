@@ -1,4 +1,12 @@
-CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,relro -ftrapv -Wl,-z,noexecstack
+CFLAGS?=-march=native -Wall -O2 -g \
+		  -Werror=format-security -Werror=implicit-function-declaration \
+		  -Wformat=2 -Wconversion -Wtrampolines -Wimplicit-fallthrough \
+		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
+		  -fstack-clash-protection -fstrict-flex-arrays=3 \
+		  -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -Wl,-z,nodlopen -Wl,-z,now \
+		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full #-mbranch-protection=standard
+
 LDFLAGS?=-lsodium
 CC?=gcc
 SOEXT?=so
