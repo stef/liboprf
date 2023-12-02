@@ -1,4 +1,4 @@
-* liboprf
+# liboprf
 
 This library implements the basic OPRF(ristretto255, SHA-512) variant
 from the IRTF CFRG Draft: https://github.com/cfrg/draft-irtf-cfrg-voprf/
