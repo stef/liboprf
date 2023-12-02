@@ -297,7 +297,7 @@ int oprf_Blind(const uint8_t *x, const uint16_t x_len,
   // sets α := (H^0(pw))^r
   if(0!=voprf_hash_to_group(x, x_len, H0)) return -1;
 #if (defined TRACE || defined CFRG_TEST_VEC)
-  dump(H0,sizeof H0, "H0 ");
+  dump(H0,sizeof H0, "H0");
 #endif
 
   // U picks r
