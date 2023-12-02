@@ -4,7 +4,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
 		  -fstack-clash-protection \
-		  -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -Wl,-z,nodlopen -Wl,-z,now \
+		  -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -Wl,-z,now \
 		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full #-mbranch-protection=standard -fstrict-flex-arrays=3 
 
 LDFLAGS?=-lsodium
