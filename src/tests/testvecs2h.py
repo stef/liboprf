@@ -49,9 +49,9 @@ def toC(k, v):
 vex = json.loads(vectors)
 print("// this file has been automatically generated using testvecs2h.py")
 
-if sys.argv[1] == 'cfrg_test_vectors.h':
+if sys.argv[1] == 'cfrg_oprf_test_vectors.h':
    # run this if there is a change in the values of the test vectors
-   # ./testvecs2h.py >cfrg_test_vectors.h
+   # ./testvecs2h.py >cfrg_oprf_test_vectors.h
 
    print("#ifndef cfrg_test_vectors_h\n#define cfrg_test_vectors_h\n")
    print("#include <stdint.h>\n")
@@ -69,16 +69,12 @@ if sys.argv[1] == 'cfrg_test_vectors.h':
                        ,8))
                ))
 
-elif sys.argv[1] == 'cfrg_test_vector_decl.h':
+elif sys.argv[1] == 'cfrg_oprf_test_vector_decl.h':
    # only run this code below if there is a change in the keys of the test vectors
-   # ./testvecs2h.py >cfrg_test_vector_decl.h
+   # ./testvecs2h.py >cfrg_oprf_test_vector_decl.h
 
    print("#ifndef cfrg_test_vector_decl_h\n#define cfrg_test_vector_decl_h\n")
    print("#include <stdint.h>\n")
-   print("#ifndef oprf_key")
-   print("\nconst uint8_t oprf_key[1];")
-   print("\nconst size_t oprf_key_len=1;")
-   print("#endif // oprf_key")
    for tc in range(2):
       for k, v in vex['vectors'][tc].items():
          if k == "Batch": continue

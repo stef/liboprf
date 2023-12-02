@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include "cfrg_test_vectors.h"
+#include "cfrg_oprf_test_vectors.h"
 #include "../oprf.h"
 #include "../utils.h"
 

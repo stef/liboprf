@@ -25,7 +25,11 @@
 #include "toprf.h"
 
 #ifdef CFRG_TEST_VEC
+#ifdef CFRG_OPRF_TEST_VEC
+#include "tests/cfrg_oprf_test_vector_decl.h"
+#else
 #include "tests/cfrg_test_vector_decl.h"
+#endif
 #endif
 
 #define VOPRF "OPRFV1"
@@ -42,7 +46,7 @@ static toprf_cfg proxy_cfg={0};
  * @param [out] kU - the per-user OPRF private key
  */
 void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
-#ifdef CFRG_TEST_VEC
+#if (defined CFRG_TEST_VEC && defined oprf_key)
   memcpy(kU,oprf_key,oprf_key_len);
 #else
   if(proxy_cfg.keygen) proxy_cfg.keygen(kU);
