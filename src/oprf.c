@@ -96,46 +96,8 @@ int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   //crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, DST, DST_size);
 
-  // - concat(y, Harden(y, params))
-  uint8_t concated[2*crypto_hash_sha512_BYTES];
-  uint8_t *y=concated, *hardened=concated+crypto_hash_sha512_BYTES;
-  if(-1==sodium_mlock(&concated,sizeof concated)) {
-    sodium_munlock(&state, sizeof state);
-    return -1;
-  }
-  crypto_hash_sha512_final(&state, y);
+  crypto_hash_sha512_final(&state, rwdU);
   sodium_munlock(&state, sizeof state);
-
-#if (defined TRACE || defined CFRG_TEST_VEC)
-  dump((uint8_t*) y, crypto_hash_sha512_BYTES, "output ");
-#endif
-
-#ifdef CFRG_TEST_VEC
-  // testvectors use identity as MHF
-  memcpy(hardened, y, crypto_hash_sha512_BYTES);
-#else
-  // salt - according to the irtf draft this could be all zeroes
-  // TODO parametrize via params and fall back to default
-  uint8_t salt[crypto_pwhash_SALTBYTES]={0};
-  if (crypto_pwhash(hardened, crypto_hash_sha512_BYTES,
-                    (const char*) y, crypto_hash_sha512_BYTES, salt,
-                    crypto_pwhash_OPSLIMIT_INTERACTIVE,
-                    crypto_pwhash_MEMLIMIT_INTERACTIVE,
-                    crypto_pwhash_ALG_DEFAULT) != 0) {
-    /* out of memory */
-    sodium_munlock(concated, sizeof(concated));
-    return -1;
-  }
-#endif
-#if (defined TRACE|| defined CFRG_TEST_VEC)
-  dump(concated, sizeof concated, "concated");
-#endif
-  crypto_kdf_hkdf_sha512_extract(rwdU, NULL, 0, concated, sizeof concated);
-  sodium_munlock(concated, sizeof(concated));
-
-#if (defined TRACE|| defined CFRG_TEST_VEC)
-  dump((uint8_t*) rwdU, OPRF_BYTES, "rwdU ");
-#endif
 
   return 0;
 }
