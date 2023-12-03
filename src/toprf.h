@@ -38,7 +38,7 @@
  *
  * @param [out] result - the lagrange coefficient
  */
-void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t *result);
+void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 /**
  * This function creates shares of secret in a (threshold, n) scheme
@@ -61,7 +61,7 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
 
 /**
  * This function recovers the secret in the exponent using lagrange interpolation
- * over the curve ristretto255j
+ * over the curve ristretto255
  *
  * The shareholders are not aware if they are contributing to a
  * threshold or non-threshold oprf evaluation, from their perspective
@@ -69,8 +69,6 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
  *
  * @param [in] responses - is an array of shares (k_i) multiplied by a
  *        point (P) on the r255 curve
- *
- * @param [in] responses - is an array of shares (k_i) multiplied by a
  *
  * @param [in] responses_len - the number of elements in the response array
  *

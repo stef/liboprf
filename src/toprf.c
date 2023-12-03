@@ -52,7 +52,7 @@ typedef struct {
   uint8_t value[crypto_core_ristretto255_BYTES];
 } __attribute((packed)) TOPRF_Part;
 
-void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t *result) {
+void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
 
   uint8_t iscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   iscalar[0]=index;
