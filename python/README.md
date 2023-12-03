@@ -10,9 +10,7 @@ a simple `pip install pyoprf` should suffice to install the bindings.
 
 ## usage
 
-```python
-import pyoprf
-```
+see the file `test.py`
 
 ## License
 
