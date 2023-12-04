@@ -3,8 +3,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -Wformat=2 -Wconversion -Wtrampolines -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -fstack-clash-protection \
-		  -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -Wl,-z,now \
+		  -fstack-clash-protection -ftrapv \
 		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full #-mbranch-protection=standard -fstrict-flex-arrays=3 
 
 LDFLAGS?=-lsodium
@@ -13,11 +12,12 @@ SOEXT?=so
 STATICEXT?=a
 SOVER=0
 
+UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
-	CFLAGS+=-Wl,-z,defs
+	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
