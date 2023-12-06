@@ -28,7 +28,7 @@ All rights reserved.
 import ctypes
 import ctypes.util
 import pysodium
-from typing import List
+from typing import List, Tuple
 from itertools import zip_longest
 
 liboprf = ctypes.cdll.LoadLibrary(ctypes.util.find_library('oprf') or ctypes.util.find_library('liboprf'))
@@ -336,12 +336,27 @@ def threshold_combine(responses: bytes_list_t) -> bytes:
     __check(liboprf.toprf_thresholdcombine(responses_len, responses_buf, result))
     return result.raw
 
-# todo
+# todo documentation!
 #int dkg_start(const uint8_t n,
 #              const uint8_t threshold,
 #              uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
 #              TOPRF_Share shares[n][2]);
-#
+def dkg_start(n : int, t : int) -> (bytes_list_t,bytes_list_t):
+    if n < t:
+        raise ValueError("t cannot be bigger than n")
+    if t < 2:
+        raise ValueError("t must be bigger than 1")
+
+    shares = ctypes.create_string_buffer(2*n*TOPRF_Share_BYTES)
+    commitments = ctypes.create_string_buffer(t*pysodium.crypto_core_ristretto255_BYTES)
+
+    __check(liboprf.dkg_start(n, t, commitments, shares))
+
+    shares = tuple([(bytes(s[:TOPRF_Share_BYTES]),bytes(s[TOPRF_Share_BYTES:]))
+                    for s in split_by_n(shares.raw, TOPRF_Share_BYTES*2)])
+    commitments = tuple(bytes(cs) for cs in split_by_n(commitments.raw, pysodium.crypto_core_ristretto255_BYTES))
+    return (shares, commitments)
+
 #int dkg_verify_commitments(const uint8_t n,
 #                           const uint8_t threshold,
 #                           const uint8_t self,
@@ -349,14 +364,53 @@ def threshold_combine(responses: bytes_list_t) -> bytes:
 #                           const TOPRF_Share shares[n][2],
 #                           uint8_t complaints[n],
 #                           uint8_t *complaints_len);
-#
+def dkg_verify_commitments(n: int, t: int, self: int, commitments: bytes_list_t, shares: bytes_list_t) -> List[int]:
+    if n < t:
+        raise ValueError("t cannot be bigger than n")
+    if t < 2:
+        raise ValueError("t must be bigger than 1")
+    if self < 1 or self > n:
+        raise ValueError("self must 1 <= self <= n")
+
+    commitments = ctypes.create_string_buffer(b''.join(cs for s in commitments for cs in s))
+    shares = ctypes.create_string_buffer(b''.join(s for ss in shares for s in ss))
+
+    complaints = ctypes.create_string_buffer(n)
+    complaints_len = ctypes.c_ubyte()
+    __check(liboprf.dkg_verify_commitments(n, t, self,commitments, shares, complaints, ctypes.byref(complaints_len)))
+    return complaints.raw, complaints_len
+
 #void dkg_finish(const uint8_t n,
 #                const uint8_t qual[n],
 #                const TOPRF_Share shares[n][2],
 #                const uint8_t self,
 #                TOPRF_Share *xi,
 #                TOPRF_Share *x_i);
-#
+def dkg_finish(n: int, qual: List[int], shares: List[bytes], self: int) -> Tuple[bytes,bytes]:
+    if self < 1 or self > n:
+        raise ValueError("self must 1 <= self <= n")
+    if len(qual)!=n+1:
+        raise ValueError("qual must have n members")
+
+    shares = ctypes.create_string_buffer(b''.join(s for ss in shares for s in ss))
+    qual = ctypes.create_string_buffer(bytes(x for x in qual))
+
+    xi = ctypes.create_string_buffer(TOPRF_Share_BYTES)
+    x_i = ctypes.create_string_buffer(TOPRF_Share_BYTES)
+    xi[0]=self
+    x_i[0]=self
+
+    liboprf.dkg_finish(n, qual, shares, self, xi, x_i)
+    return xi.raw, x_i.raw
+
+
 #void dkg_reconstruct(const size_t response_len,
 #                     const TOPRF_Share responses[response_len][2],
 #                     uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+def dkg_reconstruct(responses) -> bytes_list_t:
+    rlen = len(responses)
+    responses = ctypes.create_string_buffer(b''.join(r for rs in responses for r in rs))
+    result = ctypes.create_string_buffer(pysodium.crypto_core_ristretto255_BYTES)
+
+    liboprf.dkg_reconstruct(rlen, responses, result)
+    return result.raw

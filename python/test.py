@@ -9,23 +9,23 @@ print("CFRG/IRTF spec compliant run")
 
 # Alice blinds the input "test"
 r, alpha = pyoprf.blind(b"test")
-print("r    ", r.hex(), "alpha", alpha.hex())
+#print("r    ", r.hex(), "alpha", alpha.hex())
 
 # Bob generates a "secret" key
 k = pyoprf.keygen()
-print("k    ", k.hex())
+#print("k    ", k.hex())
 
 # Bob evaluates Alices blinded value with it's key
 beta = pyoprf.evaluate(k, alpha)
-print("beta", beta.hex())
+#print("beta", beta.hex())
 
 # Alice unblinds Bobs evaluation
 N = pyoprf.unblind(r, beta)
-print("N    ", N.hex())
+#print("N    ", N.hex())
 
 # Alice finalizes the calculation
 y = pyoprf.finalize(b"test", N)
-print("y    ", y.hex())
+#print("y    ", y.hex())
 
 # rerun and assert that oprf(k,"test") equals all runs
 r, alpha = pyoprf.blind(b"test")
@@ -110,3 +110,37 @@ beta = pyoprf.threshold_combine(betas)
 
 Nt2 = pyoprf.unblind(r, beta)
 assert Nt == Nt2
+
+######################################################################
+print("DKG (3,5)")
+
+n = 5
+t = 3
+mailboxes=[[] for _ in range(n)]
+commitments=[]
+for _ in range(n):
+    shares, c = pyoprf.dkg_start(n,t)
+    commitments.append(c)
+    for i,s in enumerate(shares):
+        mailboxes[i].append(s)
+
+shares = []
+for i in range(n):
+   complaints, c_len = pyoprf.dkg_verify_commitments(n,t,i+1,commitments,mailboxes[i])
+
+   qual = [j+1 for j in range(n)] + [0]
+   xi, x_i = pyoprf.dkg_finish(n, qual, mailboxes[i], i+1)
+   #print(i, xi.hex(), x_i.hex())
+   shares.append((xi, x_i))
+
+# test if the final shares all reproduce the same shared `secret`
+v0 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][0][1:]) for i in (0,1,2)])
+v1 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][0][1:]) for i in (2,0,4)])
+assert v0 == v1
+v2 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][0][1:]) for i in (1,4,3)])
+assert v0 == v2
+#print("v0    ", v0.hex())
+
+secret = pyoprf.dkg_reconstruct(shares[:t])
+#print("secret", secret.hex())
+assert v0 == pysodium.crypto_scalarmult_ristretto255_base(secret)
