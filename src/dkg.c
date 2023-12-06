@@ -225,6 +225,8 @@ static int test_dkg_start(const uint8_t n,
 
   if(memcmp(v,result,sizeof v)!=0) {
     fprintf(stderr,"\e[0;31mmeh!\e[0m\n");
+    dump(v,sizeof v, "v");
+    dump(result,sizeof v, "r");
     return 1;
   }
 
@@ -298,12 +300,10 @@ int main(void) {
     for(int j=0;j<n;j++) {
       memcpy(&sent_shares[j][0], &shares[j][i][0], sizeof(TOPRF_Share));
       memcpy(&sent_shares[j][1], &shares[j][i][1], sizeof(TOPRF_Share));
-    }
-    if(debug) {
-      fprintf(stderr, "\nsent to peer %d\n",i+1);
-      for(int j=0;j<n;j++) {
-        dump((uint8_t*) &sent_shares[j][0], sizeof(TOPRF_Share), "s[%d,%d] ", i+1, j+1);
-        dump((uint8_t*) &sent_shares[j][1], sizeof(TOPRF_Share), "r[%d,%d] ", i+1, j+1);
+      if(debug) {
+         fprintf(stderr, "\nsent to peer %d\n",i+1);
+         dump((uint8_t*) &sent_shares[j][0], sizeof(TOPRF_Share), "s[%d,%d] ", i+1, j+1);
+         dump((uint8_t*) &sent_shares[j][1], sizeof(TOPRF_Share), "r[%d,%d] ", i+1, j+1);
       }
     }
 
