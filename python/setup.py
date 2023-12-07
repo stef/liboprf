@@ -15,7 +15,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(name = 'pyoprf',
-       version = '0.0.2',
+       version = '0.0.3',
        description = 'python bindings for liboprf',
        license = "LGPLv3",
        author = 'Stefan Marsiske',
