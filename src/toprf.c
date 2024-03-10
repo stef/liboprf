@@ -52,7 +52,7 @@ typedef struct {
   uint8_t value[crypto_core_ristretto255_BYTES];
 } __attribute((packed)) TOPRF_Part;
 
-void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
 
   uint8_t iscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   iscalar[0]=index;
@@ -84,7 +84,7 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
   TOPRF_Share *shares= (TOPRF_Share*)_shares;
 
   uint8_t a[threshold-1][crypto_core_ristretto255_SCALARBYTES];
-  int i;
+  uint8_t i;
   for(i=0;i<threshold-1;i++) {
     crypto_core_ristretto255_scalar_random(a[i]);
   }

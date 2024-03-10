@@ -38,7 +38,7 @@
  *
  * @param [out] result - the lagrange coefficient
  */
-void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
+void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 /**
  * This function creates shares of secret in a (threshold, n) scheme

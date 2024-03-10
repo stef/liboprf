@@ -159,7 +159,7 @@ static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i,
  */
 int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes) {
   // 1.  ell = ceil(len_in_bytes / b_in_bytes)
-  const uint8_t ell = (len_in_bytes + crypto_hash_sha512_BYTES-1) / crypto_hash_sha512_BYTES;
+  const unsigned ell = (len_in_bytes + crypto_hash_sha512_BYTES-1) / crypto_hash_sha512_BYTES;
 #ifdef TRACE
   fprintf(stderr, "ell %d\n", ell);
   dump(msg, msg_len, "msg");
@@ -169,6 +169,7 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
   // 2.  ABORT if ell > 255
   if(ell>255) return -1;
   // 3.  DST_prime = DST || I2OSP(len(DST), 1)
+  if(dst_len==255) return -1;
   uint8_t dst_prime[dst_len+1];
   memcpy(dst_prime, dst, dst_len);
   dst_prime[dst_len] = dst_len;
@@ -211,7 +212,7 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
   crypto_hash_sha512_init(&state);
   crypto_hash_sha512_update(&state, b_0, sizeof b_0);
   crypto_hash_sha512_update(&state,(uint8_t*) &"\x01", 1);
-  crypto_hash_sha512_update(&state, dst_prime, sizeof dst_prime);
+  crypto_hash_sha512_update(&state, dst_prime, (long long unsigned int) sizeof dst_prime);
   crypto_hash_sha512_final(&state, b_i);
 #ifdef TRACE
   dump(b_i, sizeof b_i, "b_1");
@@ -223,19 +224,19 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
   memcpy(out, b_i, clen);
   out+=clen;
   left-=clen;
-  int i;
+  uint8_t i;
   uint8_t b_ii[crypto_hash_sha512_BYTES];
   for(i=2;i<=ell;i+=2) {
     // 11. uniform_bytes = b_1 || ... || b_ell
     // 12. return substr(uniform_bytes, 0, len_in_bytes)
     // 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
-    expand_loop(b_0, b_i, i, dst_prime, sizeof dst_prime, b_ii);
+    expand_loop(b_0, b_i, i, dst_prime, (uint8_t) (sizeof dst_prime), b_ii);
     clen = (left>sizeof b_ii)?sizeof b_ii:left;
     memcpy(out, b_ii, clen);
     out+=clen;
     left-=clen;
     // unrolled next iteration so we don't have to swap b_i and b_ii
-    expand_loop(b_0, b_ii, i+1, dst_prime, sizeof dst_prime, b_i);
+    expand_loop(b_0, b_ii, i+1, dst_prime, (uint8_t) (sizeof dst_prime), b_i);
     clen = (left>sizeof b_i)?sizeof b_i:left;
     memcpy(out, b_i, clen);
     out+=clen;
@@ -288,7 +289,7 @@ int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[cry
  * the blinded version of x, an input to oprf_Evaluate
  * @return The function returns 0 if everything is correct.
  */
-int oprf_Blind(const uint8_t *x, const uint16_t x_len,
+int oprf_Blind(const uint8_t *x, const uint8_t x_len,
                uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                uint8_t blinded[crypto_core_ristretto255_BYTES]) {
 #if (defined TRACE || defined CFRG_TEST_VEC)

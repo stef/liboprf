@@ -53,7 +53,7 @@ int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
  * the blinded version of x, an input to oprf_Evaluate
  * @return The function returns 0 if everything is correct.
  */
-int oprf_Blind(const uint8_t *x, const uint16_t x_len,
+int oprf_Blind(const uint8_t *x, const uint8_t x_len,
                uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                uint8_t blinded[crypto_core_ristretto255_BYTES]);
 

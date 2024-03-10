@@ -82,7 +82,7 @@ int dkg_start(const uint8_t n,
     //dump((uint8_t*) &commitments[k],crypto_core_ristretto255_BYTES, "c[%d]     ", k);
   }
 
-  for(int j=1;j<=n;j++) {
+  for(uint8_t j=1;j<=n;j++) {
     //f(x) = a_0 + a_1*x + a_2*x^2 + a_3*x^3 + ⋯ + a_(t)*x^(t)
     polynom(j, threshold, a, &shares[j-1][0]);
     //f'(x) = b_0 + b_1*x + b_2*x^2 + b_3*x^3 + ⋯ + b_(t)*x^(t)
