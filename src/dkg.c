@@ -144,7 +144,7 @@ int dkg_verify_commitments(const uint8_t n,
     if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
       // complain about P_i
       fprintf(stderr, "\e[0;31mfailed to verify contribs of P_%d in stage 1\e[0m\n", i);
-      complaints[*complaints_len++]=i;
+      complaints[(*complaints_len)++]=i;
       //return 1;
     } else {
 #ifdef UNIT_TEST
