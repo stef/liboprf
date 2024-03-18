@@ -175,6 +175,10 @@ def finalize(x: bytes, N: bytes) -> bytes:
     __check(liboprf.oprf_Finalize(x, ctypes.c_size_t(len(x)), N, y))
     return y.raw
 
+# This function combines unblind() and finalize() as a convenience
+def unblind_finalize(r: bytes, Z: bytes, x: bytes) -> bytes:
+    return finalize(x, unblind(r,Z))
+
 # TOPRF section
 
 TOPRF_Share_BYTES=pysodium.crypto_core_ristretto255_SCALARBYTES+1
@@ -378,7 +382,7 @@ def dkg_verify_commitments(n: int, t: int, self: int, commitments: bytes_list_t,
     complaints = ctypes.create_string_buffer(n)
     complaints_len = ctypes.c_ubyte()
     __check(liboprf.dkg_verify_commitments(n, t, self,commitments, shares, complaints, ctypes.byref(complaints_len)))
-    return complaints.raw, complaints_len
+    return complaints.raw, complaints_len.value
 
 #void dkg_finish(const uint8_t n,
 #                const uint8_t qual[n],
