@@ -1,0 +1,377 @@
+diff --git a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.basic b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.basic
+index 1698d85..c4b7fef 100644
+--- a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.basic
++++ b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.basic
+@@ -29,6 +29,7 @@ OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
+ all: $(USER_TARGET)
+ 
+ $(USER_TARGET): $(OBJS)
++	cc $(CFLAGS) $^ xk-ex.c -o $@ $(LDFLAGS)
+ 
+ AR ?= ar
+ 
+diff --git a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.include b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.include
+index ea66194..024d749 100644
+--- a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.include
++++ b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Makefile.include
+@@ -1,5 +1,8 @@
+-USER_TARGET=libnoiseapi.a
+-USER_CFLAGS=
++LDFLAGS=-lsodium
++#LDFLAGS=-L$(HACL_HOME)/dist/gcc-compatible -levercrypt
++USER_TARGET=libnoiseapi.a xk-ex
++USER_CFLAGS= -DWITH_SODIUM
++#USER_CFLAGS=
+ USER_C_FILES=
+ ALL_C_FILES=Noise_XK.c XK.c
+ ALL_H_FILES=Hacl.h Noise_XK.h XK.h
+diff --git a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.c b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.c
+index 746f704..c953f01 100644
+--- a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.c
++++ b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.c
+@@ -1,6 +1,5 @@
+ /** This file was automatically generated */
+ 
+-
+ #include "Noise_XK.h"
+ 
+ inline bool Noise_XK_lbytes_eq(uint32_t len, uint8_t *b1, uint8_t *b2)
+@@ -28,13 +27,22 @@ uint64_t Noise_XK_bytes_to_nonce(uint8_t *n8)
+ 
+ Noise_XK_error_code Noise_XK_dh_secret_to_public(uint8_t *dest, uint8_t *priv)
+ {
++#ifdef WITH_SODIUM
++  crypto_scalarmult_base(dest, priv);
++#else // WITH_SODIUM
+   Hacl_Curve25519_64_secret_to_public(dest, priv);
++#endif // WITH_SODIUM
+   return Noise_XK_CSuccess;
+ }
+ 
+ Noise_XK_error_code Noise_XK_dh(uint8_t *dest, uint8_t *priv, uint8_t *pub)
+ {
++#ifdef WITH_SODIUM
++  bool b = crypto_scalarmult(dest, priv, pub) == 0;
++#else // WITH_SODIUM
+   bool b = Hacl_Curve25519_64_ecdh(dest, priv, pub);
++#endif // WITH_SODIUM
++
+   if (b)
+     return Noise_XK_CSuccess;
+   else
+@@ -52,6 +60,9 @@ Noise_XK_aead_encrypt(
+   uint8_t *cipher
+ )
+ {
++#ifdef WITH_SODIUM
++  crypto_aead_chacha20poly1305_encrypt(cipher, NULL, plain, plen, aad, aad_len, NULL, (uint8_t*) &nonce, key);
++#else
+   uint8_t n12[12U] = { 0U };
+   uint8_t *nonce12_end = n12 + (uint32_t)4U;
+   store64_le(nonce12_end, nonce);
+@@ -59,6 +70,7 @@ Noise_XK_aead_encrypt(
+   uint8_t *tag = cipher + plen;
+   Hacl_Chacha20Poly1305_32_aead_encrypt(key, n12, aad_len, aad, plen, plain, output, tag);
+   Lib_Memzero0_memzero(n12, (uint32_t)12U * sizeof (n12[0U]));
++#endif // WITH_SODIUM
+ }
+ 
+ Noise_XK_error_code
+@@ -72,6 +84,18 @@ Noise_XK_aead_decrypt(
+   uint8_t *cipher
+ )
+ {
++#ifdef WITH_SODIUM
++  uint32_t
++    r =  crypto_aead_chacha20poly1305_decrypt(plain, // plaintext
++                                              NULL,  // *plen
++                                              NULL,  // nsec
++                                              cipher,
++                                              plen + crypto_aead_chacha20poly1305_ABYTES,
++                                              aad,
++                                              aad_len,
++                                              (uint8_t*) &nonce,
++                                              key);
++#else // WITH_SODIUM
+   uint8_t n12[12U] = { 0U };
+   uint8_t *nonce12_end = n12 + (uint32_t)4U;
+   store64_le(nonce12_end, nonce);
+@@ -80,6 +104,7 @@ Noise_XK_aead_decrypt(
+   uint32_t
+   r = Hacl_Chacha20Poly1305_32_aead_decrypt(key, n12, aad_len, aad, plen, plain, output, tag);
+   Lib_Memzero0_memzero(n12, (uint32_t)12U * sizeof (n12[0U]));
++#endif // WITH_SODIUM
+   if (r == (uint32_t)0U)
+     return Noise_XK_CSuccess;
+   else
+@@ -88,11 +113,22 @@ Noise_XK_aead_decrypt(
+ 
+ void Noise_XK_hash(uint8_t *output, uint32_t inlen, uint8_t *input)
+ {
++#ifdef WITH_SODIUM
++  crypto_generichash(output, (uint32_t)64U, input, inlen, NULL, 0);
++#else // WITH_SODIUM
+   Hacl_Blake2b_32_blake2b((uint32_t)64U, output, inlen, input, (uint32_t)0U, NULL);
++#endif // WITH_SODIUM
+ }
+ 
+ void Noise_XK_mix_hash(uint8_t *hash1, uint32_t inlen, uint8_t *input)
+ {
++#ifdef WITH_SODIUM
++  crypto_generichash_state state;
++  crypto_generichash_init(&state, NULL, 0, 64);
++  crypto_generichash_update(&state, hash1, 64);
++  crypto_generichash_update(&state, input, inlen);
++  crypto_generichash_final(&state, hash1, 64);
++#else // WITH_SODIUM
+   KRML_CHECK_SIZE(sizeof (uint8_t),
+     Hacl_Streaming_Blake2_blocks_state_len(Spec_Blake2_Blake2B, Hacl_Impl_Blake2_Core_M32));
+   uint8_t
+@@ -121,12 +157,17 @@ void Noise_XK_mix_hash(uint8_t *hash1, uint32_t inlen, uint8_t *input)
+   Hacl_Streaming_Blake2_blake2b_32_no_key_update(s0, hash1, (uint32_t)64U);
+   Hacl_Streaming_Blake2_blake2b_32_no_key_update(s0, input, inlen);
+   Hacl_Streaming_Blake2_blake2b_32_no_key_finish(s0, hash1);
++#endif // WITH_SODIUM
+ }
+ 
+ void
+ Noise_XK_hmac(uint8_t *output, uint32_t keylen, uint8_t *key, uint32_t datalen, uint8_t *data)
+ {
++#ifdef WITH_SODIUM
++  crypto_generichash(output, 64, data, datalen, key, keylen);
++#else // WITH_SODIUM
+   Hacl_HMAC_compute_blake2b_32(output, key, keylen, data, datalen);
++#endif // WITH_SODIUM
+ }
+ 
+ void
+@@ -162,8 +203,13 @@ Noise_XK_kdf(
+       }
+     }
+   }
++#ifdef WITH_SODIUM
++  sodium_memzero(output, (uint32_t)65U * sizeof (output[0U]));
++  sodium_memzero(secret, (uint32_t)64U * sizeof (secret[0U]));
++#else // WITH_SODIUM
+   Lib_Memzero0_memzero(output, (uint32_t)65U * sizeof (output[0U]));
+   Lib_Memzero0_memzero(secret, (uint32_t)64U * sizeof (secret[0U]));
++#endif // WITH_SODIUM
+ }
+ 
+ void Noise_XK_mix_psk(uint8_t *psk, uint8_t *st_cs_k, uint8_t *st_ck, uint8_t *st_h)
+@@ -172,9 +218,17 @@ void Noise_XK_mix_psk(uint8_t *psk, uint8_t *st_cs_k, uint8_t *st_ck, uint8_t *s
+   uint8_t temp_k[64U] = { 0U };
+   Noise_XK_kdf(st_ck, (uint32_t)32U, psk, st_ck, temp_hash, temp_k);
+   memcpy(st_cs_k, temp_k, (uint32_t)32U * sizeof (uint8_t));
++#ifdef WITH_SODIUM
++  sodium_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
++#else // WITH_SODIUM
+   Lib_Memzero0_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
++#endif // WITH_SODIUM
+   Noise_XK_mix_hash(st_h, (uint32_t)64U, temp_hash);
++#ifdef WITH_SODIUM
++  sodium_memzero(temp_hash, (uint32_t)64U * sizeof (temp_hash[0U]));
++#else // WITH_SODIUM
+   Lib_Memzero0_memzero(temp_hash, (uint32_t)64U * sizeof (temp_hash[0U]));
++#endif // WITH_SODIUM
+ }
+ 
+ void
+@@ -224,13 +278,21 @@ Noise_XK_mix_dh(uint8_t *sec, uint8_t *pub, uint8_t *cipher_key, uint8_t *ck, ui
+     uint8_t temp_k[64U] = { 0U };
+     Noise_XK_kdf(ck, (uint32_t)32U, dh_key, ck, temp_k, NULL);
+     memcpy(cipher_key, temp_k, (uint32_t)32U * sizeof (uint8_t));
++#ifdef WITH_SODIUM
++    sodium_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
++#else // WITH_SODIUM
+     Lib_Memzero0_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
++#endif // WITH_SODIUM
+     r2 = Noise_XK_CSuccess;
+   }
+   else
+     r2 = r1;
+   Noise_XK_error_code r = r2;
++#ifdef WITH_SODIUM
++  sodium_memzero(dh_key, (uint32_t)32U * sizeof (dh_key[0U]));
++#else // WITH_SODIUM
+   Lib_Memzero0_memzero(dh_key, (uint32_t)32U * sizeof (dh_key[0U]));
++#endif // WITH_SODIUM
+   return r;
+ }
+ 
+diff --git a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.h b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.h
+index b92393c..f99a332 100644
+--- a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.h
++++ b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/Noise_XK.h
+@@ -8,7 +8,11 @@
+ #include "krml/internal/types.h"
+ 
+ 
++#ifdef WITH_SODIUM
++#include <sodium.h>
++#else // WITH_SODIUM
+ #include "Hacl.h"
++#endif // WITH_SODIUM
+ 
+ #define Noise_XK_CSuccess 0
+ #define Noise_XK_CIncorrect_transition 1
+diff --git a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/XK.c b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/XK.c
+index bd4c689..63f42c7 100644
+--- a/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/XK.c
++++ b/noise-all/api-XK/XK_25519_ChaChaPoly_BLAKE2b/XK.c
+@@ -754,7 +754,11 @@ void Noise_XK_serialize_device_secret(uint32_t *outlen, uint8_t **out, Noise_XK_
+   uint8_t *name_raw = scrut.snd;
+   uint8_t *n8 = outb;
+   uint8_t *c = outb + (uint32_t)8U;
++#ifdef WITH_SODIUM
++  randombytes_buf(n8, (uint32_t)8U);
++#else // WITH_SODIUM
+   Lib_RandomBuffer_System_crypto_random(n8, (uint32_t)8U);
++#endif // WITH_SODIUM
+   uint64_t n = Noise_XK_bytes_to_nonce(n8);
+   Noise_XK_aead_encrypt(dv.dv_sk, n, name_raw_len, name_raw, (uint32_t)32U, dv.dv_spriv, c);
+   out[0U] = outb;
+@@ -995,7 +999,11 @@ void Noise_XK_device_remove_peer(Noise_XK_device_t *dvp, uint32_t pid)
+           if (!(str == NULL))
+             KRML_HOST_FREE(str);
+           KRML_HOST_FREE(p.p_info);
++#ifdef WITH_SODIUM
++          sodium_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
++#else // WITH_SODIUM
+           Lib_Memzero0_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
++#endif // WITH_SODIUM
+           KRML_HOST_FREE(p.p_s);
+           KRML_HOST_FREE(c1.data);
+           KRML_HOST_FREE(c01.next);
+@@ -1011,7 +1019,11 @@ void Noise_XK_device_remove_peer(Noise_XK_device_t *dvp, uint32_t pid)
+         if (!(str == NULL))
+           KRML_HOST_FREE(str);
+         KRML_HOST_FREE(p.p_info);
++#ifdef WITH_SODIUM
++        sodium_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
++#else // WITH_SODIUM
+         Lib_Memzero0_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
++#endif // WITH_SODIUM
+         KRML_HOST_FREE(p.p_s);
+         KRML_HOST_FREE(elem1);
+       }
+@@ -1077,7 +1089,11 @@ Noise_XK_serialize_peer_secret(
+     uint8_t *name_raw = scrut.snd;
+     uint8_t *n8 = outb;
+     uint8_t *c = outb + (uint32_t)8U;
++#ifdef WITH_SODIUM
++    randombytes_buf(n8, (uint32_t)8U);
++#else // WITH_SODIUM
+     Lib_RandomBuffer_System_crypto_random(n8, (uint32_t)8U);
++#endif // WITH_SODIUM
+     uint64_t n = Noise_XK_bytes_to_nonce(n8);
+     Noise_XK_aead_encrypt(dv.dv_sk, n, name_raw_len, name_raw, (uint32_t)32U, concat_keys, c);
+     out[0U] = outb;
+@@ -1634,7 +1650,11 @@ Noise_XK_session_t *Noise_XK_session_create_initiator(Noise_XK_device_t *dvp, ui
+ {
+   uint8_t epriv[32U] = { 0U };
+   uint8_t epub[32U] = { 0U };
++#ifdef WITH_SODIUM
++  randombytes_buf(epriv, (uint32_t)32U);
++#else // WITH_SODIUM
+   Lib_RandomBuffer_System_crypto_random(epriv, (uint32_t)32U);
++#endif // WITH_SODIUM
+   Noise_XK_error_code res0 = Noise_XK_dh_secret_to_public(epub, epriv);
+   Noise_XK_session_t *res;
+   switch (res0)
+@@ -1929,8 +1949,13 @@ Noise_XK_session_t *Noise_XK_session_create_initiator(Noise_XK_device_t *dvp, ui
+         res = NULL;
+       }
+   }
++#ifdef WITH_SODIUM
++  sodium_memzero(epriv, (uint32_t)32U * sizeof (epriv[0U]));
++  sodium_memzero(epub, (uint32_t)32U * sizeof (epub[0U]));
++#else // WITH_SODIUM
+   Lib_Memzero0_memzero(epriv, (uint32_t)32U * sizeof (epriv[0U]));
+   Lib_Memzero0_memzero(epub, (uint32_t)32U * sizeof (epub[0U]));
++#endif // WITH_SODIUM
+   Noise_XK_session_t *res1 = res;
+   return res1;
+ }
+@@ -1944,7 +1969,11 @@ Noise_XK_session_t *Noise_XK_session_create_responder(Noise_XK_device_t *dvp)
+ {
+   uint8_t epriv[32U] = { 0U };
+   uint8_t epub[32U] = { 0U };
++#ifdef WITH_SODIUM
++  randombytes_buf(epriv, (uint32_t)32U);
++#else // WITH_SODIUM
+   Lib_RandomBuffer_System_crypto_random(epriv, (uint32_t)32U);
++#endif // WITH_SODIUM
+   Noise_XK_error_code res0 = Noise_XK_dh_secret_to_public(epub, epriv);
+   Noise_XK_session_t *res;
+   switch (res0)
+@@ -2134,8 +2163,13 @@ Noise_XK_session_t *Noise_XK_session_create_responder(Noise_XK_device_t *dvp)
+         res = NULL;
+       }
+   }
++#ifdef WITH_SODIUM
++  sodium_memzero(epriv, (uint32_t)32U * sizeof (epriv[0U]));
++  sodium_memzero(epub, (uint32_t)32U * sizeof (epub[0U]));
++#else //WITH_SODIUM
+   Lib_Memzero0_memzero(epriv, (uint32_t)32U * sizeof (epriv[0U]));
+   Lib_Memzero0_memzero(epub, (uint32_t)32U * sizeof (epub[0U]));
++#endif //WITH_SODIUM
+   Noise_XK_session_t *res1 = res;
+   return res1;
+ }
+@@ -2520,8 +2554,13 @@ state_handshake_write(
+               Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
+               memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
+               memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
++#ifdef WITH_SODIUM
++              sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
++              sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#else // WITH_SODIUM
+               Lib_Memzero0_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
+               Lib_Memzero0_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#endif // WITH_SODIUM
+               KRML_HOST_FREE(st_k);
+               KRML_HOST_FREE(st_ck1);
+               KRML_HOST_FREE(st_epriv1);
+@@ -2721,8 +2760,13 @@ state_handshake_write(
+               Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
+               memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
+               memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
++#ifdef WITH_SODIUM
++              sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
++              sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#else // WITH_SODIUM
+               Lib_Memzero0_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
+               Lib_Memzero0_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#endif // WITH_SODIUM
+               KRML_HOST_FREE(st_k);
+               KRML_HOST_FREE(st_ck1);
+               KRML_HOST_FREE(st_epriv1);
+@@ -3190,8 +3234,13 @@ state_handshake_read(
+                 Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
+                 memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
+                 memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
++#ifdef WITH_SODIUM
++                sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
++                sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#else // WITH_SODIUM
+                 Lib_Memzero0_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
+                 Lib_Memzero0_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#endif // WITH_SODIUM
+                 KRML_HOST_FREE(st_k);
+                 KRML_HOST_FREE(st_ck1);
+                 KRML_HOST_FREE(st_epriv1);
+@@ -3647,8 +3696,13 @@ state_handshake_read(
+                 Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
+                 memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
+                 memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
++#ifdef WITH_SODIUM
++                sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
++                sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#else // WITH_SODIUM
+                 Lib_Memzero0_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
+                 Lib_Memzero0_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
++#endif // WITH_SODIUM
+                 KRML_HOST_FREE(st_k);
+                 KRML_HOST_FREE(st_ck1);
+                 KRML_HOST_FREE(st_epriv1);
