@@ -144,3 +144,4 @@ assert v0 == v2
 secret = pyoprf.dkg_reconstruct(shares[:t])
 #print("secret", secret.hex())
 assert v0 == pysodium.crypto_scalarmult_ristretto255_base(secret)
+print("all ok")
