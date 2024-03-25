@@ -44,6 +44,9 @@ clean:
 	rm -rf *.so *.a src/*.o
 	make -C example clean
 
+liboprf-noiseXK.$(SOEXT).$(SOVER): liboprf-noiseXK.$(SOEXT)
+	ln -sf $^ $@
+
 install: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
 
 uninstall: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
@@ -59,5 +62,5 @@ $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT): liboprf-noiseXK.$(STATICEX
 $(DESTDIR)$(PREFIX)/include/oprf/noiseXK: include
 	cp -r $< $@
 
-test: liboprf-noiseXK.so
+test: liboprf-noiseXK.$(SOEXT).$(SOVER)
 	make -C example test
