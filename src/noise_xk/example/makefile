@@ -15,7 +15,7 @@ CFLAGS 	+= -I../.. -I../include -I ../include/karmel -I ../include/karmel/minima
 all: xk-ex
 
 xk-ex: $(SOURCES)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) -L.
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) -L..
 
 AR ?= ar
 
