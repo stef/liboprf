@@ -46,12 +46,23 @@ dkg: dkg.c utils.c liboprf.a
 clean:
 	rm -f *.o liboprf.so liboprf.a toprf dkg
 	make -C tests clean
+	make -C noise_xk clean
 
-install: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h
+install: install-oprf install-noiseXK
 
-uninstall: $(PREFIX)/lib/liboprf.$(SOEXT) $(PREFIX)/lib/liboprf.$(STATICEXT) $(PREFIX)/include/oprf/oprf.h $(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
+install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h
+
+install-noiseXK:
+	make -C noise_xk install
+
+uninstall: uninstall-oprf uninstall-noiseXK
+
+uninstall-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
 	rm $^
 	rmdir $(PREFIX)/include/oprf/
+
+uninstall-noiseXK:
+	make -C noise_xk uninstall
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
 	install -D $< $@.$(SOVER)
@@ -71,5 +82,6 @@ $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 
 test:
 	make -C tests tests
+	make -C noise_xk test
 
 PHONY: clean
