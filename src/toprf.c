@@ -63,7 +63,7 @@ void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peer
   uint8_t divisor[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   divisor[0]=1;
 
-  for(int j=0;j<peers_len;j++) {
+  for(size_t j=0;j<peers_len;j++) {
     if(peers[j]==index) continue;
     uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
     tmp[0]=peers[j];
