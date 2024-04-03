@@ -18,8 +18,8 @@ ifeq ($(UNAME),Darwin)
 	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
-			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
-			  -fstrict-flex-arrays=3 #-mbranch-protection=standard
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
+			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
