@@ -117,27 +117,50 @@ print("DKG (3,5)")
 n = 5
 t = 3
 mailboxes=[[] for _ in range(n)]
-commitments=[]
+commitment_hashes=[]
+signed_commitments=[]
+sks = []
+pks = []
+transcripts=[]
 for _ in range(n):
-    shares, c = pyoprf.dkg_start(n,t)
-    commitments.append(c)
+    pk, sk = pysodium.crypto_sign_keypair()
+    sks.append(sk)
+    pks.append(pk)
+    c_hash, signed_c, shares, transcript = pyoprf.dkg_start(n,t,sk)
+    commitment_hashes.append(c_hash)
+    signed_commitments.append(signed_c)
+    transcripts.append(transcript)
     for i,s in enumerate(shares):
         mailboxes[i].append(s)
 
-shares = []
-for i in range(n):
-   complaints, c_len = pyoprf.dkg_verify_commitments(n,t,i+1,commitments,mailboxes[i])
+commitment_hashes=b''.join(commitment_hashes)
+signed_commitments=b''.join(signed_commitments)
+pks=b''.join(pks)
 
-   qual = [j+1 for j in range(n)] + [0]
-   xi, x_i = pyoprf.dkg_finish(n, qual, mailboxes[i], i+1)
+shares = []
+final_messages = []
+for i in range(n):
+   failed_sigs, failed_hashes, complaints, transcript = pyoprf.dkg_verify_commitments(n,t,i+1,
+                                                                                      commitment_hashes,
+                                                                                      signed_commitments,
+                                                                                      pks,
+                                                                                      mailboxes[i],
+                                                                                      transcripts[i])
+
+   xi, final_message = pyoprf.dkg_finish(n, mailboxes[i], i+1, sks[i], transcripts[i])
    #print(i, xi.hex(), x_i.hex())
-   shares.append((xi, x_i))
+   shares.append(xi)
+   final_messages.append(final_message)
+
+final_messages=b''.join(final_messages)
+for i in range(n):
+    pyoprf.dkg_agree(n, pks, final_messages)
 
 # test if the final shares all reproduce the same shared `secret`
-v0 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][0][1:]) for i in (0,1,2)])
-v1 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][0][1:]) for i in (2,0,4)])
+v0 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][1:]) for i in (0,1,2)])
+v1 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][1:]) for i in (2,0,4)])
 assert v0 == v1
-v2 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][0][1:]) for i in (1,4,3)])
+v2 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][1:]) for i in (1,4,3)])
 assert v0 == v2
 #print("v0    ", v0.hex())
 
