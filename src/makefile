@@ -27,7 +27,7 @@ endif
 SOURCES=oprf.c toprf.c dkg.c utils.c  $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf dkg noise_xk/liboprf-noiseXK.$(SOEXT)
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf noise_xk/liboprf-noiseXK.$(SOEXT)
 
 asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 asan: LDFLAGS+= -fsanitize=address -static-libasan
@@ -45,11 +45,8 @@ noise_xk/liboprf-noiseXK.$(SOEXT):
 toprf: oprf.c toprf.c main.c
 	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
-dkg: dkg.c utils.c liboprf.a
-	gcc -g -DUNIT_TEST -o dkg dkg.c utils.c liboprf.a -lsodium
-
 clean:
-	rm -f *.o liboprf.so liboprf.a toprf dkg
+	rm -f *.o liboprf.so liboprf.a toprf
 	make -C tests clean
 	make -C noise_xk clean
 
@@ -85,8 +82,7 @@ $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
 $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 	install -D $< $@
 
-test: dkg
-	./dkg
+test:
 	make -C tests tests
 	make -C noise_xk test
 

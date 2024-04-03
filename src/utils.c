@@ -5,8 +5,10 @@
 
 int debug = 0;
 
+#ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar) {
   static uint8_t rng_i=2;
+  fprintf(stderr, "\e[0;31mWARNING! This version of liboprf DKG is compiled with a *NON* random generator for UNIT_TESTS\e[0m\n");
   memset(scalar,0,crypto_core_ristretto255_SCALARBYTES);
   scalar[0]=rng_i++;
   //static uint16_t rng_i=0;
@@ -16,6 +18,7 @@ void debian_rng_scalar(uint8_t *scalar) {
   //}
   //crypto_core_ristretto255_scalar_reduce(scalar,(uint8_t*)tmp);
 }
+#endif
 
 void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   if(!debug) return;

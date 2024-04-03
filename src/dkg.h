@@ -69,7 +69,7 @@ int dkg_agree(const uint8_t n,
               const uint8_t final_messages[n][1+crypto_generichash_BYTES+crypto_sign_BYTES]);
 
 void dkg_reconstruct(const size_t response_len,
-                     const TOPRF_Share responses[response_len][2],
+                     const TOPRF_Share responses[response_len],
                      uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
 #endif // DKG_H
