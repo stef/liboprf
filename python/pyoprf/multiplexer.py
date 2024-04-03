@@ -25,6 +25,7 @@ class Peer:
 
         if self.type == "SSL":
            ctx = ssl.create_default_context()
+           ctx.minimum_version = ssl.TLSVersion.TLSv1_2
            if(self.ssl_cert):
                ctx.load_verify_locations(self.ssl_cert) # only for dev, production system should use proper certs!
                ctx.check_hostname=False                 # only for dev, production system should use proper certs!
