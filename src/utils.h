@@ -4,6 +4,8 @@
 #include <sodium.h>
 #include <stdint.h>
 
+extern int debug;
+
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar);
 #endif //UNIT_TEST

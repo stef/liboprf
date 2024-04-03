@@ -9,8 +9,6 @@ typedef struct {
   uint8_t value[crypto_core_ristretto255_SCALARBYTES];
 } __attribute((packed)) TOPRF_Share;
 
-extern int debug;
-
 static void polynom(const uint8_t j, const uint8_t threshold,
                     const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
                     TOPRF_Share *result) {
