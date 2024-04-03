@@ -27,7 +27,7 @@ endif
 SOURCES=oprf.c toprf.c dkg.c utils.c  $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf dkg
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf dkg noise_xk/liboprf-noiseXK.$(SOEXT)
 
 asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 asan: LDFLAGS+= -fsanitize=address -static-libasan
@@ -38,6 +38,9 @@ liboprf.$(SOEXT): $(SOURCES)
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	ar rcs $@ $^
+
+noise_xk/liboprf-noiseXK.$(SOEXT):
+	make -C noise_xk all
 
 toprf: oprf.c toprf.c main.c
 	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
