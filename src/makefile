@@ -85,7 +85,8 @@ $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
 $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 	install -D $< $@
 
-test:
+test: dkg
+	./dkg
 	make -C tests tests
 	make -C noise_xk test
 
