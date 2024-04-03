@@ -1,4 +1,5 @@
 liboprf-noiseXK.a
 liboprf-noiseXK.so
+liboprf-noiseXK.so.0
 xk-ex
 *.o
