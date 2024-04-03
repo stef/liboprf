@@ -4,7 +4,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
 		  -fstack-clash-protection -ftrapv \
-		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full #-mbranch-protection=standard -fstrict-flex-arrays=3 
+		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full
 
 LDFLAGS?=-lsodium
 CC?=gcc
@@ -17,7 +17,9 @@ ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
-	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now
+	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
+			  -fstrict-flex-arrays=3 #-mbranch-protection=standard
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
