@@ -403,7 +403,7 @@ int main(void) {
         fprintf(stderr, "\e[0;32m[%d] all hashes ok\e[0m\n", i+1);
       } else {
         for(int j=0;j<failed_hashes_len;j++) {
-          fprintf(stderr,"\e[0;31m[%d]failed to verify hashes of commitments from !\e[0m\n", i+1, failed_hashes[j]);
+          fprintf(stderr,"\e[0;31m[%d]failed to verify hashes of commitments from %d!\e[0m\n", i+1, failed_hashes[j]);
         }
       }
       if(complaints_len==0) {
