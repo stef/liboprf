@@ -4,7 +4,7 @@
 #include <sodium.h>
 #include <stdint.h>
 
-#define dkg_hash_BYTES crypto_generichash_BYTES
+#define dkg_hash_BYTES (crypto_generichash_BYTES+crypto_sign_BYTES)
 #define dkg_sign_SECRETKEYBYTES crypto_sign_SECRETKEYBYTES
 #define dkg_commitment_BYTES(threshold) (threshold*crypto_core_ristretto255_BYTES)
 #define dkg_signed_commitment_BYTES(threshold) (crypto_sign_BYTES+dkg_commitment_BYTES(threshold))
@@ -13,6 +13,16 @@ typedef struct {
   uint8_t index;
   uint8_t value[crypto_core_ristretto255_SCALARBYTES];
 } __attribute((packed)) TOPRF_Share;
+
+#define HASH_SIGN ((uint8_t) 0)
+#define HASH ((uint8_t) 1)
+#define COMMITMENT_SIGN ((uint8_t) 2)
+#define COMMITMENT ((uint8_t) 3)
+
+typedef struct {
+  uint8_t type;
+  uint8_t index;
+} __attribute((packed)) DKG_Fail;
 
 /**
  * 1st step in the DKG protocol to be executed by all peers participating.
@@ -36,7 +46,7 @@ typedef struct {
 int dkg_start(const uint8_t n,
               const uint8_t threshold,
               const uint8_t sk[dkg_sign_SECRETKEYBYTES],
-              uint8_t commitment_hash[dkg_hash_BYTES],
+              uint8_t signed_hash[dkg_hash_BYTES],
               uint8_t signed_commitments[dkg_signed_commitment_BYTES(threshold)],
               TOPRF_Share shares[n],
               crypto_generichash_state *transcript);
@@ -44,16 +54,12 @@ int dkg_start(const uint8_t n,
 int dkg_verify_commitments(const uint8_t n,
                            const uint8_t threshold,
                            const uint8_t self,
-                           const uint8_t commitment_hashes[n][crypto_generichash_BYTES],
+                           const uint8_t signed_hashes[n][crypto_sign_BYTES+crypto_generichash_BYTES],
                            const uint8_t signed_commitments[n][crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)],
                            const uint8_t pk[n][crypto_sign_PUBLICKEYBYTES],
                            const TOPRF_Share shares[n],
-                           uint8_t failed_sigs[n],
-                           uint8_t *failed_sigs_len,
-                           uint8_t failed_hashes[n],
-                           uint8_t *failed_hashes_len,
-                           uint8_t complaints[n],
-                           uint8_t *complaints_len,
+                           DKG_Fail fails[4*n],
+                           uint16_t *fails_len,
                            crypto_generichash_state *transcript);
 
 void dkg_finish(const uint8_t n,

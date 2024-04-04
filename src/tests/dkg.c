@@ -76,7 +76,7 @@ int main(void) {
   uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES];
   TOPRF_Share shares[n][n];
 
-  uint8_t commitment_hash[n][crypto_generichash_BYTES];
+  uint8_t signed_hash[n][crypto_sign_BYTES+crypto_generichash_BYTES];
   uint8_t signed_commitments[n][crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)];
   crypto_generichash_state transcripts[n];
   unsigned char pks[n][crypto_sign_PUBLICKEYBYTES];
@@ -86,7 +86,7 @@ int main(void) {
   }
 
   for(int i=0;i<n;i++) {
-    if(dkg_start(n, threshold, sks[i], commitment_hash[i], signed_commitments[i], shares[i], &transcripts[i])) {
+    if(dkg_start(n, threshold, sks[i], signed_hash[i], signed_commitments[i], shares[i], &transcripts[i])) {
       return 1;
     }
     if(debug) {
@@ -113,41 +113,35 @@ int main(void) {
       }
     }
 
-    uint8_t complaints[n];
-    memset(complaints, 0, sizeof complaints);
-    uint8_t complaints_len=0;
-    uint8_t failed_sigs[n];
-    memset(failed_sigs, 0, sizeof failed_sigs);
-    uint8_t failed_sigs_len;
-    uint8_t failed_hashes[n];
-    memset(failed_hashes, 0, sizeof failed_hashes);
-    uint8_t failed_hashes_len;
+    DKG_Fail fails[4*n];
+    memset(fails, 0, sizeof fails);
+    uint16_t fails_len=0;
 
     // verify step (2)
-    if(dkg_verify_commitments(n,threshold,i+1,commitment_hash, signed_commitments,
-                              pks, sent_shares, failed_sigs, &failed_sigs_len,
-                              failed_hashes, &failed_hashes_len,
-                              complaints, &complaints_len, &transcripts[i])) {
-
-      if(failed_sigs_len==0) {
-        fprintf(stderr, "\e[0;32m[%d] all sigs ok\e[0m\n", i+1);
-      } else {
-        for(int j=0;j<failed_sigs_len;j++) {
-          fprintf(stderr,"\e[0;31m[%d]failed to verify signatures of commitments from %d!\e[0m\n", i+1, failed_sigs[j]);
+    if(dkg_verify_commitments(n,threshold,i+1,signed_hash, signed_commitments,
+                              pks, sent_shares, fails, &fails_len, &transcripts[i])) {
+      for(int j=0;j<fails_len;j++) {
+        switch(fails[j].type) {
+        case(HASH_SIGN): {
+          fprintf(stderr,"\e[0;31m[%d] failed to verify signatures of hash from %d!\e[0m\n", i+1, fails[j].index);
+          break;
         }
-      }
-      if(failed_hashes_len==0) {
-        fprintf(stderr, "\e[0;32m[%d] all hashes ok\e[0m\n", i+1);
-      } else {
-        for(int j=0;j<failed_hashes_len;j++) {
-          fprintf(stderr,"\e[0;31m[%d]failed to verify hashes of commitments from %d!\e[0m\n", i+1, failed_hashes[j]);
+        case(COMMITMENT_SIGN): {
+          fprintf(stderr,"\e[0;31m[%d] failed to verify signatures of commitments from %d!\e[0m\n", i+1, fails[j].index);
+          break;
         }
-      }
-      if(complaints_len==0) {
-        fprintf(stderr, "\e[0;32m[%d] no complaints\e[0m\n", i+1);
-      } else {
-        for(int j=0;j<failed_hashes_len;j++) {
-          fprintf(stderr,"\e[0;31m[%d] has complaints about %d!\e[0m\n", i+1, complaints[j]);
+        case(HASH): {
+          fprintf(stderr,"\e[0;31m[%d] failed to verify hash from %d!\e[0m\n", i+1, fails[j].index);
+          break;
+        }
+        case(COMMITMENT): {
+          fprintf(stderr,"\e[0;31m[%d] failed to verify commitments from %d!\e[0m\n", i+1, fails[j].index);
+          break;
+        }
+        default: {
+          fprintf(stderr,"\e[0;31m[%d] invalid failure type: %d!\e[0m\n", i+1, fails[j].type);
+          return -1;
+        }
         }
       }
       return 1;

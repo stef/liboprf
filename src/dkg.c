@@ -3,11 +3,7 @@
 #include <string.h>
 #include "toprf.h"
 #include "utils.h"
-
-typedef struct {
-  uint8_t index;
-  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
-} __attribute((packed)) TOPRF_Share;
+#include "dkg.h"
 
 static void polynom(const uint8_t j, const uint8_t threshold,
                     const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
@@ -37,7 +33,7 @@ static void polynom(const uint8_t j, const uint8_t threshold,
 int dkg_start(const uint8_t n,
               const uint8_t threshold,
               const uint8_t sk[crypto_sign_SECRETKEYBYTES],
-              uint8_t commitment_hash[crypto_generichash_BYTES],
+              uint8_t signed_hash[crypto_generichash_BYTES+crypto_sign_BYTES],
               uint8_t signed_commitments[crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)],
               TOPRF_Share shares[n],
               crypto_generichash_state *transcript) {
@@ -66,12 +62,13 @@ int dkg_start(const uint8_t n,
   }
 
   // compute hash of commitments
-  crypto_generichash(commitment_hash, crypto_generichash_BYTES,
+  unsigned long long sc_len;
+  crypto_generichash(signed_hash+crypto_sign_BYTES, crypto_generichash_BYTES,
                      (const uint8_t*) commitments, threshold * crypto_core_ristretto255_BYTES,
                      NULL, 0);
+  crypto_sign(signed_hash, &sc_len, (uint8_t*) signed_hash+crypto_sign_BYTES, crypto_generichash_BYTES,sk);
 
   // sign commitments
-  unsigned long long sc_len;
   crypto_sign(signed_commitments, &sc_len, (uint8_t*) commitments, sizeof commitments, sk);
   if(sc_len!=crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)) {
     sodium_munlock(a,sizeof a);
@@ -92,33 +89,38 @@ int dkg_start(const uint8_t n,
 int dkg_verify_commitments(const uint8_t n,
                            const uint8_t threshold,
                            const uint8_t self,
-                           const uint8_t commitment_hashes[n][crypto_generichash_BYTES],
+                           const uint8_t signed_hashes[n][crypto_sign_BYTES+crypto_generichash_BYTES],
                            const uint8_t signed_commitments[n][crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)],
                            const uint8_t pk[n][crypto_sign_PUBLICKEYBYTES],
                            const TOPRF_Share shares[n],
-                           uint8_t failed_sigs[n],
-                           uint8_t *failed_sigs_len,
-                           uint8_t failed_hashes[n],
-                           uint8_t *failed_hashes_len,
-                           uint8_t complaints[n],
-                           uint8_t *complaints_len,
+                           DKG_Fail fails[4*n],
+                           uint16_t *fails_len,
                            crypto_generichash_state *transcript) {
-  *failed_hashes_len = 0;
-  *failed_sigs_len = 0;
+  *fails_len = 0;
 
-  crypto_generichash_update(transcript, (uint8_t*) commitment_hashes, n*crypto_generichash_BYTES);
+  crypto_generichash_update(transcript, (uint8_t*) signed_hashes, n*(crypto_generichash_BYTES+crypto_sign_BYTES));
   crypto_generichash_update(transcript, (uint8_t*) signed_commitments, n*crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES));
   crypto_generichash_update(transcript, (uint8_t*) pk, n*crypto_sign_PUBLICKEYBYTES);
 
   // verify sigs and hashes
   uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES];
+  uint8_t hashes[n][crypto_generichash_BYTES];
   for(unsigned i=0;i<n;i++) {
 
     unsigned long long m_len;
+    if (crypto_sign_open((uint8_t*) hashes[i], &m_len,
+                         signed_hashes[i], crypto_sign_BYTES+crypto_generichash_BYTES,
+                         pk[i]) != 0) {
+      fails[*fails_len].type = HASH_SIGN;
+      fails[(*fails_len)++].index = (uint8_t) i;
+    }
+
     if (crypto_sign_open((uint8_t*) commitments[i], &m_len,
+
                          signed_commitments[i], crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES),
                          pk[i]) != 0) {
-      failed_sigs[(*failed_sigs_len)++]=(uint8_t) i;
+      fails[*fails_len].type = COMMITMENT_SIGN;
+      fails[(*fails_len)++].index = (uint8_t) i;
     }
 
     // verify hash
@@ -127,11 +129,12 @@ int dkg_verify_commitments(const uint8_t n,
                        (const uint8_t*) commitments[i], threshold * crypto_core_ristretto255_BYTES,
                        NULL, 0);
 
-    if(sodium_memcmp(commitment_hash, commitment_hashes[i], sizeof commitment_hash) != 0) {
-      failed_hashes[(*failed_hashes_len)++]=(uint8_t) i;
+    if(sodium_memcmp(commitment_hash, hashes[i], sizeof commitment_hash) != 0) {
+      fails[*fails_len].type = HASH;
+      fails[(*fails_len)++].index = (uint8_t) i;
     }
   }
-  if(*failed_sigs_len != 0 || *failed_hashes_len != 0) return -1;
+  if(*fails_len != 0) return -1;
 
   uint8_t j[crypto_core_ristretto255_SCALARBYTES]={self};
   //dump(j,sizeof(j), "\nj        ");
@@ -169,11 +172,12 @@ int dkg_verify_commitments(const uint8_t n,
     if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
       // complain about P_i
       if(debug) fprintf(stderr, "\e[0;31mfailed to verify contribs of P_%d in stage 1\e[0m\n", i);
-      complaints[(*complaints_len)++]=(uint8_t) i;
+      fails[*fails_len].type = COMMITMENT;
+      fails[(*fails_len)++].index = (uint8_t) i;
       //return 1;
     }
   }
-  if(*complaints_len!=0) return 1;
+  if(*fails_len!=0) return 1;
 
   return 0;
 }

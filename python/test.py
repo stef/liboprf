@@ -140,13 +140,16 @@ pks=b''.join(pks)
 shares = []
 final_messages = []
 for i in range(n):
-   failed_sigs, failed_hashes, complaints, transcript = pyoprf.dkg_verify_commitments(n,t,i+1,
-                                                                                      commitment_hashes,
-                                                                                      signed_commitments,
-                                                                                      pks,
-                                                                                      mailboxes[i],
-                                                                                      transcripts[i])
-
+   fails, transcript = pyoprf.dkg_verify_commitments(n,t,i+1,
+                                                     commitment_hashes,
+                                                     signed_commitments,
+                                                     pks,
+                                                     mailboxes[i],
+                                                     transcripts[i])
+   if len(fails) > 0:
+       for fail in fails:
+           print(f"fail: peer {fail.index} with code {fail.type}")
+       raise ValueError("failed to verify contributions, aborting")
    xi, final_message = pyoprf.dkg_finish(n, mailboxes[i], i+1, sks[i], transcripts[i])
    #print(i, xi.hex(), x_i.hex())
    shares.append(xi)
