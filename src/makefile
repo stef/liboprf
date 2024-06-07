@@ -1,3 +1,4 @@
+PREFIX?=/usr/local
 CFLAGS?=-march=native -Wall -O2 -g \
 		  -Werror=format-security -Werror=implicit-function-declaration \
 		  -Wformat=2 -Wconversion -Wtrampolines -Wimplicit-fallthrough \
@@ -43,7 +44,7 @@ noise_xk/liboprf-noiseXK.$(SOEXT):
 	make -C noise_xk all
 
 toprf: oprf.c toprf.c main.c
-	gcc -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
+	$(CC) -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
 clean:
 	rm -f *.o liboprf.so liboprf.a toprf
