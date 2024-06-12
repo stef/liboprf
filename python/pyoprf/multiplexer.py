@@ -139,10 +139,11 @@ class Multiplexer:
              responses[idx]=pkt if not proc else proc(pkt)
        if set((tuple(e) if isinstance(e,list) else e) for e in responses.values())=={None}:
            raise ValueError("oracles failed")
-       if None in responses:
-           print(f"some reponses failed")
-           return {k:v for k,v in responses.items() if v is not None}
-       return responses
+       if None in responses.values():
+           if debug: print(f"some reponses failed")
+           #return {k:v for k,v in responses.items() if v is not None}
+       return [responses.get(i,None) for i in range(len(self.peers))]
+       #return responses
 
     def close(self):
       for p in self.peers:
