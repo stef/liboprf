@@ -363,7 +363,7 @@ def dkg_start(n : int, t : int, sk : bytes) -> (bytes, bytes, bytes_list_t,bytes
     __check(liboprf.dkg_start(n, t, sk, signed_hash, signed_commitments, shares, transcript))
 
     shares = tuple([bytes(s) for s in split_by_n(shares.raw, TOPRF_Share_BYTES)])
-    return signed_hash, signed_commitments, shares, transcript
+    return signed_hash.raw, signed_commitments.raw, shares, transcript
 
 #int dkg_verify_commitments(const uint8_t n,
 #                           const uint8_t threshold,
@@ -375,17 +375,17 @@ def dkg_start(n : int, t : int, sk : bytes) -> (bytes, bytes, bytes_list_t,bytes
 #                           DKG_Fail fails[4*n],
 #                           uint8_t *fails_len,
 #                           crypto_generichash_state *transcript);
-class Fail(ctypes.Structure):
-    _pack_ = 1
-    _fields_ = [("type", ctypes.c_ubyte),
-                ("index", ctypes.c_ubyte)]
+#class Fail(ctypes.Structure):
+#    _pack_ = 1
+#    _fields_ = [("type", ctypes.c_ubyte),
+#                ("index", ctypes.c_ubyte)]
 
 def dkg_verify_commitments(n: int, t: int, self: int,
                            commitment_hashes: bytes_list_t,
                            signed_commitments : bytes_list_t,
                            pks : bytes_list_t,
                            shares: bytes_list_t,
-                           transcript : bytes) -> (List[int], List[int], List[int], bytes):
+                           transcript : bytes) -> (bytes, bytes):
     if n < t:
         raise ValueError("t cannot be bigger than n")
     if t < 2:
@@ -405,17 +405,12 @@ def dkg_verify_commitments(n: int, t: int, self: int,
         raise ValueError(f"transcript must be {pysodium.crypto_generichash_STATEBYTES} bytes is instead {len(transcript)}")
 
     shares = ctypes.create_string_buffer(shares)
-    fails = (Fail * (4 * n))()
+    fails = ctypes.create_string_buffer(2*4*n)
     fails_len = ctypes.c_ushort()
     __check(liboprf.dkg_verify_commitments(n, t, self,
                                            commitment_hashes, signed_commitments, pks, shares,
                                            fails, ctypes.byref(fails_len), transcript))
-    #failed_sigs = [railed_sigs[i] for i in range(failed_sigs_len.value)]
-    #failed_hashes = [railed_hashes[i] for i in range(failed_hashes_len.value)]
-    #complaints = [complaints[i] for i in range(complaints_len.value)]
-    #fails[fails_len.value].type = 0xff
-    #fails[fails_len.value].index = 0xff
-    return fails[:fails_len.value], transcript
+    return fails[:fails_len.value*2], transcript
 
 #void dkg_finish(const uint8_t n,
 #                const TOPRF_Share shares[n],
