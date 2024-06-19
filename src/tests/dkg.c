@@ -76,11 +76,10 @@ int main(void) {
   uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES];
   TOPRF_Share shares[n][n];
 
-  uint8_t hash[n][crypto_generichash_BYTES];
-  uint8_t commitments[n][threshold*crypto_core_ristretto255_BYTES];
+  uint8_t commitment_hashes[n][crypto_generichash_BYTES];
 
   for(int i=0;i<n;i++) {
-    if(dkg_start(n, threshold, hashes[i], commitments[i], shares[i])) {
+    if(dkg_start(n, threshold, commitment_hashes[i], commitments[i], shares[i])) {
       return 1;
     }
     if(debug) {
@@ -110,7 +109,7 @@ int main(void) {
     uint16_t fails_len=0;
 
     // verify step (2)
-    if(dkg_verify_commitments(n,threshold,i+1,hashes, commitments,
+    if(dkg_verify_commitments(n,threshold,i+1,commitment_hashes, commitments,
                               sent_shares, fails, &fails_len)) {
       for(int j=0;j<fails_len;j++) {
         switch(fails[j].type) {
@@ -136,22 +135,6 @@ int main(void) {
     final_shares[i].index=i+1;
     // finalize dkg (3)
     dkg_finish(n,sent_shares,i+1,&final_shares[i]);
-  }
-
-  // final step (4)
-  int abort = 0;
-  for(int i=0;i<n;i++) {
-    if(dkg_agree(n, pks, final_messages)!=0) {
-      fprintf(stderr,"\e[0;31mpeer %d aborts!\e[0m\n", i+1);
-      abort=1;
-    }
-  }
-  if(abort==0) {
-    fprintf(stderr, "\e[0;32mDKG sucessful, all peers agree\e[0m\n");
-  }
-
-  for(int i=0;i<n;i++) {
-    dump((uint8_t*) &final_messages[i], 97, "final_messages[%d]", i+1);
   }
 
   for(int i=0;i<n;i++) {
