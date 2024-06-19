@@ -343,38 +343,31 @@ def threshold_combine(responses: bytes_list_t) -> bytes:
 # todo documentation!
 #int dkg_start(const uint8_t n,
 #              const uint8_t threshold,
-#              const uint8_t sk[dkg_sign_SECRETKEYBYTES],
 #              uint8_t commitment_hash[dkg_hash_BYTES],
-#              uint8_t signed_commitments[dkg_signed_commitment_BYTES(threshold)],
-#              TOPRF_Share shares[n],
-#              crypto_generichash_state *transcript);
-def dkg_start(n : int, t : int, sk : bytes) -> (bytes, bytes, bytes_list_t,bytes):
+#              uint8_t commitments[dkg_commitment_BYTES(threshold)],
+#              TOPRF_Share shares[n]);
+def dkg_start(n : int, t : int) -> (bytes, bytes, bytes_list_t):
     if n < t:
         raise ValueError("t cannot be bigger than n")
     if t < 2:
         raise ValueError("t must be bigger than 1")
-    if len(sk) != pysodium.crypto_sign_SECRETKEYBYTES:
-        raise ValueError(f"sk must be {pysodium.crypto_sign_KEYBYTES} bytes is instead {len(sk)}")
     shares = ctypes.create_string_buffer(n*TOPRF_Share_BYTES)
-    signed_hash = ctypes.create_string_buffer(pysodium.crypto_sign_BYTES+pysodium.crypto_generichash_BYTES)
-    signed_commitments = ctypes.create_string_buffer(pysodium.crypto_sign_BYTES+t*pysodium.crypto_core_ristretto255_BYTES)
-    transcript = ctypes.create_string_buffer(pysodium.crypto_generichash_STATEBYTES)
+    commitment_hash = ctypes.create_string_buffer(pysodium.crypto_generichash_BYTES)
+    commitments = ctypes.create_string_buffer(t*pysodium.crypto_core_ristretto255_BYTES)
 
-    __check(liboprf.dkg_start(n, t, sk, signed_hash, signed_commitments, shares, transcript))
+    __check(liboprf.dkg_start(n, t, commitment_hash, commitments, shares))
 
     shares = tuple([bytes(s) for s in split_by_n(shares.raw, TOPRF_Share_BYTES)])
-    return signed_hash.raw, signed_commitments.raw, shares, transcript
+    return commitment_hash.raw, commitments.raw, shares
 
 #int dkg_verify_commitments(const uint8_t n,
 #                           const uint8_t threshold,
 #                           const uint8_t self,
 #                           const uint8_t commitment_hashes[n][crypto_generichash_BYTES],
-#                           const uint8_t signed_commitments[n][crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)],
-#                           const uint8_t pk[n][crypto_sign_PUBLICKEYBYTES],
+#                           const uint8_t commitments[n][threshold*crypto_core_ristretto255_BYTES],
 #                           const TOPRF_Share shares[n],
-#                           DKG_Fail fails[4*n],
-#                           uint8_t *fails_len,
-#                           crypto_generichash_state *transcript);
+#                           DKG_Fail fails[2*n],
+#                           uint8_t *fails_len);
 #class Fail(ctypes.Structure):
 #    _pack_ = 1
 #    _fields_ = [("type", ctypes.c_ubyte),
@@ -382,50 +375,37 @@ def dkg_start(n : int, t : int, sk : bytes) -> (bytes, bytes, bytes_list_t,bytes
 
 def dkg_verify_commitments(n: int, t: int, self: int,
                            commitment_hashes: bytes_list_t,
-                           signed_commitments : bytes_list_t,
-                           pks : bytes_list_t,
-                           shares: bytes_list_t,
-                           transcript : bytes) -> (bytes, bytes):
+                           commitments : bytes_list_t,
+                           shares: bytes_list_t) -> bytes:
     if n < t:
         raise ValueError("t cannot be bigger than n")
     if t < 2:
         raise ValueError("t must be bigger than 1")
     if self < 1 or self > n:
         raise ValueError("self must 1 <= self <= n")
-    if len(commitment_hashes) != n*(pysodium.crypto_sign_BYTES+pysodium.crypto_generichash_BYTES):
-        raise ValueError(f"commitment_hashes must be {n*(pysodium.crypto_sign_BYTES+pysodium.crypto_generichash_BYTES)} bytes")
-    if len(signed_commitments) != n*(pysodium.crypto_sign_BYTES+t*pysodium.crypto_core_ristretto255_BYTES):
-        raise ValueError(f"signed_commitments must be {n*pysodium.crypto_sign_BYTES+t*pysodium.crypto_core_ristretto255_BYTES} bytes is instead: {len(signed_commitments)}")
-    if len(pks) != n*pysodium.crypto_sign_PUBLICKEYBYTES:
-        raise ValueError(f"pks must be {pysodium.crypto_sign_PUBLICKEYBYTES*n} bytes is instead {len(pks)}")
+    if len(commitment_hashes) != n*(pysodium.crypto_generichash_BYTES):
+        raise ValueError(f"commitment_hashes must be {n*(pysodium.crypto_generichash_BYTES)} bytes")
+    if len(commitments) != n*t*pysodium.crypto_core_ristretto255_BYTES:
+        raise ValueError(f"signed_commitments must be {n*t*pysodium.crypto_core_ristretto255_BYTES} bytes is instead: {len(commitments)}")
     shares = b''.join(shares)
     if len(shares) != n*TOPRF_Share_BYTES:
         raise ValueError(f"shares must be {TOPRF_Share_BYTES*n} bytes is instead {len(shares)}")
-    if len(transcript) != pysodium.crypto_generichash_STATEBYTES:
-        raise ValueError(f"transcript must be {pysodium.crypto_generichash_STATEBYTES} bytes is instead {len(transcript)}")
 
     shares = ctypes.create_string_buffer(shares)
-    fails = ctypes.create_string_buffer(2*4*n)
+    fails = ctypes.create_string_buffer(2*2*n)
     fails_len = ctypes.c_ushort()
     __check(liboprf.dkg_verify_commitments(n, t, self,
-                                           commitment_hashes, signed_commitments, pks, shares,
-                                           fails, ctypes.byref(fails_len), transcript))
-    return fails[:fails_len.value*2], transcript
+                                           commitment_hashes, commitments, shares,
+                                           fails, ctypes.byref(fails_len)))
+    return fails[:fails_len.value*2]
 
 #void dkg_finish(const uint8_t n,
 #                const TOPRF_Share shares[n],
 #                const uint8_t self,
-#                const uint8_t sk[crypto_sign_SECRETKEYBYTES],
-#                crypto_generichash_state *transcript,
-#                TOPRF_Share *xi,
-#                uint8_t final_message[1+crypto_generichash_BYTES+crypto_sign_BYTES]);
-def dkg_finish(n: int, shares: List[bytes], self: int, sk : bytes, transcript : bytes) -> Tuple[bytes, bytes,bytes]:
+#                TOPRF_Share *xi);
+def dkg_finish(n: int, shares: List[bytes], self: int, ) -> bytes:
     if self < 1 or self > n:
         raise ValueError("self must 1 <= self <= n")
-    if len(sk) != pysodium.crypto_sign_SECRETKEYBYTES:
-        raise ValueError(f"sk must be {pysodium.crypto_sign_KEYBYTES} bytes is instead {len(sk)}")
-    if len(transcript) != pysodium.crypto_generichash_STATEBYTES:
-        raise ValueError(f"transcript must be {pysodium.crypto_generichash_STATEBYTES} bytes is instead {len(transcript)}")
     shares = b''.join(shares)
     if len(shares) != n*TOPRF_Share_BYTES:
         raise ValueError(f"shares must be {TOPRF_Share_BYTES*n} bytes is instead {len(shares)}")
@@ -434,21 +414,9 @@ def dkg_finish(n: int, shares: List[bytes], self: int, sk : bytes, transcript : 
 
     xi = ctypes.create_string_buffer(TOPRF_Share_BYTES)
     xi[0]=self
-    final_msg = ctypes.create_string_buffer(1+pysodium.crypto_generichash_BYTES+pysodium.crypto_sign_BYTES)
 
-    liboprf.dkg_finish(n, shares, self, sk, transcript, xi, final_msg)
-    return xi.raw, final_msg.raw
-
-#int dkg_agree(const uint8_t n,
-#              const uint8_t pks[n][crypto_sign_PUBLICKEYBYTES],
-#              const uint8_t final_messages[n][1+crypto_generichash_BYTES+crypto_sign_BYTES]);
-def dkg_agree(n: int, pks : bytes, final_messages: bytes) -> Tuple[bytes, bytes,bytes]:
-    if len(pks) != n*pysodium.crypto_sign_PUBLICKEYBYTES:
-        raise ValueError(f"pks must be {pysodium.crypto_sign_PUBLICKEYBYTES*n} bytes is instead {len(pks)}")
-    if len(final_messages) != n*(1+pysodium.crypto_generichash_BYTES+pysodium.crypto_sign_BYTES):
-        raise ValueError(f"final_messages must be {n*(1+pysodium.crypto_generichash_BYTES+pysodium.crypto_sign_BYTES)} bytes is instead {len(final_messages)}")
-    __check(liboprf.dkg_agree(n, pks, final_messages))
-    return True
+    liboprf.dkg_finish(n, shares, self, xi)
+    return xi.raw
 
 #void dkg_reconstruct(const size_t response_len,
 #                     const TOPRF_Share responses[response_len][2],

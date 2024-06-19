@@ -118,46 +118,31 @@ n = 5
 t = 3
 mailboxes=[[] for _ in range(n)]
 commitment_hashes=[]
-signed_commitments=[]
-sks = []
-pks = []
-transcripts=[]
+commitments=[]
 for _ in range(n):
-    pk, sk = pysodium.crypto_sign_keypair()
-    sks.append(sk)
-    pks.append(pk)
-    c_hash, signed_c, shares, transcript = pyoprf.dkg_start(n,t,sk)
+    c_hash, coms, shares = pyoprf.dkg_start(n,t)
     commitment_hashes.append(c_hash)
-    signed_commitments.append(signed_c)
-    transcripts.append(transcript)
+    commitments.append(coms)
     for i,s in enumerate(shares):
         mailboxes[i].append(s)
 
 commitment_hashes=b''.join(commitment_hashes)
-signed_commitments=b''.join(signed_commitments)
-pks=b''.join(pks)
+commitments=b''.join(commitments)
 
 shares = []
 final_messages = []
 for i in range(n):
-   fails, transcript = pyoprf.dkg_verify_commitments(n,t,i+1,
-                                                     commitment_hashes,
-                                                     signed_commitments,
-                                                     pks,
-                                                     mailboxes[i],
-                                                     transcripts[i])
+   fails = pyoprf.dkg_verify_commitments(n,t,i+1,
+                                         commitment_hashes,
+                                         commitments,
+                                         mailboxes[i])
    if len(fails) > 0:
        for fail in fails:
            print(f"fail: peer {fail.index} with code {fail.type}")
        raise ValueError("failed to verify contributions, aborting")
-   xi, final_message = pyoprf.dkg_finish(n, mailboxes[i], i+1, sks[i], transcripts[i])
+   xi = pyoprf.dkg_finish(n, mailboxes[i], i+1)
    #print(i, xi.hex(), x_i.hex())
    shares.append(xi)
-   final_messages.append(final_message)
-
-final_messages=b''.join(final_messages)
-for i in range(n):
-    pyoprf.dkg_agree(n, pks, final_messages)
 
 # test if the final shares all reproduce the same shared `secret`
 v0 = pyoprf.thresholdmult([bytes([i+1])+pysodium.crypto_scalarmult_ristretto255_base(shares[i][1:]) for i in (0,1,2)])

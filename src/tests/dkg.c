@@ -76,17 +76,11 @@ int main(void) {
   uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES];
   TOPRF_Share shares[n][n];
 
-  uint8_t signed_hash[n][crypto_sign_BYTES+crypto_generichash_BYTES];
-  uint8_t signed_commitments[n][crypto_sign_BYTES+(threshold*crypto_core_ristretto255_BYTES)];
-  crypto_generichash_state transcripts[n];
-  unsigned char pks[n][crypto_sign_PUBLICKEYBYTES];
-  unsigned char sks[n][crypto_sign_SECRETKEYBYTES];
-  for(int i=0;i<n;i++) {
-    crypto_sign_keypair(pks[i], sks[i]);
-  }
+  uint8_t hash[n][crypto_generichash_BYTES];
+  uint8_t commitments[n][threshold*crypto_core_ristretto255_BYTES];
 
   for(int i=0;i<n;i++) {
-    if(dkg_start(n, threshold, sks[i], signed_hash[i], signed_commitments[i], shares[i], &transcripts[i])) {
+    if(dkg_start(n, threshold, hashes[i], commitments[i], shares[i])) {
       return 1;
     }
     if(debug) {
@@ -101,8 +95,6 @@ int main(void) {
   // basically we are transposing here the shares matrix above
   TOPRF_Share sent_shares[n];
   TOPRF_Share final_shares[n];
-  uint8_t final_messages[n][1+crypto_generichash_BYTES+crypto_sign_BYTES];
-  memset(final_messages,1,sizeof final_messages);
 
   for(int i=0;i<n;i++) {
     for(int j=0;j<n;j++) {
@@ -113,23 +105,15 @@ int main(void) {
       }
     }
 
-    DKG_Fail fails[4*n];
+    DKG_Fail fails[2*n];
     memset(fails, 0, sizeof fails);
     uint16_t fails_len=0;
 
     // verify step (2)
-    if(dkg_verify_commitments(n,threshold,i+1,signed_hash, signed_commitments,
-                              pks, sent_shares, fails, &fails_len, &transcripts[i])) {
+    if(dkg_verify_commitments(n,threshold,i+1,hashes, commitments,
+                              sent_shares, fails, &fails_len)) {
       for(int j=0;j<fails_len;j++) {
         switch(fails[j].type) {
-        case(HASH_SIGN): {
-          fprintf(stderr,"\e[0;31m[%d] failed to verify signatures of hash from %d!\e[0m\n", i+1, fails[j].index);
-          break;
-        }
-        case(COMMITMENT_SIGN): {
-          fprintf(stderr,"\e[0;31m[%d] failed to verify signatures of commitments from %d!\e[0m\n", i+1, fails[j].index);
-          break;
-        }
         case(HASH): {
           fprintf(stderr,"\e[0;31m[%d] failed to verify hash from %d!\e[0m\n", i+1, fails[j].index);
           break;
@@ -151,7 +135,7 @@ int main(void) {
 
     final_shares[i].index=i+1;
     // finalize dkg (3)
-    dkg_finish(n,sent_shares,i+1,sks[i], &transcripts[i], &final_shares[i], final_messages[i]);
+    dkg_finish(n,sent_shares,i+1,&final_shares[i]);
   }
 
   // final step (4)
