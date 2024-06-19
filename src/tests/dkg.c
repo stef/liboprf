@@ -76,10 +76,8 @@ int main(void) {
   uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES];
   TOPRF_Share shares[n][n];
 
-  uint8_t commitment_hashes[n][crypto_generichash_BYTES];
-
   for(int i=0;i<n;i++) {
-    if(dkg_start(n, threshold, commitment_hashes[i], commitments[i], shares[i])) {
+    if(dkg_start(n, threshold, commitments[i], shares[i])) {
       return 1;
     }
     if(debug) {
@@ -104,28 +102,15 @@ int main(void) {
       }
     }
 
-    DKG_Fail fails[2*n];
+    uint8_t fails[n];
     memset(fails, 0, sizeof fails);
-    uint16_t fails_len=0;
+    uint8_t fails_len=0;
 
     // verify step (2)
-    if(dkg_verify_commitments(n,threshold,i+1,commitment_hashes, commitments,
+    if(dkg_verify_commitments(n,threshold,i+1, commitments,
                               sent_shares, fails, &fails_len)) {
       for(int j=0;j<fails_len;j++) {
-        switch(fails[j].type) {
-        case(HASH): {
-          fprintf(stderr,"\e[0;31m[%d] failed to verify hash from %d!\e[0m\n", i+1, fails[j].index);
-          break;
-        }
-        case(COMMITMENT): {
-          fprintf(stderr,"\e[0;31m[%d] failed to verify commitments from %d!\e[0m\n", i+1, fails[j].index);
-          break;
-        }
-        default: {
-          fprintf(stderr,"\e[0;31m[%d] invalid failure type: %d!\e[0m\n", i+1, fails[j].type);
-          return -1;
-        }
-        }
+         fprintf(stderr,"\e[0;31m[%d] failed to verify commitments from %d!\e[0m\n", i+1, fails[j]);
       }
       return 1;
     }

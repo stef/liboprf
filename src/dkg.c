@@ -32,7 +32,6 @@ static void polynom(const uint8_t j, const uint8_t threshold,
 
 int dkg_start(const uint8_t n,
               const uint8_t threshold,
-              uint8_t commitment_hash[crypto_generichash_BYTES],
               uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
               TOPRF_Share shares[n]) {
 
@@ -54,11 +53,6 @@ int dkg_start(const uint8_t n,
     crypto_scalarmult_ristretto255_base(commitments[k], a[k]);
   }
 
-  // compute hash of commitments
-  crypto_generichash(commitment_hash, crypto_generichash_BYTES,
-                     (const uint8_t*) commitments, threshold * crypto_core_ristretto255_BYTES,
-                     NULL, 0);
-
   // calculate shares s_ij
   for(uint8_t j=1;j<=n;j++) {
     //f(x) = a_0 + a_1*x + a_2*x^2 + a_3*x^3 + ⋯ + a_(t)*x^(t)
@@ -73,27 +67,11 @@ int dkg_start(const uint8_t n,
 int dkg_verify_commitments(const uint8_t n,
                            const uint8_t threshold,
                            const uint8_t self,
-                           const uint8_t hashes[n][crypto_generichash_BYTES],
                            const uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES],
                            const TOPRF_Share shares[n],
-                           DKG_Fail fails[2*n],
-                           uint16_t *fails_len) {
+                           uint8_t fails[n],
+                           uint8_t *fails_len) {
   *fails_len = 0;
-
-  // verify hashes
-  for(unsigned i=0;i<n;i++) {
-    // verify hash
-    uint8_t commitment_hash[crypto_generichash_BYTES];
-    crypto_generichash(commitment_hash, crypto_generichash_BYTES,
-                       (const uint8_t*) commitments[i], threshold * crypto_core_ristretto255_BYTES,
-                       NULL, 0);
-
-    if(sodium_memcmp(commitment_hash, hashes[i], sizeof commitment_hash) != 0) {
-      fails[*fails_len].type = HASH;
-      fails[(*fails_len)++].index = (uint8_t) i;
-    }
-  }
-  if(*fails_len != 0) return -1;
 
   uint8_t j[crypto_core_ristretto255_SCALARBYTES]={self};
   //dump(j,sizeof(j), "\nj        ");
@@ -131,8 +109,7 @@ int dkg_verify_commitments(const uint8_t n,
     if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
       // complain about P_i
       if(debug) fprintf(stderr, "\e[0;31mfailed to verify contribs of P_%d in stage 1\e[0m\n", i);
-      fails[*fails_len].type = COMMITMENT;
-      fails[(*fails_len)++].index = (uint8_t) i;
+      fails[(*fails_len)++] = (uint8_t) i;
       //return 1;
     }
   }

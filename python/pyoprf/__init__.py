@@ -352,29 +352,22 @@ def dkg_start(n : int, t : int) -> (bytes, bytes, bytes_list_t):
     if t < 2:
         raise ValueError("t must be bigger than 1")
     shares = ctypes.create_string_buffer(n*TOPRF_Share_BYTES)
-    commitment_hash = ctypes.create_string_buffer(pysodium.crypto_generichash_BYTES)
     commitments = ctypes.create_string_buffer(t*pysodium.crypto_core_ristretto255_BYTES)
 
-    __check(liboprf.dkg_start(n, t, commitment_hash, commitments, shares))
+    __check(liboprf.dkg_start(n, t, commitments, shares))
 
     shares = tuple([bytes(s) for s in split_by_n(shares.raw, TOPRF_Share_BYTES)])
-    return commitment_hash.raw, commitments.raw, shares
+    return commitments.raw, shares
 
 #int dkg_verify_commitments(const uint8_t n,
 #                           const uint8_t threshold,
 #                           const uint8_t self,
-#                           const uint8_t commitment_hashes[n][crypto_generichash_BYTES],
 #                           const uint8_t commitments[n][threshold*crypto_core_ristretto255_BYTES],
 #                           const TOPRF_Share shares[n],
-#                           DKG_Fail fails[2*n],
+#                           uint8_t fails[n],
 #                           uint8_t *fails_len);
-#class Fail(ctypes.Structure):
-#    _pack_ = 1
-#    _fields_ = [("type", ctypes.c_ubyte),
-#                ("index", ctypes.c_ubyte)]
 
 def dkg_verify_commitments(n: int, t: int, self: int,
-                           commitment_hashes: bytes_list_t,
                            commitments : bytes_list_t,
                            shares: bytes_list_t) -> bytes:
     if n < t:
@@ -383,8 +376,6 @@ def dkg_verify_commitments(n: int, t: int, self: int,
         raise ValueError("t must be bigger than 1")
     if self < 1 or self > n:
         raise ValueError("self must 1 <= self <= n")
-    if len(commitment_hashes) != n*(pysodium.crypto_generichash_BYTES):
-        raise ValueError(f"commitment_hashes must be {n*(pysodium.crypto_generichash_BYTES)} bytes")
     if len(commitments) != n*t*pysodium.crypto_core_ristretto255_BYTES:
         raise ValueError(f"signed_commitments must be {n*t*pysodium.crypto_core_ristretto255_BYTES} bytes is instead: {len(commitments)}")
     shares = b''.join(shares)
@@ -392,12 +383,12 @@ def dkg_verify_commitments(n: int, t: int, self: int,
         raise ValueError(f"shares must be {TOPRF_Share_BYTES*n} bytes is instead {len(shares)}")
 
     shares = ctypes.create_string_buffer(shares)
-    fails = ctypes.create_string_buffer(2*2*n)
-    fails_len = ctypes.c_ushort()
+    fails = ctypes.create_string_buffer(n)
+    fails_len = ctypes.c_uint8()
     __check(liboprf.dkg_verify_commitments(n, t, self,
-                                           commitment_hashes, commitments, shares,
+                                           commitments, shares,
                                            fails, ctypes.byref(fails_len)))
-    return fails[:fails_len.value*2]
+    return fails[:fails_len.value]
 
 #void dkg_finish(const uint8_t n,
 #                const TOPRF_Share shares[n],

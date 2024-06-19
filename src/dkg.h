@@ -25,7 +25,6 @@ typedef struct {
  *
  * @param [in] n - the number of peers participating in the DKG
  * @param [in] threshold - the threshold (must be greater 1 and less than n)
- * @param [out] commitment_hash[dkg_hash_BYTES] - a hash - to be broadcast first
  * @param [out] commitments[dkg_signed_commitment_BYTES] - to
  *              be broadcast after receiving all hashes
  *              broadcasts
@@ -36,18 +35,16 @@ typedef struct {
  */
 int dkg_start(const uint8_t n,
               const uint8_t threshold,
-              uint8_t commitment_hash[dkg_hash_BYTES],
               uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
               TOPRF_Share shares[n]);
 
 int dkg_verify_commitments(const uint8_t n,
                            const uint8_t threshold,
                            const uint8_t self,
-                           const uint8_t hashes[n][crypto_generichash_BYTES],
                            const uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES],
                            const TOPRF_Share shares[n],
-                           DKG_Fail fails[2*n],
-                           uint16_t *fails_len);
+                           uint8_t fails[n],
+                           uint8_t *fails_len);
 
 void dkg_finish(const uint8_t n,
                 const TOPRF_Share shares[n],

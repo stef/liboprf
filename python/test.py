@@ -117,28 +117,23 @@ print("DKG (3,5)")
 n = 5
 t = 3
 mailboxes=[[] for _ in range(n)]
-commitment_hashes=[]
 commitments=[]
 for _ in range(n):
-    c_hash, coms, shares = pyoprf.dkg_start(n,t)
-    commitment_hashes.append(c_hash)
+    coms, shares = pyoprf.dkg_start(n,t)
     commitments.append(coms)
     for i,s in enumerate(shares):
         mailboxes[i].append(s)
 
-commitment_hashes=b''.join(commitment_hashes)
 commitments=b''.join(commitments)
 
 shares = []
-final_messages = []
 for i in range(n):
    fails = pyoprf.dkg_verify_commitments(n,t,i+1,
-                                         commitment_hashes,
                                          commitments,
                                          mailboxes[i])
    if len(fails) > 0:
        for fail in fails:
-           print(f"fail: peer {fail.index} with code {fail.type}")
+           print(f"fail: peer {fail}")
        raise ValueError("failed to verify contributions, aborting")
    xi = pyoprf.dkg_finish(n, mailboxes[i], i+1)
    #print(i, xi.hex(), x_i.hex())
