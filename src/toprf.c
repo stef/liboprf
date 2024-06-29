@@ -106,6 +106,27 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
   }
 }
 
+static void sort_parts(const int n, const TOPRF_Part parts[n], uint8_t indexes[n]) {
+  uint8_t arr[n];
+  for(uint8_t i=0;i<n;i++) {
+    arr[i]=parts[i].index;
+    indexes[i]=i;
+  }
+
+  for (uint8_t c = 1 ; c <= n - 1; c++) {
+    uint8_t d = c, t, t1;
+    while(d > 0 && arr[d] < arr[d-1]) {
+      t = arr[d];
+      t1 = indexes[d];
+      arr[d] = arr[d-1];
+      indexes[d] = indexes[d-1];
+      arr[d-1] = t;
+      indexes[d-1] = t1;
+      d--;
+    }
+  }
+}
+
 int toprf_thresholdmult(const size_t response_len,
                         const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                         uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
@@ -114,15 +135,19 @@ int toprf_thresholdmult(const size_t response_len,
   uint8_t gki[crypto_scalarmult_ristretto255_BYTES];
   memset(result,0,crypto_scalarmult_ristretto255_BYTES);
 
+  uint8_t indexed_indexes[response_len];
+  if(response_len>255) return 1;
+  sort_parts((uint8_t) response_len, (TOPRF_Part*) responses, indexed_indexes);
+
   uint8_t indexes[response_len];
   for(size_t i=0;i<response_len;i++) {
-    indexes[i]=responses[i].index;
+    indexes[indexed_indexes[i]]=responses[indexed_indexes[i]].index;
   }
   for(size_t i=0;i<response_len;i++) {
-    coeff(responses[i].index, response_len, indexes, lpoly);
+    coeff(responses[indexed_indexes[i]].index, response_len, indexes, lpoly);
 
     // betaki = g^{k_i}^{lpoly}
-    if(crypto_scalarmult_ristretto255(gki, lpoly, responses[i].value)) {
+    if(crypto_scalarmult_ristretto255(gki, lpoly, responses[indexed_indexes[i]].value)) {
       return 1;
     }
     crypto_core_ristretto255_add(result,result,gki);
@@ -155,7 +180,11 @@ void toprf_thresholdcombine(const size_t response_len,
   const TOPRF_Part *responses=(TOPRF_Part*) _responses;
   memset(result,0,crypto_scalarmult_ristretto255_BYTES);
 
+  uint8_t indexed_indexes[response_len];
+  //if(response_len>255) return 1;
+  sort_parts((uint8_t) response_len, (TOPRF_Part*) responses, indexed_indexes);
+
   for(size_t i=0;i<response_len;i++) {
-    crypto_core_ristretto255_add(result,result,responses[i].value);
+    crypto_core_ristretto255_add(result,result,responses[indexed_indexes[i]].value);
   }
 }
