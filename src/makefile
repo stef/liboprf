@@ -56,7 +56,7 @@ clean:
 
 install: install-oprf install-noiseXK
 
-install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h
+install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h
 
 install-noiseXK:
 	make -C noise_xk install
@@ -84,6 +84,9 @@ $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
 	install -D $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
+	install -D $< $@
+
+$(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
 	install -D $< $@
 
 test:
