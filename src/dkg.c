@@ -5,6 +5,34 @@
 #include "utils.h"
 #include "dkg.h"
 
+/*
+    @copyright 2023-24, Stefan Marsiske toprf@ctrlc.hu
+    This file is part of liboprf.
+
+    liboprf is free software: you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License
+    as published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+
+    liboprf is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the License
+    along with liboprf. If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
+/*
+   warning this is a low-level interface. Do not use directly unless
+   you use it to implement DKG protocols which have proper sessionids
+   and other protections against replay and confused deputy attacks.
+
+   for an example of a high-level DKG protocol see tp-dkg.[ch]
+ */
+
+
 static void polynom(const uint8_t j, const uint8_t threshold,
                     const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
                     TOPRF_Share *result) {
@@ -64,6 +92,53 @@ int dkg_start(const uint8_t n,
   return 0;
 }
 
+int dkg_verify_commitment(const uint8_t n,
+                          const uint8_t threshold,
+                          const uint8_t self,
+                          const uint8_t i,
+                          const uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
+                          const TOPRF_Share share) {
+  uint8_t j[crypto_core_ristretto255_SCALARBYTES]={self};
+  //dump(j,sizeof(j), "\nj        ");
+
+  if(i==self) return 0;
+  uint8_t v0[crypto_core_ristretto255_BYTES];
+
+  // v0 = g*(s_ij)
+  //dump((uint8_t*)&shares[i-1], sizeof(TOPRF_Share), "s(%d,%d) ", i, self);
+  // g*(s_ij)
+  crypto_scalarmult_ristretto255_base(v0, share.value);
+
+  // v1=sum(C_ik*j*k for k=0..t)
+  uint8_t v1[crypto_core_ristretto255_BYTES];
+  //dump(commitments[i-1],crypto_core_ristretto255_BYTES, "c(%d,%d)   ", i, 0);
+  // v1 = C_i0*j
+  memcpy(v1, &commitments[0], sizeof v1);
+  // sum
+  for(uint8_t k=1;k<threshold;k++) {
+    uint8_t tmp[crypto_core_ristretto255_SCALARBYTES];
+    memcpy(tmp, j, sizeof j); // tmp = j^1
+    for(int exp=1;exp<k;exp++) {
+      // tmp *= j
+      crypto_core_ristretto255_scalar_mul(tmp, tmp, j);
+    }
+    uint8_t tmP[crypto_core_ristretto255_BYTES];
+    //dump(tmp, sizeof tmp, "%d tmp", k);
+    //dump(commitments[i-1][k], crypto_core_ristretto255_BYTES, "c[%d][%d]", i-1, k);
+    if(crypto_scalarmult_ristretto255(tmP, tmp, commitments[k])) return -1;
+    crypto_core_ristretto255_add(v1,v1,tmP);
+  }
+
+  // v0 == v1
+  if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
+    // complain about P_i
+    if(debug) fprintf(stderr, "\e[0;31mfailed to verify proof of P_%d in stage 2\e[0m\n", i);
+    return 1;
+  }
+
+  return 0;
+}
+
 int dkg_verify_commitments(const uint8_t n,
                            const uint8_t threshold,
                            const uint8_t self,
@@ -72,46 +147,12 @@ int dkg_verify_commitments(const uint8_t n,
                            uint8_t fails[n],
                            uint8_t *fails_len) {
   *fails_len = 0;
-
-  uint8_t j[crypto_core_ristretto255_SCALARBYTES]={self};
-  //dump(j,sizeof(j), "\nj        ");
-
-  for(unsigned i=1;i<=n;i++) {
+  for(uint8_t i=1;i<=n;i++) {
     if(i==self) continue;
-    uint8_t v0[crypto_core_ristretto255_BYTES];
-
-    // v0 = g*(s_ij)
-    //dump((uint8_t*)&shares[i-1], sizeof(TOPRF_Share), "s(%d,%d) ", i, self);
-    // g*(s_ij)
-    crypto_scalarmult_ristretto255_base(v0, shares[i-1].value);
-
-    // v1=sum(C_ik*j*k for k=0..t)
-    uint8_t v1[crypto_core_ristretto255_BYTES];
-    //dump(commitments[i-1],crypto_core_ristretto255_BYTES, "c(%d,%d)   ", i, 0);
-    // v1 = C_i0*j
-    memcpy(v1, &commitments[i-1][0], sizeof v1);
-    // sum
-    for(uint8_t k=1;k<threshold;k++) {
-      uint8_t tmp[crypto_core_ristretto255_SCALARBYTES];
-       memcpy(tmp, j, sizeof j); // tmp = j^1
-       for(int exp=1;exp<k;exp++) {
-          // tmp *= j
-          crypto_core_ristretto255_scalar_mul(tmp, tmp, j);
-       }
-       uint8_t tmP[crypto_core_ristretto255_BYTES];
-       dump(tmp, sizeof tmp, "%d tmp", k);
-       dump(commitments[i-1][k], crypto_core_ristretto255_BYTES, "c[%d][%d]", i-1, k);
-       if(crypto_scalarmult_ristretto255(tmP, tmp, commitments[i-1][k])) return 1;
-      crypto_core_ristretto255_add(v1,v1,tmP);
-    }
-
-    // v0 == v1
-    if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
-      // complain about P_i
-      if(debug) fprintf(stderr, "\e[0;31mfailed to verify contribs of P_%d in stage 1\e[0m\n", i);
-      fails[(*fails_len)++] = (uint8_t) i;
-      //return 1;
-    }
+    int ret = dkg_verify_commitment(n, threshold, self, i, commitments[i-1], shares[i-1]);
+    if(-1 == ret) return ret;
+    if(0 == ret) continue;
+    fails[(*fails_len)++] = (uint8_t) i;
   }
   if(*fails_len!=0) return 1;
 
