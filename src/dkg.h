@@ -1,6 +1,15 @@
 #ifndef DKG_H
 #define DKG_H
 
+/*
+ * warning this is a low-level interface. Do not use directly unless
+ * you use it to implement DKG protocols which have proper sessionids
+ * and other protections against replay and confused deputy attacks.
+ *
+ * for an example of a high-level DKG protocol see tp-dkg.[ch]
+ *
+ */
+
 #include <sodium.h>
 #include <stdint.h>
 
@@ -37,6 +46,13 @@ int dkg_start(const uint8_t n,
               const uint8_t threshold,
               uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
               TOPRF_Share shares[n]);
+
+int dkg_verify_commitment(const uint8_t n,
+                          const uint8_t threshold,
+                          const uint8_t self,
+                          const uint8_t i,
+                          const uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
+                          const TOPRF_Share share);
 
 int dkg_verify_commitments(const uint8_t n,
                            const uint8_t threshold,
