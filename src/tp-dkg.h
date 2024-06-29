@@ -358,7 +358,7 @@ int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_
     @endcode
 
  */
-int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const int peer, const uint8_t **msg, size_t *len);
+int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len);
 
 /**
    This function checks if the protocol has finished for the TP or
