@@ -1,4 +1,5 @@
 PREFIX?=/usr/local
+INCLUDES=-Inoise_xk/include -Inoise_xk/include/karmel -Inoise_xk/include/karmel/minimal
 CFLAGS?=-march=native -Wall -O2 -g \
 		  -Werror=format-security -Werror=implicit-function-declaration \
 		  -Wformat=2 -Wconversion -Wtrampolines -Wimplicit-fallthrough \
@@ -7,7 +8,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -fstack-clash-protection -ftrapv \
 		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full
 
-LDFLAGS?=-lsodium
+LDFLAGS?=-lsodium -loprf-noiseXK
 CC?=gcc
 SOEXT?=so
 STATICEXT?=a
@@ -25,7 +26,9 @@ else
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
 
-SOURCES=oprf.c toprf.c dkg.c utils.c  $(EXTRA_SOURCES)
+CFLAGS+=$(INCLUDES) -DWITH_SODIUM
+
+SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf noise_xk/liboprf-noiseXK.$(SOEXT)
