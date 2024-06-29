@@ -1,15 +1,8 @@
-/**
- * file tp-dkg.h
- */
-
 #ifndef tp_dkg_h
 #define tp_dkg_h
+/**
+ * file tp-dkg.h
 
-#include <stdint.h>
-#include <sodium.h>
-#include "XK.h"
-
-/*
   API for the Trusted Party Distributed Key Generation Protocol
 
   In this protocol there is two roles, the trusted party (TP) and the
@@ -56,8 +49,11 @@
   (4. store share) // only for peers
   (5. peer_free(state))
 
-
  */
+
+#include <stdint.h>
+#include <sodium.h>
+#include "XK.h"
 
 #define tpdkg_sessionid_SIZE 32
 #define tpdkg_msg0_SIZE ( sizeof(TP_DKG_Message)                       \
