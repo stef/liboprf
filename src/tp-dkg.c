@@ -16,6 +16,9 @@
     @copyright 2024, Stefan Marsiske toprf@ctrlc.hu
     This file is part of liboprf.
 
+    SPDX-FileCopyrightText: 2024, Marsiske Stefan
+    SPDX-License-Identifier: LGPL-3.0-or-later
+
     liboprf is free software: you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public License
     as published by the Free Software Foundation, either version 3 of

@@ -1,7 +1,10 @@
 #ifndef tp_dkg_h
 #define tp_dkg_h
 /**
- * file tp-dkg.h
+ * @file tp-dkg.h
+
+  SPDX-FileCopyrightText: 2024, Marsiske Stefan
+  SPDX-License-Identifier: LGPL-3.0-or-later
 
   API for the Trusted Party Distributed Key Generation Protocol
 
