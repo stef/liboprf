@@ -518,7 +518,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
   ctx->noise_ins = noise_ins;
   ctx->shares = shares;
   ctx->xshares = xshares;
-  ctx->commitments = (uint8_t (*)[][crypto_core_ristretto255_BYTES]) commitments;
+  ctx->commitments = commitments;
   ctx->complaints = complaints;
   ctx->my_complaints = my_complaints;
 }
@@ -553,7 +553,7 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
   ctx->peer_lt_pks = peer_lt_pks;
 }
 
-int start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
+int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
              const uint8_t n, const uint8_t t,
              const char *proto_name, const size_t proto_name_len,
              const size_t msg0_len, TP_DKG_Message *msg0) {
@@ -700,7 +700,7 @@ static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   if(msg1->to > 128 || msg1->to < 1) return 12;
   ctx->index=msg1->to;
 
-  if(log_file!=NULL) fprintf(log_file, "[%d] step 3. send msg2 containing ephemeral pubkey\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 3. send msg2 containing ephemeral pubkey\e[0m\n", ctx->index);
 
   crypto_sign_keypair(ctx->sig_pk, ctx->sig_sk);
 
@@ -735,6 +735,10 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
   for(uint8_t i=0;i<ctx->n;i++) {
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     // verify long-term pk sig on initial message
+    if(log_file!=NULL) {
+      fprintf(log_file,"[!] msgno: %d, from: %d to: %x ", msg->msgno, msg->from, msg->to);
+      dump(ptr, tpdkg_msg2_SIZE, "msg");
+    }
     if(0!=crypto_sign_verify_detached(ptr+tpdkg_msg2_SIZE,ptr,tpdkg_msg2_SIZE,(*ctx->peer_lt_pks)[i])) return 3;
     if(0!=recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 4;
 
@@ -775,6 +779,10 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
   uint8_t *wptr = output;
   for(uint8_t i=0;i<ctx->n;i++) {
     TP_DKG_Message* msg2 = (TP_DKG_Message*) ptr;
+    if(log_file!=NULL) {
+      fprintf(log_file,"[%d] msgno: %d, from: %d to: %x ", ctx->index, msg2->msgno, msg2->from, msg2->to);
+      dump(ptr, tpdkg_msg2_SIZE, "msg");
+    }
     if(0!=recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg2->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 4;
     // extract peer sig and noise pk
     memcpy((*ctx->peer_sig_pks)[i], msg2->data, crypto_sign_PUBLICKEYBYTES);
@@ -1669,7 +1677,7 @@ int main(void) {
 
   TP_DKG_TPState tp;
   uint8_t msg0[tpdkg_msg0_SIZE];
-  ret = start_tp(&tp, tpdkg_freshness_TIMEOUT, n, t, "proto test", 10, sizeof msg0, (TP_DKG_Message*) &msg0);
+  ret = tpdkg_start_tp(&tp, tpdkg_freshness_TIMEOUT, n, t, "proto test", 10, sizeof msg0, (TP_DKG_Message*) &msg0);
   if(0!=ret) return ret;
 
   // set bufs
