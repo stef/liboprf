@@ -489,7 +489,7 @@ int tpdkg_peer_next(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t in
 int tpdkg_peer_not_done(const TP_DKG_PeerState *peer);
 
 /**
-   This function needs to be called before a peers state is
+   This function MUST be called before a peers state is
    deallocated.
 
    Unfortunately the underlying (but very cool and formally verified)
