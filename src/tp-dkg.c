@@ -56,7 +56,7 @@ FILE* log_file=NULL;
 #define tpdkg_msg5_SIZE (sizeof(TP_DKG_Message) + noise_xk_handshake2_SIZE)
 #define tpdkg_msg6_SIZE(ctx) (sizeof(TP_DKG_Message) + crypto_core_ristretto255_BYTES * ctx->t )
 #define noise_xk_handshake3_SIZE 64UL
-#define tpdkg_msg8_SIZE (sizeof(TP_DKG_Message) + (noise_xk_handshake3_SIZE + sizeof(TOPRF_Share)) )
+#define tpdkg_msg8_SIZE (sizeof(TP_DKG_Message) + (noise_xk_handshake3_SIZE + crypto_secretbox_xchacha20poly1305_MACBYTES + sizeof(TOPRF_Share)) )
 #define tpdkg_msg9_SIZE(ctx) (sizeof(TP_DKG_Message) + ctx->n + 1 )
 #define tpdkg_msg10_SIZE(ctx) (sizeof(TP_DKG_Message) + ctx->n * tpdkg_msg9_SIZE(ctx))
 #define tpdkg_msg20_SIZE (sizeof(TP_DKG_Message) + crypto_generichash_BYTES)
@@ -968,6 +968,14 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     ptr+=tpdkg_msg6_SIZE(ctx);
 
     TP_DKG_Message *msg8 = (TP_DKG_Message *) wptr;
+
+    // we need to send an empty packet, so that the handshake completes
+    // and we have a final symetric key, the key during the handshake changes, only
+    // when the handshake completes does the key become static.
+    // this is important, so that when there are complaints, we can disclose the key.
+    uint8_t empty[0];
+    if(0!=tpdkg_noise_encrypt(empty, 0, msg8->data, noise_xk_handshake3_SIZE, &(*ctx->noise_outs)[i])) return 5;
+
 #ifdef UNITTEST
     // corrupt all shares
     uint8_t corrupted_share[sizeof(TOPRF_Share)];
@@ -981,8 +989,8 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 #else
   if(0!=tpdkg_noise_encrypt((uint8_t*) &(*ctx->shares)[i], sizeof(TOPRF_Share),
 #endif // UNITTEST
-                              msg8->data, noise_xk_handshake3_SIZE + sizeof(TOPRF_Share),
-                              &(*ctx->noise_outs)[i])) return 5;
+                              msg8->data + noise_xk_handshake3_SIZE, sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                              &(*ctx->noise_outs)[i])) return 6;
     send_msg(wptr, tpdkg_msg8_SIZE, 8, ctx->index, i+1, ctx->sig_sk, ctx->sessionid);
     if(log_file!=NULL) {
       fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg8->msgno, msg8->from, msg8->to);
@@ -1035,9 +1043,13 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     }
     int ret = recv_msg(ptr, tpdkg_msg8_SIZE, 8, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
     if(0!=ret) return 3;
-    if(0!=tpdkg_noise_decrypt(msg8->data, noise_xk_handshake3_SIZE + sizeof(TOPRF_Share),
+
+    // decrypt final empty handshake packet
+    if(0!=tpdkg_noise_decrypt(msg8->data, noise_xk_handshake3_SIZE, NULL, 0, &(*ctx->noise_ins)[i])) return 4;
+
+    if(0!=tpdkg_noise_decrypt(msg8->data + noise_xk_handshake3_SIZE, sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                               (uint8_t*) &(*ctx->xshares)[i], sizeof(TOPRF_Share),
-                              &(*ctx->noise_ins)[i])) return 4;
+                              &(*ctx->noise_ins)[i])) return 5;
 
     ptr+=tpdkg_msg8_SIZE;
   }
