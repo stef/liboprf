@@ -77,64 +77,6 @@ parties - and more importantly the location of the other keyshares. If
 this keyshare-holder anonymity is not necessary, steps 3, 4 and the
 first half of step 5 in the following protocol can be skipped.
 
-------<=[ Short description by H. Krawczyk              ]=>-------
-
-To be deleted, here only for convenience. Edited for relevance.
-
-*DKG Protocol with trusted party TP.*
-Here the TP is a party that orchestrates the protocol and is assumed to
-follow all actions as prescribed but is not trusted to learn the generated
-key or shares.
-
-Round 1:
-Each Pi (i=1,...,n) chooses a polynomial f_i as in the previous protocol
-and computes the values Aik, k=0,..,t, and values s_ij, j=1,...,n. Pi sends
-the values  A_i0,...,A_it to TP over a *secure *channel.
-
-TP waits to get the Aik values from ALL the servers, then sends all these
-values to all the servers.
-
-Round 2:
-Upon receiving ALL the Aik values for all servers from TP,  each Pi sends
-to each other P_j the value s_ij = f_i(j) over a *secure* channel between
-Pi and Pj (note that Pi keeps s_ii to himself).
-
-Each Pj checks the equation (3) in the paper. Pj aborts if this check fails
-for values received from any Pi.  Otherwise, Pj proceeds with step 4 of the
-paper's protocol, where QUAL is set to the set of all participants.
-
-If any abort is declared, the "admin" will need to check the messages and
-signatures and try to figure out what and by whom went wrong.
-
-If a party Pj complains that the s_ij it received from Pi
-did not satisfy equation (3), then Pi publishes s_ij and everyone checks
-equation (3) for it. If verification fails, Pi is disqualified (and
-investigated). If (3) verifies then the protocol can continue as usual. In
-the latter case, we don't know whether it was Pi or Pj that cheated. If we
-want to have a proof against one of them, we require that the encryption of
-s_ij sent from any Pi to any Pj will use a PK encryption algorithm with
-"provable decryption". Both ElGamal (or ECIES) and RSA can be used as such
-- see note on this at the end. Once the cheater is identified, we can throw
-it out of the system.
-Another way Pi can deviate from the protocol is by not sending a message it
-should be sending, or sending it with a wrong signature. This is detected
-by TP which would disqualify Pi.
-
-There are also details missing, for example, it must be said that not only all
-messages from all parties need to be signed but also that these signatures need
-to contain enough context information so that they cannot be replayed,
-redirected or used out of context. Context information should include things
-like protocol name (e.g.  “DKG for XYZ”), execution/session identifier, message
-identifier within the protocol (e.g., round number), origin and destination
-parties, etc. By session identifier I mean a nonce provided by the TP for this
-execution of the DKG.
-
-Then there is the element of how to decide who is cheating if the protocol does
-not terminate successfully. The ability to do so is a main justification for
-using non-robust DKG. Namely, the ability to catch cheaters works both as a
-deterrent and as a way of healing the system. Here are some details (I am not
-sure if this is a complete list).
-
 ------<=[ Prototocol Phases                             ]=>-------
 
 The protocol has the following phases:
@@ -285,6 +227,27 @@ data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
 
 The parameters `msgno`, `from`, `to`, `session_id` should be the
 values expected according to the current protocol state.
+
+------<=[ Cheater detection                             ]=>-------
+
+The TP MUST report to the user all errors that can identify cheating
+peers. For this each step the TP executes MUST be executed for each
+peer until a abort condition is detected:
+ - the current protocol step,
+ - the violating peer, and
+ - the type of violation
+
+MUST be noted. In order to detect other misbehaving peers in the
+current step processing for the rest of the SHOULD peers continue, and
+further violations should be handled as above.
+
+Before the next message to the peers is sent, the TP must
+check if there are no noted violations, if so the TP aborts and
+reports all violators with their parameters to the user.
+
+Abort conditions include any errors detected by recv_msg(), that is:
+invalid messages. As well any of the checks of the JF-DKG algorithm
+from GJKR06.
 
 ------<=[ The protocol                                  ]=>-------
 
