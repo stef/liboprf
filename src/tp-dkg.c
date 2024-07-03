@@ -978,9 +978,10 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
 #ifdef UNITTEST
     // corrupt all shares
+    static int corrupted_shares = 0;
     uint8_t corrupted_share[sizeof(TOPRF_Share)];
     memcpy(corrupted_share, &(*ctx->shares)[i], sizeof(TOPRF_Share));
-    if(i+1 != ctx->index) {
+    if(i+1 != ctx->index && corrupted_shares++<ctx->t) {
         dump(corrupted_share, sizeof(TOPRF_Share), "corrupting share");
         corrupted_share[2]^=0xff; // flip some bits
         dump(corrupted_share, sizeof(TOPRF_Share), "corrupted share ");
@@ -1181,6 +1182,12 @@ static int peer_step17a_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
   if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 17a. potentially broadcast contested shares\e[0m\n", ctx->index);
   if(input_len != 0) return 1;
   if(output_len != tpdkg_peer_output_size(ctx)) return 2;
+  if(output_len == 0) {
+    if(log_file!=NULL) {
+      fprintf(log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
+    }
+    return 0;
+  }
 
   // send out all shares that belong to peers that complained.
   TP_DKG_Message* msg11 = (TP_DKG_Message*) output;
