@@ -1095,7 +1095,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     if(msg->len - sizeof(TP_DKG_Message) < msg->data[0]) return 4;
 
     // if any peer complaints about more than t peers, that peer is a cheater and must be disqualified.
-    if(msg->data[0] => ctx->t) return 5;
+    if(msg->data[0] >= ctx->t) return 5;
 
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg->data[0] && (k+1)<msg->len-sizeof(TP_DKG_Message);k++) {
