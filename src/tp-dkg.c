@@ -613,7 +613,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
 
   // init transcript
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) "dkg session transcript", 22);
+  crypto_generichash_update(&ctx->transcript, (uint8_t*) "tp dkg session transcript", 25);
   // feed msg0 into transcript
   crypto_generichash_update(&ctx->transcript, (uint8_t*) msg0, msg0_len);
 
@@ -659,7 +659,7 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
   memcpy(ctx->lt_sk, peer_lt_sk, crypto_sign_SECRETKEYBYTES);
 
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) "dkg session transcript", 22);
+  crypto_generichash_update(&ctx->transcript, (uint8_t*) "tp dkg session transcript", 25);
   // feed msg0 into transcript
   crypto_generichash_update(&ctx->transcript, (uint8_t*) msg0, tpdkg_msg0_SIZE);
 
