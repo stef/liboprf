@@ -1082,6 +1082,9 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     if(0!=recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
     if(msg->len - sizeof(TP_DKG_Message) < msg->data[0]) return 4;
 
+    // if any peer complaints about more than t peers, that peer is a cheater and must be disqualified.
+    if(msg->data[0] => ctx->t) return 5;
+
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg->data[0] && (k+1)<msg->len-sizeof(TP_DKG_Message);k++) {
       (*ctx->complaints)[ctx->complaints_len++] = (uint16_t) (((i+1)<<8) | msg->data[k+1]);
@@ -1095,6 +1098,9 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     ptr+=tpdkg_msg9_SIZE(ctx);
   }
   dump((uint8_t*) (*ctx->complaints), ctx->complaints_len*sizeof(uint16_t), "[!] complaints");
+
+  // if more than t^2 complaints are received the protocol also fails
+  if(ctx->complaints_len >= ctx->t * ctx->t) return 6;
 
   send_msg(output, output_len, 10, 0, 0xff, ctx->sig_sk, ctx->sessionid);
   TP_DKG_Message* msg10 = (TP_DKG_Message*) output;
