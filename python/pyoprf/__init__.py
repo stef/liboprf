@@ -420,11 +420,16 @@ def dkg_reconstruct(responses) -> bytes_list_t:
     return result.raw
 
 tpdkg_sessionid_SIZE=32
-tpdkg_msg0_SIZE=177 #   ( sizeof(TP_DKG_Message)                       \
-                    #   + crypto_generichash_BYTES/*dst*/              \
-                    #   + tpdkg_sessionid_SIZE /*sessionid*/           \
-                    #   + 2 /*n,t*/                                    \
-                    #   + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */)
+tpdkg_msg0_SIZE = 177 # ( sizeof(TP_DKG_Message)                       \
+                      # + crypto_generichash_BYTES/*dst*/              \
+                      # + tpdkg_sessionid_SIZE /*sessionid*/           \
+                      # + 2 /*n,t*/                                    \
+                      # + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */)
+tpdkg_msg8_SIZE = 224 # (sizeof(TP_DKG_Message) /* header */                             \
+                      #  + noise_xk_handshake3_SIZE /* 4th&final noise handshake */      \
+                      #  + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped share */     \
+                      #  + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */  \
+                      #  + crypto_auth_hmacsha256_BYTES /* key-committing mac over msg*/ )
 
 class TP_DKG_PeerState(ctypes.Structure):
     _fields_ = [('step',             ctypes.c_int),
@@ -458,6 +463,14 @@ class TP_DKG_PeerState(ctypes.Structure):
                 ('share',            ctypes.c_uint8 * 33),
                 ]
 
+class TP_DKG_Cheater(ctypes.Structure):
+    _fields_ = [('step',             ctypes.c_int),
+                ('error',            ctypes.c_int),
+                ('peer',             ctypes.c_uint8),
+                ('other_peer',       ctypes.c_uint8),
+                ('invalid_index',    ctypes.c_int),
+                ]
+
 class TP_DKG_TPState(ctypes.Structure):
     _fields_ = [('step',             ctypes.c_int),
                 ('prev',             ctypes.c_int),
@@ -471,14 +484,15 @@ class TP_DKG_TPState(ctypes.Structure):
                 ('peer_sig_pks',     ctypes.c_char_p),
                 ('peer_lt_pks',      ctypes.c_char_p),
                 ('commitments',      ctypes.c_char_p),
+                ('encrypted_shares', ctypes.c_char_p),
                 ('complaints_len',   ctypes.c_uint16),
                 ('complaints',       ctypes.POINTER(ctypes.c_uint16)),
-                ('suspicious',       ctypes.c_char_p),
-                ('padding',          ctypes.c_byte * 48), # important padding generichash_state must be 64byte aligned
+                ('cheater_len',      ctypes.c_size_t),
+                ('cheaters',         ctypes.c_void_p),
+                ('cheater_max',      ctypes.c_size_t),
+                ('padding',          ctypes.c_byte * 24), # important padding generichash_state must be 64byte aligned
                 ('transcript',       ctypes.c_uint8 * pysodium.crypto_generichash_STATEBYTES),
-                ('result',           ctypes.c_int),
                 ]
-
 
 #int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
 #             const uint8_t n, const uint8_t t,
@@ -501,18 +515,22 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     peers_sig_pks = ctypes.create_string_buffer(n*pysodium.crypto_sign_PUBLICKEYBYTES)
     commitments = ctypes.create_string_buffer(n*t*pysodium.crypto_core_ristretto255_BYTES)
     complaints = ctypes.create_string_buffer(n*n*2)
-    suspicious = (ctypes.c_uint8 * n)()
+    noisy_shares = (ctypes.c_uint8 * (n*n*tpdkg_msg8_SIZE))()
+    cheaters = (TP_DKG_Cheater * (t*t - 1))()
     peer_lt_pks = b''.join(peer_lt_pks)
+    print('asdf', t*t-1, len(cheaters))
 
     liboprf.tpdkg_tp_set_bufs(ctypes.byref(state),
                               ctypes.byref(commitments),
                               ctypes.byref(complaints),
-                              ctypes.byref(suspicious),
+                              ctypes.byref(noisy_shares),
+                              ctypes.byref(cheaters),
+                              len(cheaters),
                               ctypes.byref(peers_sig_pks),
                               peer_lt_pks)
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, peers_sig_pks, commitments, complaints, suspicious, peer_lt_pks)
+    ctx = (state, peers_sig_pks, commitments, complaints, noisy_shares, cheaters, peer_lt_pks)
 
     return ctx, msg.raw
 
