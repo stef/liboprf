@@ -1806,8 +1806,10 @@ static int verify_shares(const uint8_t n, const TOPRF_Share shares[n], const uin
 
   uint8_t indexes[n];
   for(int i=0;i<n;i++) indexes[i]=i;
-  fprintf(stderr, "order: ");
-  for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
+  if(log_file!=NULL) {
+    fprintf(stderr, "order: ");
+    for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
+  }
 
   for(int i=0;i<t;i++) {
     topart((TOPRF_Part *) responses[i], &shares[indexes[i]]);
@@ -1818,8 +1820,10 @@ static int verify_shares(const uint8_t n, const TOPRF_Share shares[n], const uin
   for(int k=0;k<t-1;k++) {
     uint8_t v1[crypto_scalarmult_ristretto255_BYTES]={0};
     shuffle(indexes,n);
-    fprintf(stderr, "order: ");
-    for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
+    if(log_file!=NULL) {
+      fprintf(stderr, "order: ");
+      for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
+    }
 
     for(int i=0;i<t;i++) {
         topart((TOPRF_Part *) responses[i], &shares[indexes[i]]);
@@ -2004,7 +2008,7 @@ int main(void) {
         tmp[p]=1;
       }
     }
-    fprintf(stderr, "\e[0;31m:/ dkg failed, total cheaters %ld, list of cheaters:", total_cheaters);
+    fprintf(stderr, "\e[0;31m:/ dkg failed, total cheaters %d, list of cheaters:", total_cheaters);
     for(int i=1;i<=n;i++) {
       if(tmp[i]==0) continue;
       fprintf(stderr," %d", i);
