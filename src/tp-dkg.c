@@ -1189,9 +1189,6 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     if(0!=recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
     if(msg->len - sizeof(TP_DKG_Message) < msg->data[0]) return 4;
 
-    // if any peer complaints about more than t peers, that peer is a cheater and must be disqualified.
-    if(msg->data[0] >= ctx->t) return 5;
-
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg->data[0] && (k+1)<msg->len-sizeof(TP_DKG_Message);k++) {
       uint16_t pair=(uint16_t) (((i+1)<<8) | msg->data[k+1]);
@@ -1217,7 +1214,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     cheater->error = 6;
     cheater->peer = 0xfe;
     cheater->other_peer=0xfe;
-    return 6;
+    return 5;
   }
 
   send_msg(output, output_len, 10, 0, 0xff, ctx->sig_sk, ctx->sessionid);
@@ -1707,7 +1704,7 @@ char* tpdkg_recv_err(const int code) {
 
 uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outlen) {
   if(c->step==16) {
-    if(c->error & 6) {
+    if(c->error == 6) {
       snprintf(out, outlen, "more than t^2 complaints, most peers are cheating.");
       return 0;
     }
