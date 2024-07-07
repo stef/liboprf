@@ -60,6 +60,7 @@
 #include <stdint.h>
 #include <sodium.h>
 #include "XK.h"
+#include "dkg.h"
 
 #define tpdkg_sessionid_SIZE 32
 #define tpdkg_msg0_SIZE ( sizeof(TP_DKG_Message)                                         \
