@@ -55,13 +55,12 @@ FILE* log_file=NULL;
 #define noise_xk_handshake2_SIZE 48UL
 #define tpdkg_msg5_SIZE (sizeof(TP_DKG_Message) + noise_xk_handshake2_SIZE)
 #define tpdkg_msg6_SIZE(ctx) (sizeof(TP_DKG_Message) + crypto_core_ristretto255_BYTES * ctx->t )
-#define noise_xk_handshake3_SIZE 64UL
-#define tpdkg_msg8_SIZE (sizeof(TP_DKG_Message) + (noise_xk_handshake3_SIZE + crypto_secretbox_xchacha20poly1305_MACBYTES + sizeof(TOPRF_Share)) )
 #define tpdkg_msg9_SIZE(ctx) (sizeof(TP_DKG_Message) + ctx->n + 1 )
 #define tpdkg_msg10_SIZE(ctx) (sizeof(TP_DKG_Message) + ctx->n * tpdkg_msg9_SIZE(ctx))
-#define tpdkg_msg20_SIZE (sizeof(TP_DKG_Message) + crypto_generichash_BYTES)
+#define tpdkg_msg19_SIZE (sizeof(TP_DKG_Message) + crypto_generichash_BYTES)
+#define tpdkg_msg20_SIZE (sizeof(TP_DKG_Message) + 2)
 #define tpdkg_msg21_SIZE (sizeof(TP_DKG_Message) + 2)
-#define tpdkg_msg22_SIZE (sizeof(TP_DKG_Message) + 2)
+#define tpdkg_noise_key_SIZE (32UL)
 
 static void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   if(log_file==NULL) return;
@@ -113,6 +112,7 @@ static void send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t m
   crypto_sign_detached(msg->sig, NULL, with_sessionid, sizeof(with_sessionid), sig_sk);
 }
 
+// todo set as suspicious any peer that fails this.
 static int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[tpdkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
   TP_DKG_Message* msg = (TP_DKG_Message*) msg_buf;
   if(ntohl(msg->len) != msg_buf_len) return 1;
@@ -323,6 +323,95 @@ static int tpdkg_noise_decrypt(uint8_t *input,
   return 0;
 }
 
+/*
+  Return the session unique send key, needed for tp-dkg reveal share.
+*/
+typedef struct Noise_XK_init_state_t_s {
+  Noise_XK_init_state_t_tags tag;
+  union {
+    struct {
+      uint32_t step;
+      uint8_t *cipher_key;
+      uint8_t *chaining_key;
+      uint8_t *h;
+      uint8_t *spriv;
+      uint8_t *spub;
+      uint8_t *epriv;
+      uint8_t *epub;
+      uint8_t *rs;
+      uint8_t *re;
+    } case_IMS_Handshake;
+    struct {
+      uint8_t *h;
+      bool recv_transport_message;
+      uint8_t *send_key;
+      uint64_t send_nonce;
+      uint8_t *receive_key;
+      uint64_t receive_nonce;
+    } case_IMS_Transport;
+  } val;
+} Noise_XK_init_state_t;
+
+typedef struct Noise_XK_resp_state_t_s {
+  Noise_XK_init_state_t_tags tag;
+  union {
+    struct {
+      uint32_t step;
+      uint8_t *cipher_key;
+      uint8_t *chaining_key;
+      uint8_t *h;
+      uint8_t *spriv;
+      uint8_t *spub;
+      uint8_t *epriv;
+      uint8_t *epub;
+      uint8_t *rs;
+      uint8_t *re;
+    } case_IMS_Handshake;
+    struct {
+      uint8_t *h;
+      uint8_t *send_key;
+      uint64_t send_nonce;
+      uint8_t *receive_key;
+      uint64_t receive_nonce;
+    } case_IMS_Transport;
+  } val;
+} Noise_XK_resp_state_t;
+
+typedef struct Noise_XK_session_t_s {
+  Noise_XK_session_t_tags tag;
+  union {
+    struct {
+      Noise_XK_init_state_t state;
+      uint32_t id;
+      Noise_XK_noise_string *info;
+      uint8_t *spriv;
+      uint8_t *spub;
+      uint32_t pid;
+      Noise_XK_noise_string *pinfo;
+      Noise_XK_device_t *dv;
+    } case_DS_Initiator;
+    struct {
+      Noise_XK_resp_state_t state;
+      uint32_t id;
+      Noise_XK_noise_string *info;
+      uint8_t *spriv;
+      uint8_t *spub;
+      uint32_t pid;
+      Noise_XK_noise_string *pinfo;
+      Noise_XK_device_t *dv;
+    } case_DS_Responder;
+  } val;
+} Noise_XK_session_t;
+
+static uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
+  Noise_XK_session_t st = sn[0U];
+  if (st.tag == Noise_XK_DS_Initiator && st.val.case_DS_Initiator.state.tag == Noise_XK_IMS_Transport)
+    return st.val.case_DS_Initiator.state.val.case_IMS_Transport.send_key;
+  if (st.tag == Noise_XK_DS_Responder && st.val.case_DS_Responder.state.tag == Noise_XK_IMS_Transport)
+    return st.val.case_DS_Responder.state.val.case_IMS_Transport.receive_key;
+  return NULL;
+}
+
 size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
   switch(ctx->step) {
   case 0: return 0;
@@ -337,16 +426,16 @@ size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
     uint8_t ctr[ctx->n];
     memset(ctr,0,ctx->n);
     for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
-    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) total+=sizeof(TP_DKG_Message) + sizeof(TOPRF_Share) * ctr[i];
+    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) total+=sizeof(TP_DKG_Message) + (1+tpdkg_noise_key_SIZE) * ctr[i];
     return total;
   }
-  case 8: return tpdkg_msg20_SIZE * ctx->n;
-  case 9: return (tpdkg_msg22_SIZE * ctx->n);
+  case 8: return tpdkg_msg19_SIZE * ctx->n;
+  case 9: return (tpdkg_msg21_SIZE * ctx->n);
   default: {
     if(log_file!=NULL) fprintf(log_file, "[!] invalid tp step\n");
   }
   }
-  return 1;
+  return 0;
 }
 
 size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx) {
@@ -358,20 +447,12 @@ size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx) {
   case 4: return sizeof(TP_DKG_Message) + (tpdkg_msg6_SIZE(ctx) * ctx->n);
   case 5: return ctx->n * ctx->n * tpdkg_msg8_SIZE;
   case 6: return tpdkg_msg10_SIZE(ctx);
-  case 7: {
-    size_t total = 0;
-    uint8_t ctr[ctx->n];
-    memset(ctr,0,ctx->n);
-    for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
-    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) total+=sizeof(TP_DKG_Message) + sizeof(TOPRF_Share) * ctr[i];
-    if(total>0) total+=sizeof(TP_DKG_Message); // wrapping the broadcast message
-    return total;
-  }
-  case 8: return tpdkg_msg21_SIZE;
+  case 7: return 0;
+  case 8: return tpdkg_msg20_SIZE;
   case 9: return 0;
   default: if(log_file!=NULL) fprintf(log_file, "[!] invalid tp step\n");
   }
-  return 1;
+  return 0;
 }
 
 int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len) {
@@ -414,18 +495,13 @@ int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size
     break;
   }
   case 7: {
-    *msg = base;
     *len = 0;
-    uint8_t ctr[ctx->n];
-    memset(ctr,0,ctx->n);
-    for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) -1]++;
-    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) *len +=sizeof(TP_DKG_Message) + sizeof(TOPRF_Share) * ctr[i];
-    if(*len > 0)  *len += sizeof(TP_DKG_Message); // wrapping the broadcast message
+    *msg = NULL;
     break;
   }
   case 8: {
     *msg = base;
-    *len = tpdkg_msg21_SIZE;
+    *len = tpdkg_msg20_SIZE;
     break;
   }
   case 9: {
@@ -441,7 +517,7 @@ int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size
 
   if(base+base_size < *msg + *len) {
     if(log_file!=NULL) fprintf(log_file, "buffer overread detected in tpdkg_tp_peer_msg %ld\n", (base+base_size) - (*msg + *len));
-    return 1;
+    return 2;
   }
 
   return 0;
@@ -457,18 +533,9 @@ size_t tpdkg_peer_input_size(const TP_DKG_PeerState *ctx) {
   case 5: return ctx->n * tpdkg_msg8_SIZE;
   case 6: return tpdkg_msg10_SIZE(ctx);
   case 7: return 0;
-  case 8: {
-    size_t total = 0;
-    uint8_t ctr[ctx->n];
-    memset(ctr,0,ctx->n);
-    for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
-    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) total+=sizeof(TP_DKG_Message) + sizeof(TOPRF_Share) * ctr[i];
-    if(total > 0) total += sizeof(TP_DKG_Message); // wrapping the broadcast message
-    return total;
-  }
-  case 9: return 0;
-  case 10: return tpdkg_msg21_SIZE;
-  case 11: return 0;
+  case 8: return 0;
+  case 9: return tpdkg_msg20_SIZE;
+  case 10: return 0;
   default: {
     if(log_file!=NULL) fprintf(log_file, "[%d] invalid step\n", ctx->index);
   }
@@ -488,16 +555,15 @@ size_t tpdkg_peer_output_size(const TP_DKG_PeerState *ctx) {
   case 7: {
     if(ctx->complaints_len > 0) {
       if(ctx->my_complaints_len > 0) {
-        return sizeof(TP_DKG_Message) + ctx->my_complaints_len * sizeof(TOPRF_Share);
+        return sizeof(TP_DKG_Message) + ctx->my_complaints_len * (1+tpdkg_noise_key_SIZE);
       }
       return 0;
     }
-    return tpdkg_msg20_SIZE;
+    return tpdkg_msg19_SIZE;
   }
-  case 8: return 0;
-  case 9: return tpdkg_msg20_SIZE;
-  case 10: return tpdkg_msg22_SIZE;
-  case 11: return 0;
+  case 8: return tpdkg_msg19_SIZE;
+  case 9: return tpdkg_msg21_SIZE;
+  case 10: return 0;
   default: {
     if(log_file!=NULL) fprintf(log_file, "[%d] invalid step\n", ctx->index);
   }
@@ -531,7 +597,7 @@ int tpdkg_tp_not_done(const TP_DKG_TPState *tp) {
 }
 
 int tpdkg_peer_not_done(const TP_DKG_PeerState *peer) {
-  return peer->step<12;
+  return peer->step<11;
 }
 
 void tpdkg_peer_free(TP_DKG_PeerState *ctx) {
@@ -545,13 +611,14 @@ void tpdkg_peer_free(TP_DKG_PeerState *ctx) {
 void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
                        uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                        uint16_t (*complaints)[],
-                       uint8_t (*suspicious)[],
+                       uint8_t (*encrypted_shares)[][tpdkg_msg8_SIZE],
+                       TP_DKG_Cheater (*cheaters)[],
                        uint8_t (*tp_peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                        uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES]) {
   ctx->commitments = (uint8_t (*)[][crypto_core_ristretto255_BYTES]) commitments;
   ctx->complaints = complaints;
-  ctx->suspicious = suspicious;
-  memset(ctx->suspicious, 0, ctx->n);
+  ctx->encrypted_shares = encrypted_shares;
+  ctx->cheaters = cheaters;
   ctx->peer_sig_pks = tp_peers_sig_pks;
   ctx->peer_lt_pks = peer_lt_pks;
 }
@@ -572,6 +639,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
   ctx->n = n;
   ctx->t = t;
   ctx->complaints_len = 0;
+  ctx->cheater_len = 0;
 
   // dst hash(len(protoname) | "DKG for protocol " | protoname)
   crypto_generichash_state dst_state;
@@ -982,16 +1050,23 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     uint8_t corrupted_share[sizeof(TOPRF_Share)];
     memcpy(corrupted_share, &(*ctx->shares)[i], sizeof(TOPRF_Share));
     if(i+1 != ctx->index && corrupted_shares++<ctx->t) {
-        dump(corrupted_share, sizeof(TOPRF_Share), "corrupting share");
-        corrupted_share[2]^=0xff; // flip some bits
-        dump(corrupted_share, sizeof(TOPRF_Share), "corrupted share ");
+      dump(corrupted_share, sizeof(TOPRF_Share), "[%d] corrupting share_%d", ctx->index, i+1);
+      corrupted_share[2]^=0xff; // flip some bits
+      dump(corrupted_share, sizeof(TOPRF_Share), "[%d] corrupted share_%d ", ctx->index, i+1);
     }
     if(0!=tpdkg_noise_encrypt((uint8_t*) corrupted_share, sizeof(TOPRF_Share),
 #else
-  if(0!=tpdkg_noise_encrypt((uint8_t*) &(*ctx->shares)[i], sizeof(TOPRF_Share),
+    if(0!=tpdkg_noise_encrypt((uint8_t*) &(*ctx->shares)[i], sizeof(TOPRF_Share),
 #endif // UNITTEST
                               msg8->data + noise_xk_handshake3_SIZE, sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                               &(*ctx->noise_outs)[i])) return 6;
+
+    // we also need to use a key-commiting mac over the encrypted share, since poly1305 is not...
+    crypto_auth(msg8->data + noise_xk_handshake3_SIZE + sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                msg8->data + noise_xk_handshake3_SIZE,
+                sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                Noise_XK_session_get_key((*ctx->noise_outs)[i]));
+
     send_msg(wptr, tpdkg_msg8_SIZE, 8, ctx->index, i+1, ctx->sig_sk, ctx->sessionid);
     if(log_file!=NULL) {
       fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg8->msgno, msg8->from, msg8->to);
@@ -999,7 +1074,6 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     }
     wptr+=tpdkg_msg8_SIZE;
   }
-  //if(log_file!=NULL) dump((*ctx->commitments), (crypto_core_ristretto255_BYTES * ctx->t) * ctx->n, "[%d] cmtmnts", ctx->index);
 
   return 0;
 }
@@ -1027,6 +1101,9 @@ static int tp_step14_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     }
   }
 
+  // keep a copy for complaint resolution.
+  memcpy((*ctx->encrypted_shares), input, input_len);
+
   return 0;
 }
 
@@ -1048,9 +1125,16 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     // decrypt final empty handshake packet
     if(0!=tpdkg_noise_decrypt(msg8->data, noise_xk_handshake3_SIZE, NULL, 0, &(*ctx->noise_ins)[i])) return 4;
 
+    if(0!=crypto_auth_verify(msg8->data + noise_xk_handshake3_SIZE + sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                             msg8->data + noise_xk_handshake3_SIZE,
+                             sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                             Noise_XK_session_get_key((*ctx->noise_ins)[i]))) {
+      return 5;
+    }
+
     if(0!=tpdkg_noise_decrypt(msg8->data + noise_xk_handshake3_SIZE, sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                               (uint8_t*) &(*ctx->xshares)[i], sizeof(TOPRF_Share),
-                              &(*ctx->noise_ins)[i])) return 5;
+                              &(*ctx->noise_ins)[i])) return 6;
 
     ptr+=tpdkg_msg8_SIZE;
   }
@@ -1059,14 +1143,24 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   uint8_t *fails_len = msg9->data;
   uint8_t *fails = msg9->data+1;
   memset(fails, 0, ctx->n);
-  if(dkg_verify_commitments(ctx->n, ctx->t, ctx->index, ctx->commitments,
-                            *ctx->xshares, fails, fails_len)) {
-    if(log_file!=NULL) {
-      for(int j=0;j<*fails_len;j++) {
-        fprintf(log_file,"\e[0;31m[%d] failed to verify commitments from %d!\e[0m\n", ctx->index, fails[j]);
-      }
+  dkg_verify_commitments(ctx->n, ctx->t, ctx->index, ctx->commitments, *ctx->xshares, fails, fails_len);
+
+#ifdef UNITTEST
+  static int totalfails = 0;
+  for(int i=1;i<=ctx->n;i++) {
+    if(totalfails < ctx->t*ctx->t && *fails_len < ctx->t-1 && i != ctx->index) {
+      fails[msg9->data[0]++]=i;
+      totalfails++;
     }
   }
+#endif //UNITTEST
+
+  if(log_file!=NULL) {
+    for(int j=0;j<*fails_len;j++) {
+      fprintf(log_file,"\e[0;31m[%d] failed to verify commitments from %d!\e[0m\n", ctx->index, fails[j]);
+    }
+  }
+
   send_msg(output, tpdkg_msg9_SIZE(ctx), 9, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid);
   if(log_file!=NULL) {
     fprintf(log_file,"[%d] msgno: %d, from: %d to: %x ", ctx->index, msg9->msgno, msg9->from, msg9->to);
@@ -1100,7 +1194,11 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg->data[0] && (k+1)<msg->len-sizeof(TP_DKG_Message);k++) {
-      (*ctx->complaints)[ctx->complaints_len++] = (uint16_t) (((i+1)<<8) | msg->data[k+1]);
+      uint16_t pair=(uint16_t) (((i+1)<<8) | msg->data[k+1]);
+      int j=0;
+      for(j=0;j<ctx->complaints_len;j++) if((*ctx->complaints)[j]==pair) break;
+      if(j<ctx->complaints_len) continue;
+      (*ctx->complaints)[ctx->complaints_len++] = pair;
       if(log_file!=NULL) {
         fprintf(log_file,"\e[0;31m[!] peer %d failed to verify commitments from peer %d!\e[0m\n", i+1, msg->data[1+k]);
       }
@@ -1113,7 +1211,14 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   dump((uint8_t*) (*ctx->complaints), ctx->complaints_len*sizeof(uint16_t), "[!] complaints");
 
   // if more than t^2 complaints are received the protocol also fails
-  if(ctx->complaints_len >= ctx->t * ctx->t) return 6;
+  if(ctx->complaints_len >= ctx->t * ctx->t) {
+    TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+    cheater->step = 16;
+    cheater->error = 6;
+    cheater->peer = 0xfe;
+    cheater->other_peer=0xfe;
+    return 6;
+  }
 
   send_msg(output, output_len, 10, 0, 0xff, ctx->sig_sk, ctx->sessionid);
   TP_DKG_Message* msg10 = (TP_DKG_Message*) output;
@@ -1160,7 +1265,12 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg9->data[0] && (k+1)<msg9->len-sizeof(TP_DKG_Message);k++) {
-      (*ctx->complaints)[ctx->complaints_len++] = (uint16_t) (((i+1)<<8) | msg9->data[k+1]);
+      uint16_t pair=(uint16_t) (((i+1)<<8) | msg9->data[k+1]);
+      int j=0;
+      for(j=0;j<ctx->complaints_len;j++) if((*ctx->complaints)[j]==pair) break;
+      if(j<ctx->complaints_len) continue;
+      (*ctx->complaints)[ctx->complaints_len++] = pair;
+
       if(msg9->data[k+1] == ctx->index) {
         (*ctx->my_complaints)[ctx->my_complaints_len++] = i+1;
         if(log_file!=NULL) fprintf(log_file,"\e[0;31m[%d] peer %d failed to verify commitments from peer %d!\e[0m\n", ctx->index, i+1, msg9->data[1+k]);
@@ -1172,7 +1282,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
   if(ctx->complaints_len == 0) {
     ctx->prev = ctx->step;
-    ctx->step+=2; // skip to step 20
+    ctx->step+=1; // skip to step 19
   }
 
   return 0;
@@ -1194,56 +1304,149 @@ static int peer_step17a_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
   uint8_t *wptr = msg11->data;
   for(int i=0;i<ctx->my_complaints_len;i++) {
     if(log_file!=NULL) fprintf(log_file, "\e[0;36m[%d] defending against complaint from %d\e[0m\n", ctx->index, (*ctx->my_complaints)[i]);
-    memcpy(wptr, &(*ctx->shares)[(*ctx->my_complaints)[i]-1], sizeof(TOPRF_Share));
-    wptr+=sizeof(TOPRF_Share);
+
+    *wptr++ = (*ctx->my_complaints)[i];
+    // reveal key for noise wrapped share sent previously
+    memcpy(wptr, Noise_XK_session_get_key((*ctx->noise_outs)[(*ctx->my_complaints)[i]-1]), tpdkg_noise_key_SIZE);
+    wptr+=tpdkg_noise_key_SIZE;
   }
 
-  send_msg(output, tpdkg_peer_output_size(ctx), 11, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid);
+  send_msg(output, tpdkg_peer_output_size(ctx), 11, ctx->index, 0x0, ctx->sig_sk, ctx->sessionid);
   if(log_file!=NULL) {
     fprintf(log_file,"[%d] msgno: %d, from: %d to: %x ", ctx->index, msg11->msgno, msg11->from, msg11->to);
     dump(output, tpdkg_peer_output_size(ctx), "msg");
   }
 
+  // we skip to the end...
+  ctx->step=99;
+
   return 0;
 }
 
 static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 18. collect and verify contested shares\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 18. collect keys of contested shares and verify the commitments\e[0m\n");
   if(input_len != tpdkg_tp_input_size(ctx)) return 1;
-  if(output_len != tpdkg_tp_output_size(ctx)) return 2;
+  if(output_len != 0) return 2;
 
-  uint8_t ctr[ctx->n];
+  int ctr[ctx->n];
   uint16_t complaints[ctx->complaints_len];
-  memset(ctr,0,ctx->n);
+  memset(ctr,0,sizeof(ctr));
   for(int i=0;i<ctx->complaints_len;i++) {
     ctr[((*ctx->complaints)[i] & 0xff)-1]++;
     complaints[i] = (*ctx->complaints)[i];
   }
 
-  const uint8_t *ptr = input;
-  TP_DKG_Message *msg12 = (TP_DKG_Message *) output;
-  uint8_t *wptr = msg12->data;
-  for(uint8_t i=0;i<ctx->n;i++) {
-    if(ctr[i]==0) continue;
+  uint8_t (*noisy_shares)[ctx->n][ctx->n][tpdkg_msg8_SIZE] = (uint8_t (*)[ctx->n][ctx->n][tpdkg_msg8_SIZE]) ctx->encrypted_shares;
 
-    size_t msg_len = sizeof(TP_DKG_Message) + sizeof(TOPRF_Share) * ctr[i];
+  const uint8_t *ptr = input;
+  size_t msg_len;
+  for(uint8_t i=0;i<ctx->n;i++,ptr += msg_len) {
+    if(ctr[i]==0) {
+      msg_len = 0;
+      continue; // no complaints against this peer
+    }
+    msg_len = sizeof(TP_DKG_Message) + (1+tpdkg_noise_key_SIZE) * ctr[i];
 
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     if(log_file!=NULL) {
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
       dump(ptr, msg_len, "msg");
     }
-    int ret = recv_msg(ptr, msg_len, 11, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
-    if(0!=ret) return 3 + ret;
+    int ret = recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
+    if(0!=ret) {
+      TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+      cheater->step = 18;
+      cheater->error = 32+ret;
+      cheater->peer = i+1;
+      cheater->other_peer=0xfe;
+      continue;
+    }
 
     // verify proofs
-    const uint8_t *shareptr = msg->data;
-    for(int k=0;k<ctr[i];k++) {
-      TOPRF_Share share = *((TOPRF_Share*) shareptr);
+    const uint8_t *keyptr = msg->data;
+    for(int k=0;k<ctr[i];k++,keyptr+=tpdkg_noise_key_SIZE) {
+      TOPRF_Share share;
+
+      const uint8_t complainer = *keyptr++;
+      const uint8_t accused = msg->from;
+
+      int j;
+      for(j=0;j<ctx->complaints_len;j++) {
+        if(complaints[j] == (((complainer)<<8) | accused)) {
+          complaints[j]=0xffff;
+          break;
+        }
+      }
+      if(j==ctx->complaints_len) {
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 6; // accused revealed a key that was not complained about
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
+        continue;
+      }
+
+      uint8_t *msg8_ptr = (*noisy_shares)[accused-1][complainer-1];
+      const TP_DKG_Message *msg8 = (const TP_DKG_Message *) msg8_ptr;
+      if(log_file!=NULL) {
+        fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg8->msgno, msg8->from, msg8->to);
+        dump(msg8_ptr, tpdkg_msg8_SIZE, "msg");
+      }
+      uint64_t last_ts = ntohll(msg8->ts)-1; // ignore freshness
+      ret = recv_msg(msg8_ptr, tpdkg_msg8_SIZE, 8,
+                     accused, complainer,
+                     (*ctx->peer_sig_pks)[accused-1], ctx->sessionid, ctx->ts_epsilon, &last_ts);
+      if(0!=ret) {
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 16+ret; // key reveal msg_recv failure
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
+        continue; // return 16+ret;
+      }
+#ifdef UNITTEST
+      dump(keyptr, tpdkg_noise_key_SIZE, "[!] key_%d,%d", accused, complainer);
+#endif //UNITTEST
+
+      // verify key committing hmac first!
+      if(0!=crypto_auth_verify(msg8->data + noise_xk_handshake3_SIZE + sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                               msg8->data + noise_xk_handshake3_SIZE,
+                               sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
+                               keyptr)) {
+        // failed to verify KC MAC on message
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 3; // hmac verification failure
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
+        continue;
+      }
+
+      Noise_XK_error_code
+        res0 = Noise_XK_aead_decrypt((uint8_t*)keyptr, 0, (uint32_t)0U, NULL, sizeof(share), (uint8_t*) &share, (uint8_t*) msg8->data + noise_xk_handshake3_SIZE);
+      if (!(res0 == Noise_XK_CSuccess)) {
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 4; // share decryption failure
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
+        continue;
+      }
+
+      if(share.index != complainer) {
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 5; // invalid share index
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
+        cheater->invalid_index = share.index;
+        continue;
+      }
+
       if(log_file!=NULL) {
         fprintf(log_file, "[!] checking proof of peer %d for complaint by peer %d\n", msg->from, share.index);
-        dump(shareptr, sizeof(TOPRF_Share), "share");
-        dump((*ctx->commitments)[(msg->from-1) * ctx->t], ctx->t * crypto_core_ristretto255_BYTES, "commitments");
+        dump((void*) &share, sizeof(TOPRF_Share), "[!] share_%d,%d", msg->from, share.index);
+        dump((*ctx->commitments)[(msg->from-1) * ctx->t], ctx->t * crypto_core_ristretto255_BYTES, "[!] commitments_%d", msg->from);
       }
       ret = dkg_verify_commitment(ctx->n, ctx->t,
                                   share.index,
@@ -1253,228 +1456,112 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       switch(ret) {
       case 0: {
         // verified correctly
-        fprintf(stderr, "\e[0;32m[!] complaint against %d by %d invalid, proof verified correctly\e[0m\n", msg->from, share.index);
-        for(int i=0;i<ctx->complaints_len;i++) {
-          if(complaints[i] == (((share.index)<<8) | msg->from)) complaints[i]=0xffff;
-        }
+        if(log_file!=NULL) fprintf(log_file, "\e[0;32m[!] complaint against %d by %d invalid, proof correct\e[0m\n", msg->from, share.index);
+
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 128+ret;
+        cheater->peer = complainer;
+        cheater->other_peer=accused;
         break;
       }
       case 1: {
         // confirmed corrupt
-        fprintf(stderr, "\e[0;31m[!] complaint against %d by %d valid, proof verified incorrectly\e[0m\n", msg->from, share.index);
+        if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d valid, proof incorrect\e[0m\n", msg->from, share.index);
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 128+ret;
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
         break;
       }
       case -1: {
         // invalid input
-        fprintf(stderr, "\e[0;31m[!] complaint against %d by %d valid, cannot be verified, invalid input\e[0m\n", msg->from, share.index);
+        if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d, cannot be verified, invalid input\e[0m\n", msg->from, share.index);
+
+        TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+        cheater->step = 18;
+        cheater->error = 128+ret;
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
         break;
       }
       }
-
-      (*ctx->suspicious)[msg->from-1]++;
-      (*ctx->suspicious)[share.index-1]++;
-      shareptr+=sizeof(TOPRF_Share);
     }
-
-    memcpy(wptr, ptr, msg_len);
-    ptr += msg_len;
-    wptr+= msg_len;
   }
 
-  int ret = 0;
   for(int i=0;i<ctx->complaints_len;i++) {
     if(complaints[i] != 0xffff) {
-      ret = 3;
+      TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+      cheater->step = 18;
+      cheater->error = 7; // unchecked complaint
+      cheater->peer = complaints[i] >> 8;
+      cheater->other_peer= complaints[i] & 0xff;
     }
   }
 
-  if(log_file!=NULL) {
-    if(!ret) {
-      fprintf(log_file, "\e[0;32m[!] all complaints invalid, all proofs verified correctly\e[0m\n");
-    } else {
-      fprintf(log_file, "\e[0;31m[!] some complaints valid, some proofs verified incorrectly\e[0m\n");
-      ret = 3;
-    }
-    fprintf(log_file, "[!] suspicious peers:");
-    for(uint8_t i=0;i<ctx->n;i++) {
-      if((*ctx->suspicious)[i]>0) fprintf(log_file, " %d(%d)", i+1, (*ctx->suspicious)[i]);
-    }
-    fprintf(log_file, "\n");
-  }
+  ctx->step=99; // we skip to the end
 
-  // wrap broadcast message
-  send_msg(output, output_len, 12, 0, 0xff, ctx->sig_sk, ctx->sessionid);
-  if(log_file!=NULL) {
-    fprintf(log_file,"[!] msgno: %d, from: %d to: %x ", msg12->msgno, msg12->from, msg12->to);
-    dump(output, output_len, "msg");
-  }
-
-  // add broadcast msg to transcript
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) output, output_len);
-
-  // broadcast all proofs
-
-  return ret;
+  return 3;
 }
 
 static int peer_step19_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 19. verify contested shares\e[0m\n", ctx->index);
-  if(input_len != tpdkg_peer_input_size(ctx)) return 1;
-  if(output_len !=0) return 2;
-
-  // verify TP message envelope
-  TP_DKG_Message* msg12 = (TP_DKG_Message*) input;
-  if(log_file!=NULL) {
-    fprintf(log_file,"[%d] msgno: %d, from: %d to: %x ", ctx->index, msg12->msgno, msg12->from, msg12->to);
-    dump(input, input_len, "msg");
-  }
-
-  uint64_t last_ts = ctx->last_ts;
-  int ret = recv_msg(input, input_len, 12, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &last_ts);
-  if(0!=ret) return 16+ret;
-
-  // add broadcast msg to transcript
-  crypto_generichash_update(&ctx->transcript, input, input_len);
-
-  uint8_t ctr[ctx->n];
-  uint16_t complaints[ctx->complaints_len];
-  memset(ctr,0,ctx->n);
-  for(int i=0;i<ctx->complaints_len;i++) {
-    ctr[((*ctx->complaints)[i] & 0xff)-1]++;
-    complaints[i] = (*ctx->complaints)[i];
-  }
-
-  const uint8_t *ptr = msg12->data;
-  for(uint8_t i=0;i<ctx->n;i++) {
-    if(ctr[i]==0) continue;
-
-    size_t msg_len = sizeof(TP_DKG_Message) + sizeof(TOPRF_Share) * ctr[i];
-
-    const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
-    if(log_file!=NULL) {
-      fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
-      dump(ptr, msg_len, "msg");
-    }
-    int ret = recv_msg(ptr, msg_len, 11, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
-    if(0!=ret) return 3 + ret;
-
-    // verify proofs
-    const uint8_t *shareptr = msg->data;
-    for(int k=0;k<ctr[i];k++) {
-      TOPRF_Share share = *((TOPRF_Share*) shareptr);
-      if(log_file!=NULL) {
-        fprintf(log_file, "[%d] checking proof of peer %d for complaint by peer %d\n", ctx->index, msg->from, share.index);
-        dump(shareptr, sizeof(TOPRF_Share), "share");
-        dump((*ctx->commitments)[(msg->from-1) * ctx->t], ctx->t * crypto_core_ristretto255_BYTES, "commitments");
-      }
-      ret = dkg_verify_commitment(ctx->n, ctx->t,
-                                  share.index,
-                                  msg->from,
-                                  (const uint8_t (*)[crypto_core_ristretto255_BYTES]) (*ctx->commitments)[(msg->from-1) * ctx->t],
-                                  share);
-      switch(ret) {
-      case 0: {
-        // verified correctly
-        fprintf(stderr, "\e[0;32m[%d] complaint against %d by %d invalid, proof verified correctly\e[0m\n", ctx->index, msg->from, share.index);
-        for(int i=0;i<ctx->complaints_len;i++) {
-          if(complaints[i] == (((share.index)<<8) | msg->from)) complaints[i]=0xffff;
-        }
-
-        if(share.index == ctx->index) {
-          // if we are the complainers verify if our original share == the broadcast share
-          if(log_file!=NULL) {
-            dump((uint8_t*) &(*ctx->xshares)[i], sizeof(TOPRF_Share), "xshare_%d", i+1);
-            dump(shareptr, sizeof(TOPRF_Share), "nshare_%d", i+1);
-          }
-          if(sodium_memcmp((uint8_t*) &(*ctx->xshares)[i], shareptr, sizeof(TOPRF_Share))!=0) {
-            // replace bad share, with good share
-            memcpy((uint8_t*) &(*ctx->xshares)[i], shareptr, sizeof(TOPRF_Share));
-          }
-          // TODO / TBA we could publish the original share if it is different to avoid being suspect and clearly identify the other peer as a cheater
-          // but that share must be signed by the owning peer - which is not yet implemented
-        }
-        break;
-      }
-      case 1: {
-        // confirmed corrupt
-        fprintf(stderr, "\e[0;31m[!] complaint against %d by %d valid, proof verified incorrectly\e[0m\n", msg->from, share.index);
-        break;
-      }
-      case -1: {
-        // invalid input
-        fprintf(stderr, "\e[0;31m[!] complaint against %d by %d valid, cannot be verified, invalid input\e[0m\n", msg->from, share.index);
-        break;
-      }
-      }
-
-      shareptr+=sizeof(TOPRF_Share);
-    }
-    ptr += msg_len;
-  }
-
-  ret = 0;
-  for(int i=0;i<ctx->complaints_len;i++) {
-    if(complaints[i] != 0xffff) {
-      ret = 3;
-      fprintf(log_file, "\e[0;31m[%d] some complaints valid, some proofs verified incorrectly (%d on %d) \e[0m\n", ctx->index, complaints[i]>>8, complaints[i] & 0xff );
-    }
-  }
-
-  if(log_file!=NULL) {
-    if(ret) {
-      fprintf(log_file, "\e[0;32m[!] all complaints invalid, all proofs verified correctly\e[0m\n");
-    }
-  }
-
-  return ret;
-}
-
-static int peer_step20_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "[%d] step 20. send final transcript\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "[%d] step 19. send final transcript\n", ctx->index);
   if(input_len != 0) return 1;
-  if(output_len != tpdkg_msg20_SIZE) return 2;
+  if(output_len != tpdkg_msg19_SIZE) return 2;
 
   TP_DKG_Message* msg20 = (TP_DKG_Message*) output;
   crypto_generichash_final(&ctx->transcript, msg20->data, crypto_generichash_BYTES);
-  send_msg(output, tpdkg_msg20_SIZE, 20, ctx->index, 0, ctx->sig_sk, ctx->sessionid);
+  send_msg(output, tpdkg_msg19_SIZE, 20, ctx->index, 0, ctx->sig_sk, ctx->sessionid);
   if(log_file!=NULL) {
     fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg20->msgno, msg20->from, msg20->to);
-    dump(output, tpdkg_msg20_SIZE, "msg");
+    dump(output, tpdkg_msg19_SIZE, "msg");
   }
 
   return 0;
 }
 
-static int tp_step21_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 21. collect and verify transcripts\e[0m\n");
+static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
+  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 20. collect and verify transcripts\e[0m\n");
 
-  if((tpdkg_msg20_SIZE * ctx->n) != input_len) return 1;
-  if(output_len != tpdkg_msg21_SIZE) return 2;
+  if((tpdkg_msg19_SIZE * ctx->n) != input_len) return 1;
+  if(output_len != tpdkg_msg20_SIZE) return 2;
 
   uint8_t transcript_hash[crypto_generichash_BYTES];
   crypto_generichash_final(&ctx->transcript, transcript_hash, crypto_generichash_BYTES);
 
   uint8_t *wptr = ((TP_DKG_Message *) output)->data;
   memcpy(wptr, "OK", 2);
-  ctx->result = 1;
   const uint8_t *ptr = input;
-  for(uint8_t i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++, ptr+=tpdkg_msg19_SIZE) {
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     if(log_file!=NULL) {
       fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
-      dump(ptr, tpdkg_msg20_SIZE, "msg");
+      dump(ptr, tpdkg_msg19_SIZE, "msg");
     }
-    if(0!=recv_msg(ptr, tpdkg_msg20_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
+    int ret = recv_msg(ptr, tpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
+    if(0!=ret) {
+      TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+      cheater->step = 20;
+      cheater->error = 1+ret;
+      cheater->peer = i+1;
+      cheater->other_peer=0;
+
+      memcpy(wptr,"NO",2);
+      continue;
+    }
 
     if(sodium_memcmp(transcript_hash, msg->data, sizeof(transcript_hash))!=0) {
       if(log_file!=NULL) {
         fprintf(log_file,"\e[0;31m[!] failed to verify transcript from %d!\e[0m\n", i);
       }
+      TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+      cheater->step = 20;
+      cheater->error = 1;
+      cheater->peer = i+1;
+      cheater->other_peer=0;
       memcpy(wptr,"NO",2);
-      ctx->result = 0;
-    }
-
-    ptr+=tpdkg_msg20_SIZE;
+    } 
   }
 
   send_msg(output, output_len, 21, 0, 0xff, ctx->sig_sk, ctx->sessionid);
@@ -1483,14 +1570,16 @@ static int tp_step21_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     fprintf(log_file,"[!] msgno: %d, from: %d to: %x ", msg21->msgno, msg21->from, msg21->to);
     dump(output, output_len, "msg");
   }
+  if(ctx->cheater_len == 0) return 0;
 
-  return 0;
+  ctx->step = 99; // we finish here
+  return 3;
 }
 
-static int peer_step22_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 22. get final approval\e[0m\n", ctx->index);
-  if(input_len != tpdkg_msg21_SIZE) return 1;
-  if(output_len != tpdkg_msg22_SIZE) return 2;
+static int peer_step21_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
+  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 21. get final approval\e[0m\n", ctx->index);
+  if(input_len != tpdkg_msg20_SIZE) return 1;
+  if(output_len != tpdkg_msg21_SIZE) return 2;
 
   // verify TP message envelope
   TP_DKG_Message* msg21 = (TP_DKG_Message*) input;
@@ -1505,23 +1594,23 @@ static int peer_step22_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   if(!fail) {
     ctx->share.index=ctx->index;
     dkg_finish(ctx->n,*ctx->xshares,ctx->index,&ctx->share);
-  }
 
-  TP_DKG_Message* msg22 = (TP_DKG_Message*) output;
-  memcpy(msg22->data, msg21->data, 2);
-  send_msg(output, tpdkg_msg22_SIZE, 22, ctx->index, 0, ctx->sig_sk, ctx->sessionid);
-  if(log_file!=NULL) {
-    fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg22->msgno, msg22->from, msg22->to);
-    dump(output, tpdkg_msg22_SIZE, "msg");
+    TP_DKG_Message* msg22 = (TP_DKG_Message*) output;
+    memcpy(msg22->data, msg21->data, 2);
+    send_msg(output, tpdkg_msg21_SIZE, 22, ctx->index, 0, ctx->sig_sk, ctx->sessionid);
+    if(log_file!=NULL) {
+        fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg22->msgno, msg22->from, msg22->to);
+        dump(output, tpdkg_msg21_SIZE, "msg");
+    }
   }
 
   return fail*4;
 }
 
-static int tp_step23_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 23. collect acks from peers\e[0m\n");
+static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
+  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 22. collect acks from peers\e[0m\n");
 
-  if((tpdkg_msg22_SIZE * ctx->n) != input_len) return 1;
+  if((tpdkg_msg21_SIZE * ctx->n) != input_len) return 1;
   if(output_len != 0) return 2;
 
   const uint8_t *ptr = input;
@@ -1529,19 +1618,18 @@ static int tp_step23_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     if(log_file!=NULL) {
       fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
-      dump(ptr, tpdkg_msg22_SIZE, "msg");
+      dump(ptr, tpdkg_msg21_SIZE, "msg");
     }
-    if(0!=recv_msg(ptr, tpdkg_msg22_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
+    if(0!=recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
 
-    if(memcmp(ctx->result?"OK":"NO", msg->data, 2)!=0) {
+    if(memcmp("OK", msg->data, 2)!=0) {
       if(log_file!=NULL) {
         fprintf(log_file,"\e[0;31m[!] failed to get ack from %d!\e[0m\n", i);
       }
     }
-    ptr+=tpdkg_msg22_SIZE;
+    ptr+=tpdkg_msg21_SIZE;
   }
-
-  return 4*!ctx->result;
+  return 0;
 }
 
 int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
@@ -1564,8 +1652,8 @@ int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_
     return ret;
   }
   case 7: {ret = tp_step18_handler(ctx, input, input_len, output, output_len); break;}
-  case 8: {ret = tp_step21_handler(ctx, input, input_len, output, output_len); break;}
-  case 9: {ret = tp_step23_handler(ctx, input, input_len, output, output_len); break;}
+  case 8: {ret = tp_step20_handler(ctx, input, input_len, output, output_len); break;}
+  case 9: {ret = tp_step22_handler(ctx, input, input_len, output, output_len); break;}
   default: {
     if(log_file!=NULL) fprintf(log_file, "[!] invalid step\n");
     return 99;
@@ -1588,9 +1676,8 @@ int tpdkg_peer_next(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t in
   case 6: {ret = peer_step17_handler(ctx, input, input_len, output, output_len); break;}
   case 7: {ret = peer_step17a_handler(ctx, input, input_len, output, output_len); break;}
   case 8: {ret = peer_step19_handler(ctx, input, input_len, output, output_len); break;}
-  case 9: {ret = peer_step20_handler(ctx, input, input_len, output, output_len); break;}
-  case 10: {ret = peer_step22_handler(ctx, input, input_len, output, output_len); break;}
-  case 11: {
+  case 9: {ret = peer_step21_handler(ctx, input, input_len, output, output_len); break;}
+  case 10: {
     // we are done
     ret = 0;
     break;
@@ -1603,6 +1690,87 @@ int tpdkg_peer_next(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t in
   ctx->prev=ctx->step++;
   if(ret!=0) ctx->step=99; // so that not_done reports done
   return ret;
+}
+
+char* tpdkg_recv_err(const int code) {
+  switch(code) {
+  case 0: return "no error";
+  case 1: return "invalid message len";
+  case 2: return "invalid message number";
+  case 3: return "invalid sender";
+  case 4: return "invalid recipient";
+  case 5: return "expired message";
+  case 6: return "invalid signature";
+  }
+  return "invalid recv_msg error code";
+}
+
+uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outlen) {
+  if(c->step==16) {
+    if(c->error & 6) {
+      snprintf(out, outlen, "more than t^2 complaints, most peers are cheating.");
+      return 0;
+    }
+    snprintf(out,outlen, "invalid error code for step 16: %d", c->error);
+    return 0;
+  } else if(c->step==18) {
+    if(c->error & 16) {
+      snprintf(out, outlen, "message containing encrypted share from peer %d for peer %d could not be validated: %s",
+               c->peer, c->other_peer, tpdkg_recv_err(c->error & 0xf));
+      return c->peer;
+    } else if (c->error & 32) {
+      snprintf(out, outlen, "message revealing key encrypting share from peer %d for peer %d could not be validated: %s",
+               c->peer, c->other_peer, tpdkg_recv_err(c->error & 0x1f));
+      return c->peer;
+    }
+    switch(c->error) {
+    case 3: {
+      snprintf(out,outlen, "accused peer %d revealed a key (for peer %d) that was not complained about", c->peer, c->other_peer);
+      return c->peer;
+    }
+    case 4: {
+      snprintf(out,outlen, "verification of hmac of message from accused peer %d to complaining peer %d failed", c->peer, c->other_peer);
+      return c->peer;
+    }
+    case 5: {
+      snprintf(out,outlen, "accused peer %d sent an invalid share with index %d to complaining peer %d", c->peer, c->other_peer, c->invalid_index);
+      return c->peer;
+    }
+    case 6: {
+      snprintf(out,outlen, "accused peer %d revealed a key for happy peer %d", c->peer, c->other_peer);
+      return c->peer;
+    }
+    case 7: {
+      snprintf(out,outlen, "accused peer %d complained by peer %d was not verified", c->peer, c->other_peer);
+      return c->peer;
+    }
+    case 127: {
+      snprintf(out,outlen, "accused peer %d provided invalid parameters to complaint from peer %d", c->peer, c->other_peer);
+      return c->peer;
+    }
+    case 128: {
+      snprintf(out,outlen, "peer %d was falsely accused by peer %d", c->peer, c->other_peer);
+      return c->other_peer;
+    }
+    case 129: {
+      snprintf(out,outlen, "accused peer %d was caught cheating by peer %d", c->peer, c->other_peer);
+      return c->peer;
+    }
+    default: {
+      snprintf(out,outlen, "invalid error code for step 18: %d", c->error);
+      return 0;
+    }
+    }
+  } else if(c->step==20) {
+    if(c->error == 1) {
+      snprintf(out,outlen, "transcript mismatch peer %d", c->peer);
+      return c->peer;
+    }
+    snprintf(out,outlen, "invalid error code for step 20: %d", c->error);
+    return 0;
+  }
+  snprintf(out,outlen, "invalid step %d", c->step);
+  return 0;
 }
 
 #ifdef UNITTEST
@@ -1717,8 +1885,9 @@ int main(void) {
   uint8_t tp_commitments[n*t][crypto_core_ristretto255_BYTES];
   // tp needs to store the complaints, with max n==128 this takes max 16KB of ram.
   uint16_t tp_complaints[n*n];
-  uint8_t suspicious[n];
-  tpdkg_tp_set_bufs(&tp, &tp_commitments, &tp_complaints, &suspicious, &tp_peers_sig_pks, &peer_lt_pks);
+  uint8_t noisy_shares[n*n][tpdkg_msg8_SIZE];
+  TP_DKG_Cheater cheaters[t*t - 1];
+  tpdkg_tp_set_bufs(&tp, &tp_commitments, &tp_complaints, &noisy_shares, &cheaters, &tp_peers_sig_pks, &peer_lt_pks);
 
   // only tp_out can survive for the peers in local scope of the "main protocol loop"
   // and thus we simulate a network with this buffer
@@ -1775,6 +1944,7 @@ int main(void) {
     if(0!=ret) {
       // clean up peers
       for(uint8_t i=0;i<n;i++) tpdkg_peer_free(&peers[i]);
+      if(tp.cheater_len > 0) break;
       return ret;
     }
 
@@ -1810,7 +1980,7 @@ int main(void) {
 
   // we are done. let's check the shares...
   TOPRF_Share shares[n];
-  if(tp.result) {
+  if(tp.cheater_len == 0) {
     for(uint8_t i=0;i<n;i++) {
       memcpy(&shares[i], (uint8_t*) &peers[i].share, sizeof(TOPRF_Share));
       dump((uint8_t*) &shares[i], sizeof(TOPRF_Share), "share[%d]", i+1);
@@ -1821,7 +1991,25 @@ int main(void) {
         return 1;
     }
   } else {
-    fprintf(stderr, ":/ dkg failed\n");
+    int total_cheaters=0;
+    uint8_t tmp[n+1];
+    memset(tmp,0,n+1);
+    for(int i=0;i<tp.cheater_len;i++) {
+      char err[tpdkg_max_err_SIZE];
+      uint8_t p = tpdkg_cheater_msg(&(*tp.cheaters)[i], err, sizeof(err));
+      fprintf(stderr,"\e[0;31m%s\e[0m\n", err);
+      if(p > n) return 1;
+      if(tmp[p]==0) {
+        total_cheaters++;
+        tmp[p]=1;
+      }
+    }
+    fprintf(stderr, "\e[0;31m:/ dkg failed, total cheaters %ld, list of cheaters:", total_cheaters);
+    for(int i=1;i<=n;i++) {
+      if(tmp[i]==0) continue;
+      fprintf(stderr," %d", i);
+    }
+    fprintf(stderr, "\e[0m\n", total_cheaters);
     return 1;
   }
 
