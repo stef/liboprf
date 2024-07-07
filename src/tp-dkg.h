@@ -255,6 +255,7 @@ typedef struct {
   uint16_t (*complaints)[];
   size_t cheater_len;
   TP_DKG_Cheater (*cheaters)[];
+  size_t cheater_max;
   crypto_generichash_state transcript;
 } TP_DKG_TPState;
 
@@ -304,12 +305,22 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
    A number of buffers are needed in the TP state that depend on the N and T parameters.
    These can be allocated on the stack as follows:
 
+   @param [in] cheater_max: is the number of max cheat attempts to be
+          recorded. Normally the maximum is t*t-1. It should be provided as
+          (sizeof(cheaters) / sizeof(TP_DKG_Cheater))
+
+   @code
    uint8_t tp_commitments[n*t][crypto_core_ristretto255_BYTES];
    uint16_t tp_complaints[n*n];
    uint8_t encrypted_shares[n*n][tpdkg_msg8_SIZE];
    TP_DKG_Cheater cheaters[t*t - 1];
    uint8_t tp_peers_sig_pks[n][crypto_sign_PUBLICKEYBYTES];
    uint8_t peer_lt_pks[n][crypto_sign_PUBLICKEYBYTES];
+
+   tpdkg_tp_set_bufs(&tp, &tp_commitments, &tp_complaints, &encrypted_shares,
+                     &cheaters, sizeof(cheaters) / sizeof(TP_DKG_Cheater),
+                     &tp_peers_sig_pks, &peer_lt_pks);
+   @endcode
 
    Important to note that peer_lt_pks should contain the long-term
    signing public-keys of each peer. This array must be populated in
@@ -319,7 +330,7 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
                        uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                        uint16_t (*complaints)[],
                        uint8_t (*encrypted_shares)[][tpdkg_msg8_SIZE],
-                       TP_DKG_Cheater (*cheaters)[],
+                       TP_DKG_Cheater (*cheaters)[], const size_t cheater_max,
                        uint8_t (*tp_peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                        uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES]);
 
