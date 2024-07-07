@@ -1,12 +1,12 @@
 Trusted-party DKG
 
-Proposal for a non-robust DKG that can work for small deployments with
-a small number of parties and infrequent DKG executions. Non-robust
-means that the protocol succeeds only if no party aborts. If someone
-aborts then the protocol needs to run again, possibly after kicking
-out misbehaving parties. This protocol does not support more than 127
-peers, this is probably already too much for a non-robust protocol,
-but it might work in very special circumstances.
+This document specifies a proposal for a non-robust DKG that can work
+for small deployments with a small number of parties and infrequent
+DKG executions. Non-robust means that the protocol succeeds only if no
+party aborts. If someone aborts then the protocol needs to run again,
+possibly after kicking out misbehaving parties. This protocol does not
+support more than 127 peers, this is probably already too much for a
+non-robust protocol, but it might work in very special circumstances.
 
 Broadcast is implemented by the trusted party (TP) opening a channel
 to each peer secured by the peers long-term encryption key. Every
@@ -24,12 +24,11 @@ H. Krawczyk, and T. Rabin. The algorithm JF-DKG is presented in the
 paper as a reduced example how an adversary can influence the bits in
 the generated secret by manipulating the complaints and thus the final
 composition of the QUAL set, gaining a 3/4 chance to influence a
-bit. Since in our TP variant we do not allow individual
+bit. Since in our TP variant is non-robust, we do not allow individual
 disqualifications of peers, - either all peers qualify or the protocol
-fails - mitigates the case where an adversary can adaptively
+fails - this mitigates the case where an adversary can adaptively
 disqualify a peer. Thus the JF-DKG is a simple and sufficient
 algorithm for our purposes.
-
 
 ------<=[ Rationale                                     ]=>-------
 
@@ -260,13 +259,9 @@ Client knows long-term signing keys of all peers.
 ------<=[ 1. DKG Announcement - TP(peers, t, proto_name) ]=>-------
 
 The protocol starts by asking the trusted party (TP) to initiate a new
-instantiation of the DKG protocol, by providing it with a shuffled
-list of the peers, a threshold value and protocol instance name used
-as a domain separation token.
-
-The list of peers SHOULD be shuffled (in random order), so that it is
-possible to identify cheating peers with repeated executions of the
-protocol.
+instantiation of the DKG protocol, by providing it with a list of the
+peers, a threshold value and protocol instance name used as a domain
+separation token.
 
 The TP then sanity checks these parameters:
 
@@ -569,7 +564,7 @@ verified, then each message containing the j-th A commitment vector is
 also verified. A copy of all A commitment vectors is retained for
 later usage. Then the share for the j-th peer is sent using the
 previously established noise channel to the j-th peer. These shares
-have been already computed in step 11, as per the step 1 of teh JF-DKG
+have been already computed in step 11, as per the step 1 of the JF-DKG
 algorithm from the GJKR06 paper.
 
 ```
@@ -592,12 +587,17 @@ for i in 1..N
 
 Since all these messages are confidential P2P messages protected by
 noise, all the TP is doing in this step is routing each packet to its
-correct destination.
+correct destination. For the resolution of complaints and cheater
+identification, TP keeps a copy of all messages.
 
 ```
+encrypted_shares = [][]
+
 for i in 1..N
    for j in 1..N
-      send(j, recv(i))
+      msg = recv(i)
+      send(j, msg)
+      encrypted_shares[i][j] = msg
 ```
 
 ------<=[ 15. each peer executes DKG Round 2 ]=>-------
@@ -605,7 +605,7 @@ for i in 1..N
 Each peer having received all their shares from all the peers,
 verifies the messages, and then verifies the shares against the
 previously broadcast A commitment vectors. For each s_ij, A_i pair
-that fails a complaint against the peer producing the conflicting
+that fails, a complaint against the peer producing the conflicting
 commitment and share is logged in an array, which is broadcast to
 everyone. This is essentially step 2 from the JF-DKG algorithm
 described in GJKR06.
@@ -667,14 +667,16 @@ received, if none then the next step is 21. otherwise 18.
 If the next TP step is 18 (there are complaints) the next input buffer
 sized depends on the number of complaints against each peer.
 
-Each complaint is answered by the share of the accused belonging to
-the complainer. Each accused packs all answers into one message.
+Each complaint is answered by the symmetric encryption key used to
+encrypt the share of the accused belonging to the complainer. Each
+accused packs all answers into one message.
 
 ------<=[ 17. Each peer receives all complaints ]=>-------
 
 All complaint messages broadcast are received by each peer. If peer_i
-is being complained about by peer_j, peer_i broadcasts s_ij. This is
-the first part of step 3. in JF-DKG of GJKR06.
+is being complained about by peer_j, peer_i sends the symmetric
+encryption key that was used to encrypt s_ij to the TP. This is the
+first part of step 3. in JF-DKG of GJKR06.
 
 If no complaints have been lodged by any peer, then skip ahead to step
 20.
@@ -683,7 +685,7 @@ If no complaints have been lodged by any peer, then skip ahead to step
 msg_10, sig_10 = recv()
 msgs = recv_msg(10, 0, 0xff, ref_ts, tp_sign_pk, session_id, msg_10, sig_10)
 state = update_ts(state, msg_10, sig_10)
-shares = []
+keys = []
 
 for i in 1..N
    msg, sig = msgs[i]
@@ -691,60 +693,49 @@ for i in 1..N
 
    for k in 0..complaints_len
       if complaints[k] == peerid
-          # complaint about current peer, publish s_ij
-          shares = shares | s[i]
+          # complaint about current peer, publish key used to encrypt s_ij
+          keys = keys | send_session[i].key
 
-if len(shares) > 0
-   msg_11, sig_11 = send_msg(11, peer, 0xff, peer_sign_sk, session_id, shares)
+if len(keys) > 0
+   msg_11, sig_11 = send_msg(11, peer, 0x0, peer_sign_sk, session_id, keys)
    send(msg_11, sig_11)
 ```
 
 ------<=[ 18. TP collects all s_ij, broadcasts and verifies them ]=>-------
 
-In this step TP checks equation 3 from step 2 in JF-DKG of GJKR06. TP
-also checks if all complaints lodged earlier are answered by the
-correct s_ij shares. If any of the checks fails the protocol is
-aborted, and all failing peers are reported. Further investigations
-can clear if the complaining or if the accused peer were there ones
-cheating.
+In this step TP checks equation 3 from step 2 in JF-DKG of GJKR06.
+
+TP also checks if all complaints lodged earlier are answered by the
+correct s_ij shares. The shares to be verified are decrypted from the
+previously encrypted messages, using the revealed encryption keys by
+the accused peers.
+
+The protocol ends here, as either the complainer or the accused tried
+to cheat.
 
 ```
-proofs = []
 for i in 1..N
-    if len(complaints[i]) < 2
+    if len(complaints[i]) < 1
         continue
 
     msg, sig = recv(i)
-    shares = recv_msg(11, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg, sig)
-    assert(len(shares) == len(complaints[i]) + 1)
-    proofs = proofs | {msg,sig}
+    keys = recv_msg(11, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg, sig)
+    assert(len(keys) == len(complaints[i]))
     sij=[][]
-    for i', j, share in shares
-       sij[i'][j]=share
+    for j, key in keys
+       sij[i][j]=decrypt(key, encrypted_shares[i][j])
 
     for complaint in complaints[i]
         v = 0
         for k in 0..t
             v += A[i][k]*peerid*k
-        assert(g*sij[complaint.from][complaint.data] != v)
-        suspicious = suspicious | identity(i) | identity(j)
-
-msg_12, sig_12 = send_msg(12, 0, 0xff, tp_sign_sk, session_id, proofs)
-state = update_ts(state, msg_12, sig_12)
-broadcast(msg_12, sig_12)
-
+        if(g*sij[complaint.from][complaint.data] != v)
+            suspicious = suspicious | identity(i)
+        else
+            suspicious = suspicious | identity(j)
 ```
 
-------<=[ 19. peers receive broadcast proofs ]=>-------
-
-The broadcast proofs are added to the local transcripts.
-
-Each peer verifies the proofs similarly to TP in step 18.
-
-If a broadcast proof share verifies correctly replace the corrupted
-one with the correct one.
-
-------<=[ 20. Compare all transcripts ]=>-------
+------<=[ 19. Compare all transcripts ]=>-------
 
 Each peer calculates the final transcripts and sends it to TP.
 
@@ -754,7 +745,7 @@ msg_20, sig_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, transcript)
 send(msg_20, sig_20)
 ```
 
-------<=[ 21. TP receives all and verifies transcripts ]=>-------
+------<=[ 20. TP receives all and verifies transcripts ]=>-------
 
 TP receives all transcripts, and asserts that they all match its own
 transcript, it aborts if any transcript mismatch is detected. If
@@ -770,7 +761,7 @@ for i in 1..N
 
 msg_21, sig_21 = send_msg(21, 0, 0xff, tp_sign_sk, session_id, { "OK" })
 
-------<=[ 22. SUCCESS, peers set their share and confirm ]=>-------
+------<=[ 21. SUCCESS, peers set their share and confirm ]=>-------
 
 All peers receive the OK acknowledgment from the TP and calculate the
 final share, this is equivalent with the calculation of x_j in the
@@ -790,7 +781,7 @@ for i in 1..N
 msg_22, sig_22 = send_msg(22, peerid, 0, peers_sign_sk, session_id, "OK")
 ```
 
-------<=[ 23. TP asserts all peers respond with "OK" ]=>-------
+------<=[ 22. TP asserts all peers respond with "OK" ]=>-------
 
 The TP collects all "OK" messages from all peers.
 
