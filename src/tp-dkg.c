@@ -2000,17 +2000,15 @@ int main(void) {
       uint8_t p = tpdkg_cheater_msg(&(*tp.cheaters)[i], err, sizeof(err));
       fprintf(stderr,"\e[0;31m%s\e[0m\n", err);
       if(p > n) return 1;
-      if(tmp[p]==0) {
-        total_cheaters++;
-        tmp[p]=1;
-      }
+      if(tmp[p]==0) total_cheaters++;
+      tmp[p]++;
     }
     fprintf(stderr, "\e[0;31m:/ dkg failed, total cheaters %d, list of cheaters:", total_cheaters);
     for(int i=1;i<=n;i++) {
       if(tmp[i]==0) continue;
-      fprintf(stderr," %d", i);
+      fprintf(stderr," %d(%d)", i, tmp[i]);
     }
-    fprintf(stderr, "\e[0m\n", total_cheaters);
+    fprintf(stderr, "\e[0m\n");
     return 1;
   }
 
