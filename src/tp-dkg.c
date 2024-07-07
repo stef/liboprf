@@ -1343,7 +1343,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   if(input_len != tpdkg_tp_input_size(ctx)) return 1;
   if(output_len != 0) return 2;
 
-  int ctr[ctx->n];
+  unsigned int ctr[ctx->n];
   uint16_t complaints[ctx->complaints_len];
   memset(ctr,0,sizeof(ctr));
   for(int i=0;i<ctx->complaints_len;i++) {
@@ -1520,8 +1520,8 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       if(cheater == NULL) return 4;
       cheater->step = 18;
       cheater->error = 7; // unchecked complaint
-      cheater->peer = complaints[i] >> 8;
-      cheater->other_peer= complaints[i] & 0xff;
+      cheater->peer = (uint8_t) (complaints[i] >> 8);
+      cheater->other_peer= (uint8_t) (complaints[i] & 0xff);
     }
   }
 

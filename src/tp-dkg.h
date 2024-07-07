@@ -187,8 +187,8 @@ typedef struct {
 typedef struct {
   int step;
   int error;
-  int peer;
-  int other_peer;
+  uint8_t peer;
+  uint8_t other_peer;
   int invalid_index;
 } TP_DKG_Cheater;
 
