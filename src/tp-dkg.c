@@ -1458,8 +1458,8 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
         TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
         cheater->step = 18;
         cheater->error = 128+ret;
-        cheater->peer = complainer;
-        cheater->other_peer=accused;
+        cheater->peer = accused;
+        cheater->other_peer=complainer;
         break;
       }
       case 1: {
