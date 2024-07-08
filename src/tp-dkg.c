@@ -427,9 +427,14 @@ static uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
   return NULL;
 }
 
-static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx) {
+static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx, const int step, const int error, const uint8_t peer, const uint8_t other_peer) {
   if(ctx->cheater_len >= ctx->cheater_max) return NULL;
-  return &(*ctx->cheaters)[ctx->cheater_len++];
+  TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
+  cheater->step = step;
+  cheater->error = error;
+  cheater->peer = peer;
+  cheater->other_peer=other_peer;
+  return cheater;
 }
 
 size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
@@ -1217,10 +1222,17 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg->data[0] && (k+1)<msg->len-sizeof(TP_DKG_Message);k++) {
+      if(msg->data[k+1] > ctx->n || msg->data[k+1] < 1) {
+        if(add_cheater(ctx, 16, 7, i+1, msg->data[k+1]) == NULL) return 6;
+        continue;
+      }
       uint16_t pair=(uint16_t) (((i+1)<<8) | msg->data[k+1]);
       int j=0;
       for(j=0;j<ctx->complaints_len;j++) if((*ctx->complaints)[j]==pair) break;
-      if(j<ctx->complaints_len) continue;
+      if(j<ctx->complaints_len) {
+        if(add_cheater(ctx, 16, 8, i+1, msg->data[k+1]) == NULL) return 6;
+        continue;
+      }
       (*ctx->complaints)[ctx->complaints_len++] = pair;
       if(log_file!=NULL) {
         fprintf(log_file,"\e[0;31m[!] peer %d failed to verify commitments from peer %d!\e[0m\n", i+1, msg->data[1+k]);
@@ -1235,14 +1247,11 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
   // if more than t^2 complaints are received the protocol also fails
   if(ctx->complaints_len >= ctx->t * ctx->t) {
-    TP_DKG_Cheater *cheater = add_cheater(ctx);
-    if(cheater == NULL) return 6;
-    cheater->step = 16;
-    cheater->error = 6;
-    cheater->peer = 0xfe;
-    cheater->other_peer=0xfe;
+    if(add_cheater(ctx, 16, 6, 0xfe, 0xfe) == NULL) return 6;
     return 5;
   }
+
+  if(ctx->cheater_len>0) return 5;
 
   if(0!=send_msg(output, output_len, 10, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 7;
   TP_DKG_Message* msg10 = (TP_DKG_Message*) output;
@@ -1378,12 +1387,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     }
     int ret = recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
     if(0!=ret) {
-      TP_DKG_Cheater *cheater = add_cheater(ctx);
-      if(cheater == NULL) return 4;
-      cheater->step = 18;
-      cheater->error = 32+ret;
-      cheater->peer = i+1;
-      cheater->other_peer=0xfe;
+      if(add_cheater(ctx, 18, 32+ret, i+1, 0xfe) == NULL) return 4;
       continue;
     }
 
@@ -1403,12 +1407,8 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
         }
       }
       if(j==ctx->complaints_len) {
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 6; // accused revealed a key that was not complained about
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
+        // accused revealed a key that was not complained about
+        if(add_cheater(ctx, 18, 6, accused, complainer) == NULL) return 4;
         continue;
       }
 
@@ -1423,52 +1423,38 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
                      accused, complainer,
                      (*ctx->peer_sig_pks)[accused-1], ctx->sessionid, ctx->ts_epsilon, &last_ts);
       if(0!=ret) {
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 16+ret; // key reveal msg_recv failure
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
-        continue; // return 16+ret;
+        // key reveal msg_recv failure
+        if(add_cheater(ctx, 18, 16+ret, accused, complainer) == NULL) return 4;
+        continue;
       }
 #ifdef UNITTEST
       dump(keyptr, tpdkg_noise_key_SIZE, "[!] key_%d,%d", accused, complainer);
 #endif //UNITTEST
 
       // verify key committing hmac first!
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
       if(0!=crypto_auth_verify(msg8->data + noise_xk_handshake3_SIZE + sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                                msg8->data + noise_xk_handshake3_SIZE,
                                sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                                keyptr)) {
         // failed to verify KC MAC on message
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 3; // hmac verification failure
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
+        if(add_cheater(ctx, 18, 3, accused, complainer) == NULL) return 4;
         continue;
       }
+#endif
 
       Noise_XK_error_code
         res0 = Noise_XK_aead_decrypt((uint8_t*)keyptr, 0, (uint32_t)0U, NULL, sizeof(share), (uint8_t*) &share, (uint8_t*) msg8->data + noise_xk_handshake3_SIZE);
       if (!(res0 == Noise_XK_CSuccess)) {
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 4; // share decryption failure
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
+        // share decryption failure
+        if(add_cheater(ctx, 18, 4, accused, complainer) == NULL) return 4;
         continue;
       }
 
       if(share.index != complainer) {
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
+        // invalid share index
+        TP_DKG_Cheater *cheater = add_cheater(ctx, 18, 5, accused, complainer);
         if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 5; // invalid share index
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
         cheater->invalid_index = share.index;
         continue;
       }
@@ -1488,35 +1474,20 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
         // verified correctly
         if(log_file!=NULL) fprintf(log_file, "\e[0;32m[!] complaint against %d by %d invalid, proof correct\e[0m\n", msg->from, share.index);
 
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 128+ret;
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
+        if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       case 1: {
         // confirmed corrupt
         if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d valid, proof incorrect\e[0m\n", msg->from, share.index);
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 128+ret;
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
+        if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       case -1: {
         // invalid input
         if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d, cannot be verified, invalid input\e[0m\n", msg->from, share.index);
 
-        TP_DKG_Cheater *cheater = add_cheater(ctx);
-        if(cheater == NULL) return 4;
-        cheater->step = 18;
-        cheater->error = 128+ret;
-        cheater->peer = accused;
-        cheater->other_peer=complainer;
+        if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       }
@@ -1525,12 +1496,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
   for(int i=0;i<ctx->complaints_len;i++) {
     if(complaints[i] != 0xffff) {
-      TP_DKG_Cheater *cheater = add_cheater(ctx);
-      if(cheater == NULL) return 4;
-      cheater->step = 18;
-      cheater->error = 7; // unchecked complaint
-      cheater->peer = (uint8_t) (complaints[i] >> 8);
-      cheater->other_peer= (uint8_t) (complaints[i] & 0xff);
+      if(add_cheater(ctx, 18, 7, (uint8_t) (complaints[i] >> 8), (uint8_t) (complaints[i] & 0xff)) == NULL) return 4;
     }
   }
 
@@ -1575,12 +1541,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     }
     int ret = recv_msg(ptr, tpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
     if(0!=ret) {
-      TP_DKG_Cheater *cheater = add_cheater(ctx);
-      if(cheater == NULL) return 4;
-      cheater->step = 20;
-      cheater->error = 1+ret;
-      cheater->peer = i+1;
-      cheater->other_peer=0;
+      if(add_cheater(ctx, 20, 1+ret, i+1, 0) == NULL) return 4;
 
       memcpy(wptr,"NO",2);
       continue;
@@ -1590,12 +1551,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       if(log_file!=NULL) {
         fprintf(log_file,"\e[0;31m[!] failed to verify transcript from %d!\e[0m\n", i);
       }
-      TP_DKG_Cheater *cheater = add_cheater(ctx);
-      if(cheater == NULL) return 4;
-      cheater->step = 20;
-      cheater->error = 1;
-      cheater->peer = i+1;
-      cheater->other_peer=0;
+      if(add_cheater(ctx, 20, 1, i+1, 0) == NULL) return 4;
       memcpy(wptr,"NO",2);
     }
   }
@@ -1745,6 +1701,12 @@ uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outle
   if(c->step==16) {
     if(c->error == 5) {
       snprintf(out, outlen, "more than t^2 complaints, most peers are cheating.");
+      return 0;
+    } else if(c->error == 7) {
+      snprintf(out, outlen, "peer %d sent complaint about invalid peer %d.", c->peer, c->other_peer);
+      return 0;
+    } else if(c->error == 8) {
+      snprintf(out, outlen, "peer %d sent a duplicate complaint about peer %d.", c->peer, c->other_peer);
       return 0;
     }
     snprintf(out,outlen, "invalid error code for step 16: %d", c->error);
