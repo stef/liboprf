@@ -69,7 +69,7 @@ static void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   if(log_file==NULL) return;
   va_list args;
   va_start(args, msg);
-  vfprintf(log_file,msg, args);
+  vfprintf(log_file, msg, args);
   va_end(args);
   fprintf(log_file," ");
   for(size_t i=0;i<len;i++)
@@ -126,7 +126,9 @@ static int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint
   if(msg->from != from) return 3;
   if(msg->to != to) return 4;
 
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
   if(0!=check_ts(ts_epsilon, last_ts, ntohll(msg->ts))) return 5;
+#endif
 
   const size_t unsigned_buf_len = msg_buf_len - crypto_sign_BYTES;
 
@@ -134,7 +136,7 @@ static int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint
   memcpy(with_sessionid, msg_buf + crypto_sign_BYTES, unsigned_buf_len);
   memcpy(with_sessionid + unsigned_buf_len, sessionid, tpdkg_sessionid_SIZE);
 
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
   if(0!=crypto_sign_verify_detached(msg->sig, with_sessionid, sizeof(with_sessionid), sig_pk)) return 6;
 #endif
 
@@ -713,6 +715,11 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
   // feed msg0 into transcript
   crypto_generichash_update(&ctx->transcript, (uint8_t*) msg0, msg0_len);
 
+  if(log_file!=NULL) {
+    fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg0->msgno, msg0->from, msg0->to);
+    dump((uint8_t*) msg0, tpdkg_msg0_SIZE, "msg");
+  }
+
   return 0;
 }
 
@@ -725,7 +732,7 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
     fprintf(log_file,"[?] msgno: %d, from: %d to: 0x%x ", msg0->msgno, msg0->from, msg0->to);
     dump((uint8_t*) msg0, tpdkg_msg0_SIZE, "msg");
   }
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
   if(0!=crypto_sign_verify_detached((uint8_t*) msg0->sig,
                                     &msg0->msgno,
                                     tpdkg_msg0_SIZE - crypto_sign_BYTES,
@@ -841,7 +848,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
       fprintf(log_file,"[!] msgno: %d, from: %d to: %x ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg2_SIZE, "msg");
     }
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_sign_verify_detached(ptr+tpdkg_msg2_SIZE,ptr,tpdkg_msg2_SIZE,(*ctx->peer_lt_pks)[i])) return 3;
 #endif
     if(0!=recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 4;
@@ -1180,6 +1187,11 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   static int totalfails = 0;
   for(int i=1;i<=ctx->n;i++) {
     if(totalfails < ctx->t*ctx->t && *fails_len < ctx->t-1 && i != ctx->index) {
+      // avoid duplicates
+      int j;
+      for(j=1;j<=msg9->data[0];j++) if(msg9->data[j]==i) break;
+      if(j<=msg9->data[0]) continue;
+
       fails[msg9->data[0]++]=i;
       totalfails++;
     }
@@ -1432,7 +1444,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 #endif //UNITTEST
 
       // verify key committing hmac first!
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
       if(0!=crypto_auth_verify(msg8->data + noise_xk_handshake3_SIZE + sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                                msg8->data + noise_xk_handshake3_SIZE,
                                sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
@@ -1704,10 +1716,10 @@ uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outle
       return 0;
     } else if(c->error == 7) {
       snprintf(out, outlen, "peer %d sent complaint about invalid peer %d.", c->peer, c->other_peer);
-      return 0;
+      return c->peer;
     } else if(c->error == 8) {
       snprintf(out, outlen, "peer %d sent a duplicate complaint about peer %d.", c->peer, c->other_peer);
-      return 0;
+      return c->peer;
     }
     snprintf(out,outlen, "invalid error code for step 16: %d", c->error);
     return 0;
@@ -1863,7 +1875,45 @@ static void _recv(const uint8_t *net, size_t *pkt_len, uint8_t *buf, const size_
   //return msg_len;
 }
 
-int main(void) {
+#ifdef FUZZ_DUMP
+static void fuzz_dump(TP_DKG_TPState *tp, const uint8_t *tp_in, const size_t tp_in_size, const char **argv, const int argc) {
+  if(argc!=2) exit(1);
+  if(tp->step==6) {
+    FILE *tc = fopen(argv[1], "wb");
+    fwrite(tp_in, 1, tp_in_size, tc);
+    fclose(tc);
+    exit(0);
+  }
+}
+#endif
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+static void fuzz_loop(TP_DKG_TPState *tp, uint8_t *tp_out, size_t tp_out_size) {
+  if(tp->step==6) {
+      TP_DKG_TPState checkpoint;
+      memcpy(&checkpoint, tp, sizeof(checkpoint));
+
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+      __AFL_INIT();
+#endif
+      unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
+                                                 // and before __AFL_LOOP!
+
+      while (__AFL_LOOP(10000)) {
+
+        int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
+        if (len < sizeof(TP_DKG_Message)) continue;  // check for a required/useful minimum input length
+
+        /* Setup function call, e.g. struct target *tmp = libtarget_init() */
+        /* Call function to be fuzzed, e.g.: */
+        tpdkg_tp_next(tp, buf, len, tp_out, tp_out_size);
+        /* Reset state. e.g. libtarget_free(tmp) */
+        memcpy(tp, &checkpoint, sizeof(TP_DKG_TPState));
+      }
+  }
+}
+#endif
+
+int main(const int argc, const char **argv) {
   int ret;
   // enable logging
   log_file = stderr;
@@ -1881,7 +1931,7 @@ int main(void) {
 
   TP_DKG_TPState tp;
   uint8_t msg0[tpdkg_msg0_SIZE];
-  ret = tpdkg_start_tp(&tp, tpdkg_freshness_TIMEOUT, n, t, "proto test", 10, sizeof msg0, (TP_DKG_Message*) &msg0);
+  ret = tpdkg_start_tp(&tp, tpdkg_freshness_TIMEOUT, n, t, "proto test", 10, sizeof msg0, (TP_DKG_Message*) msg0);
   if(0!=ret) return ret;
 
   // set bufs
@@ -1966,31 +2016,10 @@ int main(void) {
     _recv(network_buf[0], &pkt_len[0], tp_in, tp_in_size);
 
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-    if(tp.step==6) {
-      //FILE *tc = fopen("in/msg16", "wb");
-      //fwrite(tp_in, 1, tp_in_size, tc);
-      //fclose(tc);
-      TP_DKG_TPState checkpoint;
-      memcpy(&checkpoint, &tp, sizeof(checkpoint));
-
-#ifdef __AFL_HAVE_MANUAL_CONTROL
-      __AFL_INIT();
+    fuzz_loop(&tp, tp_in, tp_in_size);
 #endif
-      unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
-                                                 // and before __AFL_LOOP!
-
-      while (__AFL_LOOP(10000)) {
-
-        int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
-        if (len < sizeof(TP_DKG_Message)) continue;  // check for a required/useful minimum input length
-
-        /* Setup function call, e.g. struct target *tmp = libtarget_init() */
-        /* Call function to be fuzzed, e.g.: */
-        ret = tpdkg_tp_next(&tp, buf, len, tp_out, tp_out_size);
-        /* Reset state. e.g. libtarget_free(tmp) */
-        memcpy(&tp, &checkpoint, sizeof(tp));
-      }
-    }
+#ifdef FUZZ_DUMP
+    fuzz_dump(&tp, tp_in, tp_in_size, argv, argc);
 #endif
 
     ret = tpdkg_tp_next(&tp, tp_in, tp_in_size, tp_out, tp_out_size);
