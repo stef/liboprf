@@ -2,3 +2,4 @@ cfrg_oprf_test_vector_decl.h
 cfrg_oprf_test_vectors.h
 tv1
 tv2
+tp-dkg

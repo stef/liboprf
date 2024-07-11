@@ -2,3 +2,4 @@ fuzz-bin
 fuzz-dump
 in
 out
+fuzz-complog
