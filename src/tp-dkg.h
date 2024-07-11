@@ -427,13 +427,21 @@ int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_
  */
 int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len);
 
-/**
-   This function checks if the protocol has finished for the TP or
-   more tpdk_tp_next() calls are necessary.
+/** This function checks if the protocol has finished for the TP or
+    more tpdk_tp_next() calls are necessary.
 
    @return 1 if more steps outstanding
  */
 int tpdkg_tp_not_done(const TP_DKG_TPState *tp);
+
+/** This function converts a cheater object to a human readable string.
+
+    @param [in] c: the cheater object.
+    @param [out] out: the pointer to the pre-allocated buffer receiving the string
+    @param [in] outlen: the size of the pre-allocated buffer
+    @return the index of the cheating peer.
+ */
+uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outlen);
 
 /*
  * Peer functions
