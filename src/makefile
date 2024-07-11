@@ -46,6 +46,9 @@ liboprf.$(STATICEXT): $(OBJECTS)
 noise_xk/liboprf-noiseXK.$(SOEXT):
 	make -C noise_xk all
 
+noise_xk/liboprf-noiseXK.$(STATICEXT):
+	make -C noise_xk all
+
 toprf: oprf.c toprf.c main.c
 	$(CC) -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
@@ -89,7 +92,7 @@ $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
 	install -D $< $@
 
-test:
+test: liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
 	make -C tests tests
 	make -C noise_xk test
 
