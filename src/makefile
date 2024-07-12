@@ -17,14 +17,14 @@ SOVER=0
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
-	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
+	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
 			  -fcf-protection=full
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
+	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
 endif
 
 CFLAGS+=$(INCLUDES) -DWITH_SODIUM

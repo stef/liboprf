@@ -19,12 +19,12 @@ SOVER=0
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
    SOEXT=dylib
-   SOFLAGS=-Wl,-install_name,liboprf-noiseXK.$(SOEXT)
+   SOFLAGS=-Wl,-install_name,liboprf-noiseXK.$(SOEXT) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
 else
    ifeq ($(shell uname),Linux)
 	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fcf-protection=full 
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER)
+	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
    endif
 endif
 
