@@ -5,8 +5,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -fstack-clash-protection -ftrapv \
-		  -D_GLIBCXX_ASSERTIONS
+		  -ftrapv -D_GLIBCXX_ASSERTIONS
 
 LDFLAGS?=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
@@ -21,7 +20,7 @@ ifeq ($(UNAME),Darwin)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
-			  -fcf-protection=full
+			  -fcf-protection=full -fstack-clash-protection 
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib

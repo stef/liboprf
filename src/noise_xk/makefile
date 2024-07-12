@@ -8,7 +8,7 @@ CFLAGS 	+= -Iinclude -I include/karmel -I include/karmel/minimal \
 				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
-				-fasynchronous-unwind-tables -fpic -fstack-clash-protection \
+				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \
 				-ftrapv
 
@@ -22,7 +22,7 @@ ifeq ($(UNAME),Darwin)
    SOFLAGS=-Wl,-install_name,liboprf-noiseXK.$(SOEXT) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
 else
    ifeq ($(shell uname),Linux)
-	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fcf-protection=full 
+	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fcf-protection=full -fstack-clash-protection
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
    endif
@@ -30,7 +30,7 @@ endif
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
 
-all: liboprf-noiseXK.a liboprf-noiseXK.so
+all: liboprf-noiseXK.$(STATICEXT) liboprf-noiseXK.$(SOEXT)
 
 AR ?= ar
 
