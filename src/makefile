@@ -37,11 +37,13 @@ asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -f
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
+AR ?= ar
+
 liboprf.$(SOEXT): $(SOURCES)
 	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
 
 liboprf.$(STATICEXT): $(OBJECTS)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 noise_xk/liboprf-noiseXK.$(SOEXT):
 	make -C noise_xk all
