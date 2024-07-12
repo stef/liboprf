@@ -8,7 +8,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -fstack-clash-protection -ftrapv \
 		  -D_GLIBCXX_ASSERTIONS
 
-LDFLAGS?=-lsodium -loprf-noiseXK
+LDFLAGS?=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
 SOEXT?=so
 STATICEXT?=a
@@ -40,7 +40,7 @@ asan: all
 
 AR ?= ar
 
-liboprf.$(SOEXT): $(SOURCES)
+liboprf.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
 
 liboprf.$(STATICEXT): $(OBJECTS)
