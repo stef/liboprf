@@ -54,9 +54,9 @@ FILE* log_file=NULL;
 #define tpdkg_msg4_SIZE (sizeof(TP_DKG_Message) + noise_xk_handshake1_SIZE)
 #define noise_xk_handshake2_SIZE 48UL
 #define tpdkg_msg5_SIZE (sizeof(TP_DKG_Message) + noise_xk_handshake2_SIZE)
-#define tpdkg_msg6_SIZE(ctx) (sizeof(TP_DKG_Message) + crypto_core_ristretto255_BYTES * ctx->t )
-#define tpdkg_msg9_SIZE(ctx) (sizeof(TP_DKG_Message) + ctx->n + 1 )
-#define tpdkg_msg10_SIZE(ctx) (sizeof(TP_DKG_Message) + ctx->n * tpdkg_msg9_SIZE(ctx))
+#define tpdkg_msg6_SIZE(ctx) (sizeof(TP_DKG_Message) + (size_t)(crypto_core_ristretto255_BYTES * ctx->t) )
+#define tpdkg_msg9_SIZE(ctx) (sizeof(TP_DKG_Message) + (size_t)(ctx->n + 1) )
+#define tpdkg_msg10_SIZE(ctx) (sizeof(TP_DKG_Message) + (size_t)(ctx->n * tpdkg_msg9_SIZE(ctx)) )
 #define tpdkg_msg19_SIZE (sizeof(TP_DKG_Message) + crypto_generichash_BYTES)
 #define tpdkg_msg20_SIZE (sizeof(TP_DKG_Message) + 2)
 #define tpdkg_msg21_SIZE (sizeof(TP_DKG_Message) + 2)
@@ -74,6 +74,7 @@ static void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   fprintf(log_file,"\n");
 }
 
+#ifndef htonll
 static uint64_t htonll(uint64_t n) {
 #if __BYTE_ORDER == __BIG_ENDIAN
     return n;
@@ -81,7 +82,9 @@ static uint64_t htonll(uint64_t n) {
     return (((uint64_t)htonl((uint32_t)n)) << 32) + htonl((uint32_t) (n >> 32));
 #endif
 }
+#endif // htonll
 
+#ifndef ntohll
 static uint64_t ntohll(uint64_t n) {
 #if __BYTE_ORDER == __BIG_ENDIAN
     return n;
@@ -89,6 +92,7 @@ static uint64_t ntohll(uint64_t n) {
     return (((uint64_t)ntohl((uint32_t)n)) << 32) + ntohl((uint32_t)(n >> 32));
 #endif
 }
+#endif // ntohll
 
 static int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
   if(*last_ts > ts) return 1;
@@ -876,7 +880,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
   crypto_generichash_update(&ctx->transcript, input, input_len);
 
   // create noise device
-  uint8_t iname[12];
+  uint8_t iname[13];
   snprintf((char*) iname, sizeof iname, "dkg peer %02x", ctx->index);
   uint8_t dummy[32]={0}; // the following function needs a deserialization key, which we never use.
 
@@ -898,7 +902,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
     ptr+=tpdkg_msg2_SIZE;
 
     TP_DKG_Message *msg4 = (TP_DKG_Message *) wptr;
-    uint8_t rname[12];
+    uint8_t rname[13];
     snprintf((char*) rname, sizeof rname, "dkg peer %02x", i+1);
     tpdkg_init_noise_handshake(ctx, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg4->data);
     if(0!=send_msg(wptr, tpdkg_msg4_SIZE, 4, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 5;
