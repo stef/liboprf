@@ -76,23 +76,29 @@ uninstall-noiseXK:
 	make -C noise_xk uninstall
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
-	install -D $< $@.$(SOVER)
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@.$(SOVER)
 	ln -sf $@.$(SOVER) $@
 
 $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/oprf.h: oprf.h
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 test: liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
 	make -C tests tests

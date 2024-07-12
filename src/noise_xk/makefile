@@ -53,11 +53,13 @@ uninstall: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/
 	rm -rf $^
 
 $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT): liboprf-noiseXK.$(SOEXT)
-	install -D $< $@.$(SOVER)
+	mkdir -p $(DESTDIR)$(PREFIX)/lib/
+	cp $< $@.$(SOVER)
 	ln -sf $@.$(SOVER) $@
 
 $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT): liboprf-noiseXK.$(STATICEXT)
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib/
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/noiseXK: include
 	cp -r $< $@
