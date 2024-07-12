@@ -9,8 +9,7 @@ CFLAGS 	+= -Iinclude -I include/karmel -I include/karmel/minimal \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
 				-fasynchronous-unwind-tables -fpic -fstack-clash-protection \
-				-fcf-protection=full -Werror=format-security \
-				-Werror=implicit-function-declaration \
+				-Werror=format-security -Werror=implicit-function-declaration \
 				-ftrapv
 
 SOEXT?=so
@@ -23,7 +22,7 @@ ifeq ($(UNAME),Darwin)
    SOFLAGS=-Wl,-install_name,liboprf-noiseXK.$(SOEXT)
 else
    ifeq ($(shell uname),Linux)
-	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack
+	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fcf-protection=full 
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER)
    endif

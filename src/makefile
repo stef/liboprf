@@ -2,11 +2,11 @@ PREFIX?=/usr/local
 INCLUDES=-Inoise_xk/include -Inoise_xk/include/karmel -Inoise_xk/include/karmel/minimal
 CFLAGS?=-march=native -Wall -O2 -g \
 		  -Werror=format-security -Werror=implicit-function-declaration \
-		  -Wformat=2 -Wconversion -Wtrampolines -Wimplicit-fallthrough \
+		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
 		  -fstack-clash-protection -ftrapv \
-		  -D_GLIBCXX_ASSERTIONS -fcf-protection=full
+		  -D_GLIBCXX_ASSERTIONS
 
 LDFLAGS?=-lsodium -loprf-noiseXK
 CC?=gcc
@@ -19,8 +19,9 @@ ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
-	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
-			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
+	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
+			  -fcf-protection=full
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
