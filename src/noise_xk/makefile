@@ -1,3 +1,4 @@
+PREFIX?=/usr/local
 LDFLAGS=-lsodium
 SOURCES=src/Noise_XK.c src/XK.c
 
