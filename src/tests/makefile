@@ -5,7 +5,7 @@ CFLAGS= -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -Wl,-z,noexecstack -Wl,-z,now -fsanitize=signed-integer-overflow \
 		  -fsanitize-undefined-trap-on-error
 
-all: tv1 tv2 dkg tp-dkg
+all: tv1 tv2 dkg tp-dkg tp-dkg-corrupt
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h
 	gcc -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
@@ -18,6 +18,9 @@ dkg: ../dkg.c ../utils.c dkg.c
 
 tp-dkg: ../tp-dkg.c tp-dkg.c
 	gcc $(CFLAGS) -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
+
+tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c
+	gcc $(CFLAGS) -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
 
 ../liboprf.a:
 	make -C .. liboprf.a
@@ -32,7 +35,8 @@ tests: all
 	./dkg
 	./tv1
 	./tv2
-	./tp-dkg 3 2 || exit 0
+	./tp-dkg 3 2
+	./tp-dkg-corrupt 3 2 || exit 0
 
 clean:
 	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg

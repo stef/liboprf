@@ -1084,7 +1084,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     uint8_t empty[0];
     if(0!=tpdkg_noise_encrypt(empty, 0, msg8->data, noise_xk_handshake3_SIZE, &(*ctx->noise_outs)[i])) return 5;
 
-#ifdef UNITTEST
+#ifdef UNITTEST_CORRUPT
     // corrupt all shares
     static int corrupted_shares = 0;
     uint8_t corrupted_share[sizeof(TOPRF_Share)];
@@ -1097,7 +1097,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     if(0!=tpdkg_noise_encrypt((uint8_t*) corrupted_share, sizeof(TOPRF_Share),
 #else
     if(0!=tpdkg_noise_encrypt((uint8_t*) &(*ctx->shares)[i], sizeof(TOPRF_Share),
-#endif // UNITTEST
+#endif // UNITTEST_CORRUPT
                               msg8->data + noise_xk_handshake3_SIZE, sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                               &(*ctx->noise_outs)[i])) return 6;
 
@@ -1184,7 +1184,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   memset(fails, 0, ctx->n);
   dkg_verify_commitments(ctx->n, ctx->t, ctx->index, ctx->commitments, *ctx->xshares, fails, fails_len);
 
-#ifdef UNITTEST
+#ifdef UNITTEST_CORRUPT
   static int totalfails = 0;
   for(int i=1;i<=ctx->n;i++) {
     if(totalfails < ctx->t*ctx->t && *fails_len < ctx->t-1 && i != ctx->index) {
@@ -1197,7 +1197,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
       totalfails++;
     }
   }
-#endif //UNITTEST
+#endif //UNITTEST_CORRUPT
 
   if(log_file!=NULL) {
     for(int j=0;j<*fails_len;j++) {
