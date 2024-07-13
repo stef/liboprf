@@ -32,7 +32,7 @@ tests: all
 	./dkg
 	./tv1
 	./tv2
-	./tp-dkg || exit 0
+	./tp-dkg 3 2 || exit 0
 
 clean:
 	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg
