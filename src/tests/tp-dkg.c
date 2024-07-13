@@ -371,8 +371,12 @@ int main(const int argc, const char **argv) {
   uint8_t n=atoi(argv[1]),t=atoi(argv[2]);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
   uint8_t step=atoi(argv[3]);
-  if(step<1 || step > 7) {
-    fprintf(stderr, "error incorrect value for step must be 1-7, run as: %% %s <1-7> <output-file>\n", argv[0]);
+#ifdef FUZZ_PEER
+  if(step<1 || step > 9 || step==7 || step==8) {
+#else
+  if(step<1 || step > 9) {
+#endif
+    fprintf(stderr, "error incorrect value for step must be 1-9 (but not 7 or 8), run as: %% %s <1-7> <output-file>\n", argv[0]);
     exit(1);
   }
 #endif
