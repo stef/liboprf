@@ -100,120 +100,258 @@ static void _recv(const uint8_t *net, size_t *pkt_len, uint8_t *buf, const size_
 }
 
 #ifdef FUZZ_DUMP
-static void fuzz_dump(TP_DKG_TPState *tp, const uint8_t *tp_in, const size_t tp_in_size, const char **argv, const int argc) {
-  if(argc!=2) exit(1);
-  if(tp->step==6) {
-    FILE *tc = fopen(argv[1], "wb");
-    fwrite(tp_in, 1, tp_in_size, tc);
+#if !defined(FUZZ_PEER)
+static void fuzz_dump(const uint8_t step, TP_DKG_TPState *ctx, const uint8_t *buf_in, const size_t buf_in_size, const char **argv, const int argc) {
+#else
+static void fuzz_dump(const uint8_t step, TP_DKG_PeerState *ctx, const uint8_t *buf_in, const size_t buf_in_size, const char **argv, const int argc) {
+#endif //!defined(FUZZ_PEER)
+  if(argc<5) {
+    fprintf(stderr, "error incorrect number of params, run as: %% %s <n> <t> <step> <output-file>\n", argv[0]);
+    exit(1);
+  }
+  if(ctx->step==step) {
+    FILE *tc = fopen(argv[4], "wb");
+    fwrite(buf_in, 1, buf_in_size, tc);
     fclose(tc);
     exit(0);
   }
 }
 #endif
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
- static int fuzz_loop(TP_DKG_TPState *tp, TP_DKG_PeerState *peers, uint8_t network_buf[][NETWORK_BUF_SIZE],size_t pkt_len[]) {
-  if(tp->step==6) {
-      TP_DKG_TPState checkpoint;
-      memcpy(&checkpoint, tp, sizeof(checkpoint));
-      TP_DKG_PeerState pcheckpoints[tp->n];
-      memcpy(&pcheckpoints, peers, sizeof(pcheckpoints));
+
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+#if !defined(FUZZ_PEER)
+static int fuzz_loop(const uint8_t step, TP_DKG_TPState *tp, TP_DKG_PeerState *peers, uint8_t network_buf[][NETWORK_BUF_SIZE],size_t pkt_len[]) {
+  if(tp->step!=step) return 0;
+
+  TP_DKG_TPState checkpoint;
+  memcpy(&checkpoint, tp, sizeof(checkpoint));
+  TP_DKG_PeerState pcheckpoints[tp->n];
+  memcpy(&pcheckpoints, peers, sizeof(pcheckpoints));
 
 #ifdef __AFL_HAVE_MANUAL_CONTROL
-      __AFL_INIT();
+  __AFL_INIT();
 #endif
-      unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
-                                                 // and before __AFL_LOOP!
+  unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
+                                             // and before __AFL_LOOP!
 
-      while (__AFL_LOOP(10000)) {
+  while (__AFL_LOOP(10000)) {
 
-        int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
-        if (len < sizeof(TP_DKG_Message)) continue;  // check for a required/useful minimum input length
+    int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
+    if (len < sizeof(TP_DKG_Message)) continue;  // check for a required/useful minimum input length
 
-        // doing vla - but avoiding 0 sized ones is ugly
-        const size_t tp_out_size = tpdkg_tp_output_size(tp);
-        uint8_t tp_out_buf[tp_out_size==0?1:tp_out_size], *tp_out;
-        if(tp_out_size==0) tp_out = NULL;
-        else tp_out = tp_out_buf;
+    // doing vla - but avoiding 0 sized ones is ugly
+    const size_t tp_out_size = tpdkg_tp_output_size(tp);
+    uint8_t tp_out_buf[tp_out_size==0?1:tp_out_size], *tp_out;
+    if(tp_out_size==0) tp_out = NULL;
+    else tp_out = tp_out_buf;
 
-        /* Setup function call, e.g. struct target *tmp = libtarget_init() */
-        /* Call function to be fuzzed, e.g.: */
-        int ret = tpdkg_tp_next(tp, buf, len, tp_out, tp_out_size);
-        if(0!=ret) {
-          // clean up peers
-          for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
-          if(tp->cheater_len > 0) return 23;
-          return ret;
+    /* Setup function call, e.g. struct target *tmp = libtarget_init() */
+    /* Call function to be fuzzed, e.g.: */
+    int ret = tpdkg_tp_next(tp, buf, len, tp_out, tp_out_size);
+    if(0!=ret) {
+      // clean up peers
+      for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
+      if(tp->cheater_len > 0) return 125;
+      return ret;
+    }
+
+    while(tpdkg_tp_not_done(tp)) {
+      for(uint8_t i=0;i<tp->n;i++) {
+        const uint8_t *msg;
+        size_t len;
+        if(0!=tpdkg_tp_peer_msg(tp, tp_out, tp_out_size, i, &msg, &len)) {
+          return 1;
         }
+        _send(network_buf[i+1], &pkt_len[i+1], msg, len);
+      }
 
-        while(tpdkg_tp_not_done(tp)) {
-          for(uint8_t i=0;i<tp->n;i++) {
-            const uint8_t *msg;
-            size_t len;
-            if(0!=tpdkg_tp_peer_msg(tp, tp_out, tp_out_size, i, &msg, &len)) {
-              return 1;
-            }
-            _send(network_buf[i+1], &pkt_len[i+1], msg, len);
-          }
+      while(pkt_len[0]==0 && tpdkg_peer_not_done(&peers[1])) {
+        for(uint8_t i=0;i<tp->n;i++) {
+          // 0sized vla meh
+          const size_t peer_out_size = tpdkg_peer_output_size(&peers[i]);
+          uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
+          if(peer_out_size==0) peers_out = NULL;
+          else peers_out = peers_out_buf;
 
-          while(pkt_len[0]==0 && tpdkg_peer_not_done(&peers[1])) {
-            for(uint8_t i=0;i<tp->n;i++) {
-              // 0sized vla meh
-              const size_t peer_out_size = tpdkg_peer_output_size(&peers[i]);
-              uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
-              if(peer_out_size==0) peers_out = NULL;
-              else peers_out = peers_out_buf;
+          // 0sized vla meh for the last time..
+          const size_t peer_in_size = tpdkg_peer_input_size(&peers[i]);
+          uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
+          if(peer_in_size==0) peer_in = NULL;
+          else peer_in = peer_in_buf;
 
-              // 0sized vla meh for the last time..
-              const size_t peer_in_size = tpdkg_peer_input_size(&peers[i]);
-              uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
-              if(peer_in_size==0) peer_in = NULL;
-              else peer_in = peer_in_buf;
+          _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
+          ret = tpdkg_peer_next(&peers[i],
+                                peer_in, peer_in_size,
+                                peers_out, peer_out_size);
 
-              _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
-              ret = tpdkg_peer_next(&peers[i],
-                                    peer_in, peer_in_size,
-                                    peers_out, peer_out_size);
-
-              if(0!=ret) {
-                // clean up peers
-                for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
-                return ret;
-              }
-
-              _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
-            }
-          }
-
-          // doing vla - but avoiding 0 sized ones is ugly
-          const size_t tp_out_size = tpdkg_tp_output_size(tp);
-          uint8_t tp_out_buf[tp_out_size==0?1:tp_out_size], *tp_out;
-          if(tp_out_size==0) tp_out = NULL;
-          else tp_out = tp_out_buf;
-
-          // avoiding zero-sized vla is still ugly
-          const size_t tp_in_size = tpdkg_tp_input_size(tp);
-          uint8_t tp_in_buf[tp_in_size==0?1:tp_in_size], *tp_in;
-          if(tp_in_size==0) tp_in = NULL;
-          else tp_in = tp_in_buf;
-
-          _recv(network_buf[0], &pkt_len[0], tp_in, tp_in_size);
-
-          ret = tpdkg_tp_next(tp, tp_in, tp_in_size, tp_out, tp_out_size);
           if(0!=ret) {
             // clean up peers
             for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
-            if(tp->cheater_len > 0) return 55;
             return ret;
           }
-        }
 
-        /* Reset state. e.g. libtarget_free(tmp) */
-        memcpy(tp, &checkpoint, sizeof(TP_DKG_TPState));
-        memcpy(peers, &pcheckpoints, sizeof(pcheckpoints));
+          _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
+        }
       }
+
+      // doing vla - but avoiding 0 sized ones is ugly
+      const size_t tp_out_size = tpdkg_tp_output_size(tp);
+      uint8_t tp_out_buf[tp_out_size==0?1:tp_out_size], *tp_out;
+      if(tp_out_size==0) tp_out = NULL;
+      else tp_out = tp_out_buf;
+
+      // avoiding zero-sized vla is still ugly
+      const size_t tp_in_size = tpdkg_tp_input_size(tp);
+      uint8_t tp_in_buf[tp_in_size==0?1:tp_in_size], *tp_in;
+      if(tp_in_size==0) tp_in = NULL;
+      else tp_in = tp_in_buf;
+
+      _recv(network_buf[0], &pkt_len[0], tp_in, tp_in_size);
+
+      ret = tpdkg_tp_next(tp, tp_in, tp_in_size, tp_out, tp_out_size);
+      if(0!=ret) {
+        // clean up peers
+        for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
+        if(tp->cheater_len > 0) return 55;
+        return ret;
+      }
+    }
+
+    /* Reset state. e.g. libtarget_free(tmp) */
+    memcpy(tp, &checkpoint, sizeof(TP_DKG_TPState));
+    memcpy(peers, &pcheckpoints, sizeof(pcheckpoints));
   }
   return 0;
 }
+#else // !defined(FUZZ_PEER)
+static int fuzz_loop(const uint8_t step, TP_DKG_TPState *tp, TP_DKG_PeerState *peers, uint8_t network_buf[][NETWORK_BUF_SIZE],size_t pkt_len[]) {
+  if(peers[0].step!=step) return 0;
+
+  TP_DKG_TPState checkpoint;
+  memcpy(&checkpoint, tp, sizeof(checkpoint));
+  TP_DKG_PeerState pcheckpoints[tp->n];
+  memcpy(&pcheckpoints, peers, sizeof(pcheckpoints));
+
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+  __AFL_INIT();
+#endif
+  unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
+                                             // and before __AFL_LOOP!
+
+  int ret;
+  while (__AFL_LOOP(10000)) {
+
+    int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
+    if (len < sizeof(TP_DKG_Message)) continue;  // check for a required/useful minimum input length
+
+    // doing vla - but avoiding 0 sized ones is ugly
+    const size_t peer_out_size = tpdkg_peer_output_size(&peers[0]);
+    uint8_t peer_out_buf[peer_out_size==0?1:peer_out_size], *peer_out;
+    if(peer_out_size==0) peer_out = NULL;
+    else peer_out = peer_out_buf;
+
+    ret = tpdkg_peer_next(&peers[0], buf, len, peer_out, peer_out_size);
+    if(ret!=0) {
+      //for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
+      return ret;
+    }
+    _send(network_buf[0], &pkt_len[0], peer_out, peer_out_size);
+
+    for(uint8_t i=1;i<tp->n;i++) {
+      // 0sized vla meh
+      const size_t peer_out_size = tpdkg_peer_output_size(&peers[i]);
+      uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
+      if(peer_out_size==0) peers_out = NULL;
+      else peers_out = peers_out_buf;
+
+      // 0sized vla meh for the last time..
+      const size_t peer_in_size = tpdkg_peer_input_size(&peers[i]);
+      uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
+      if(peer_in_size==0) peer_in = NULL;
+      else peer_in = peer_in_buf;
+
+      _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
+      ret = tpdkg_peer_next(&peers[i],
+                            peer_in, peer_in_size,
+                            peers_out, peer_out_size);
+
+      if(0!=ret) {
+        // clean up peers
+        //for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
+        return ret;
+      }
+      _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
+    }
+
+    while(tpdkg_tp_not_done(tp)) {
+      while(pkt_len[0]==0 && tpdkg_peer_not_done(&peers[1])) {
+        for(uint8_t i=0;i<tp->n;i++) {
+          // 0sized vla meh
+          const size_t peer_out_size = tpdkg_peer_output_size(&peers[i]);
+          uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
+          if(peer_out_size==0) peers_out = NULL;
+          else peers_out = peers_out_buf;
+
+          // 0sized vla meh for the last time..
+          const size_t peer_in_size = tpdkg_peer_input_size(&peers[i]);
+          uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
+          if(peer_in_size==0) peer_in = NULL;
+          else peer_in = peer_in_buf;
+
+          _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
+          ret = tpdkg_peer_next(&peers[i],
+                                peer_in, peer_in_size,
+                                peers_out, peer_out_size);
+
+          if(0!=ret) {
+            // clean up peers
+            //for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
+            return ret;
+          }
+
+          _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
+        }
+      }
+
+      // doing vla - but avoiding 0 sized ones is ugly
+      const size_t tp_out_size = tpdkg_tp_output_size(tp);
+      uint8_t tp_out_buf[tp_out_size==0?1:tp_out_size], *tp_out;
+      if(tp_out_size==0) tp_out = NULL;
+      else tp_out = tp_out_buf;
+
+      // avoiding zero-sized vla is still ugly
+      const size_t tp_in_size = tpdkg_tp_input_size(tp);
+      uint8_t tp_in_buf[tp_in_size==0?1:tp_in_size], *tp_in;
+      if(tp_in_size==0) tp_in = NULL;
+      else tp_in = tp_in_buf;
+
+      _recv(network_buf[0], &pkt_len[0], tp_in, tp_in_size);
+
+      ret = tpdkg_tp_next(tp, tp_in, tp_in_size, tp_out, tp_out_size);
+      if(0!=ret) {
+        // clean up peers
+        for(uint8_t i=0;i<tp->n;i++) tpdkg_peer_free(&peers[i]);
+        if(tp->cheater_len > 0) return 55;
+        return ret;
+      }
+
+      for(uint8_t i=0;i<tp->n;i++) {
+        const uint8_t *msg;
+        size_t len;
+        if(0!=tpdkg_tp_peer_msg(tp, tp_out, tp_out_size, i, &msg, &len)) {
+          return 1;
+        }
+        _send(network_buf[i+1], &pkt_len[i+1], msg, len);
+      }
+    }
+
+    /* Reset state. e.g. libtarget_free(tmp) */
+    memcpy(tp, &checkpoint, sizeof(TP_DKG_TPState));
+    memcpy(peers, &pcheckpoints, sizeof(pcheckpoints));
+  }
+  return 0;
+}
+#endif
 #endif
 
 int main(const int argc, const char **argv) {
@@ -222,11 +360,20 @@ int main(const int argc, const char **argv) {
   log_file = stderr;
   debug = 1;
 
-  uint8_t n=3,t=2;
-#ifndef FUZZ_DUMP
-  if(argc>2) {
-    n=atoi(argv[1]);
-    t=atoi(argv[2]);
+  if(argc<3) {
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
+    fprintf(stderr, "error incorrect numbers of parameters, run as: %% %s <n> <t> [<step> [<path>]]\n", argv[0]);
+#else
+    fprintf(stderr, "error incorrect numbers of parameters, run as: %% %s <n> <t>\n", argv[0]);
+#endif // defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
+    exit(1);
+  }
+  uint8_t n=atoi(argv[1]),t=atoi(argv[2]);
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
+  uint8_t step=atoi(argv[3]);
+  if(step<1 || step > 7) {
+    fprintf(stderr, "error incorrect value for step must be 1-7, run as: %% %s <1-7> <output-file>\n", argv[0]);
+    exit(1);
   }
 #endif
 
@@ -325,12 +472,12 @@ int main(const int argc, const char **argv) {
 
     _recv(network_buf[0], &pkt_len[0], tp_in, tp_in_size);
 
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-    ret = fuzz_loop(&tp, peers, network_buf, pkt_len);
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && !defined(FUZZ_PEER)
+    ret = fuzz_loop(step, &tp, peers, network_buf, pkt_len);
     if(0!=ret) return ret;
 #endif
-#ifdef FUZZ_DUMP
-    fuzz_dump(&tp, tp_in, tp_in_size, argv, argc);
+#if defined(FUZZ_DUMP) && !defined(FUZZ_PEER)
+    fuzz_dump(step, &tp, tp_in, tp_in_size, argv, argc);
 #endif
 
     ret = tpdkg_tp_next(&tp, tp_in, tp_in_size, tp_out, tp_out_size);
@@ -365,6 +512,14 @@ int main(const int argc, const char **argv) {
         else peer_in = peer_in_buf;
 
         _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
+
+#if defined(FUZZ_DUMP) && defined(FUZZ_PEER)
+        if(i==0) fuzz_dump(step, &peers[i], peer_in, peer_in_size, argv, argc);
+#endif
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZ_PEER)
+        ret = fuzz_loop(step, &tp, peers, network_buf, pkt_len);
+        if(0!=ret) return ret;
+#endif
         ret = tpdkg_peer_next(&peers[i],
                               peer_in, peer_in_size,
                               peers_out, peer_out_size);
