@@ -16,7 +16,7 @@ SOVER=0
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
-	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
+	SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
