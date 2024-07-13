@@ -15,3 +15,5 @@ to fuzz the peers step x:
 to fuzz using asan:
 
    STEP=x make clean fuzz-asan-peer
+
+note: for some fuzz targets there cannot be any complaints
