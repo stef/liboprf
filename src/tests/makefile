@@ -35,8 +35,8 @@ tests: all
 	./dkg
 	./tv1
 	./tv2
-	./tp-dkg 3 2
-	./tp-dkg-corrupt 3 2 || exit 0
+	(ulimit -s 66000; ./tp-dkg 3 2)
+	(ulimit -s 66000; ./tp-dkg-corrupt 3 2 || exit 0)
 
 clean:
 	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg
