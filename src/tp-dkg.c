@@ -858,7 +858,11 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_sign_verify_detached(ptr+tpdkg_msg2_SIZE,ptr,tpdkg_msg2_SIZE,(*ctx->peer_lt_pks)[i])) return 3;
 #endif
-    if(0!=recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 4;
+    int ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
+    if(0!=ret) {
+      if(add_cheater(ctx, 4, 64+ret, i+1,0xff) == NULL) return 7;
+      continue;
+    }
 
     // keep copy of ephemeral signing key
     memcpy((*ctx->peer_sig_pks)[i], msg->data, crypto_sign_PUBLICKEYBYTES);
@@ -868,8 +872,9 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
 
     ptr+=tpdkg_msg2_SIZE+crypto_sign_BYTES;
   }
-  if(0!=send_msg(msg3_buf, msg3_buf_len, 3, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;;
+  if(ctx->cheater_len>0) return 6;
 
+  if(0!=send_msg(msg3_buf, msg3_buf_len, 3, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
   update_transcript(&ctx->transcript, (uint8_t*) msg3_buf, msg3_buf_len);
 
   return 0;
@@ -938,15 +943,17 @@ static int tp_step68_handler(TP_DKG_TPState *ctx, const uint8_t *msg4s, const si
       uint64_t last_ts= ctx->last_ts;
       int ret = recv_msg((*inputs)[j][i], tpdkg_msg4_SIZE, (uint8_t) (2+ctx->step), j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &last_ts);
       if(0!=ret) {
+        if(add_cheater(ctx, 6 + (ctx->step - 1) * 2, 64+ret, j+1, i+1) == NULL) return 7;
         TP_DKG_Message *msg = (TP_DKG_Message*) (*inputs)[j][i];
         fprintf(log_file,"[x] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
         dump((*inputs)[j][i], tpdkg_msg4_SIZE, "msg");
-        return 4+ret;
+        continue;
       }
       memcpy(wptr, (*inputs)[j][i], tpdkg_msg4_SIZE);
       wptr+=tpdkg_msg4_SIZE;
     }
   }
+  if(ctx->cheater_len>0) return 6;
 
   return 0;
 }
@@ -1028,7 +1035,11 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg6_SIZE(ctx), "msg");
     }
-    if(0!=recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
+    int ret = recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
+    if(0!=ret) {
+      if(add_cheater(ctx, 12, 64+ret, i+1,0xff) == NULL) return 7;
+      continue;
+    }
 
     memcpy((*ctx->commitments)[i*ctx->t], msg->data, crypto_core_ristretto255_BYTES * ctx->t);
     if(log_file!=NULL) {
@@ -1039,6 +1050,8 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
     wptr+=tpdkg_msg6_SIZE(ctx);
     ptr+=tpdkg_msg6_SIZE(ctx);
   }
+  if(ctx->cheater_len>0) return 6;
+
   if(0!=send_msg(msg7_buf, msg7_buf_len, 7, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
   TP_DKG_Message* msg7 = (TP_DKG_Message*) msg7_buf;
   if(log_file!=NULL) {
@@ -1139,12 +1152,16 @@ static int tp_step14_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       }
       uint64_t last_ts = ctx->last_ts;
       int ret = recv_msg((*inputs)[j][i], tpdkg_msg8_SIZE, 8, j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &last_ts);
-      if(0!=ret) return 32+ret;
+      if(0!=ret) {
+        if(add_cheater(ctx, 14, 64+ret, j+1, i+1) == NULL) return 7;
+        continue;
+      }
 
       memcpy(wptr, (*inputs)[j][i], tpdkg_msg8_SIZE);
       wptr+=tpdkg_msg8_SIZE;
     }
   }
+  if(ctx->cheater_len>0) return 6;
 
   // keep a copy for complaint resolution.
   memcpy((*ctx->encrypted_shares), input, input_len);
@@ -1236,7 +1253,11 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg9_SIZE(ctx), "msg");
     }
-    if(0!=recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
+    int ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
+    if(0!=ret) {
+      if(add_cheater(ctx, 16, 64+ret, i+1, 0xff) == NULL) return 6;
+      continue;
+    }
     if(msg->len - sizeof(TP_DKG_Message) < msg->data[0]) return 4;
 
     // keep a copy all complaint pairs (complainer, complained)
@@ -1631,7 +1652,11 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg21_SIZE, "msg");
     }
-    if(0!=recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts)) return 3;
+    int ret = recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts);
+    if(0!=ret) {
+      if(add_cheater(ctx, 22, 64+ret, i+1, 0) == NULL) return 6;
+      continue;
+    }
 
     if(memcmp("OK", msg->data, 2)!=0) {
       if(log_file!=NULL) {
@@ -1640,6 +1665,8 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     }
     ptr+=tpdkg_msg21_SIZE;
   }
+  if(ctx->cheater_len>0) return 5;
+
   return 0;
 }
 
@@ -1717,6 +1744,11 @@ char* tpdkg_recv_err(const int code) {
 }
 
 uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outlen) {
+  if(c->error>65 && c->error<=70) {
+      snprintf(out, outlen, "step %d message from peer %d for peer %d could not be validated: %s",
+               c->step, c->peer, c->other_peer, tpdkg_recv_err(c->error & 0x3f));
+      return c->peer;
+  }
   if(c->step==16) {
     if(c->error == 5) {
       snprintf(out, outlen, "more than t^2 complaints, most peers are cheating.");
