@@ -109,16 +109,12 @@ static int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t ms
   msg->from = from;
   msg->to = to;
   msg->ts = htonll((uint64_t)time(NULL));
+  memcpy(msg->sessionid, sessionid, tpdkg_sessionid_SIZE);
 
-  uint8_t with_sessionid[msg_buf_len + tpdkg_sessionid_SIZE - crypto_sign_BYTES];
-  memcpy(with_sessionid, msg_buf + crypto_sign_BYTES, msg_buf_len - crypto_sign_BYTES);
-  memcpy(with_sessionid + msg_buf_len -  crypto_sign_BYTES, sessionid, tpdkg_sessionid_SIZE);
-
-  crypto_sign_detached(msg->sig, NULL, with_sessionid, sizeof(with_sessionid), sig_sk);
+  crypto_sign_detached(msg->sig, NULL, &msg->msgno, sizeof(TP_DKG_Message) - crypto_sign_BYTES, sig_sk);
   return 0;
 }
 
-// todo set as suspicious any peer that fails this.
 static int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[tpdkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
   if(msg_buf==NULL) return 7;
   TP_DKG_Message* msg = (TP_DKG_Message*) msg_buf;
@@ -126,6 +122,7 @@ static int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint
   if(msg->msgno != msgno) return 2;
   if(msg->from != from) return 3;
   if(msg->to != to) return 4;
+  if(sodium_memcmp(msg->sessionid, sessionid, tpdkg_sessionid_SIZE)!=0) return 7;
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
   if(0!=check_ts(ts_epsilon, last_ts, ntohll(msg->ts))) return 5;
@@ -138,7 +135,7 @@ static int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint
   memcpy(with_sessionid + unsigned_buf_len, sessionid, tpdkg_sessionid_SIZE);
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-  if(0!=crypto_sign_verify_detached(msg->sig, with_sessionid, sizeof(with_sessionid), sig_pk)) return 6;
+  if(0!=crypto_sign_verify_detached(msg->sig, &msg->msgno, sizeof(TP_DKG_Message) - crypto_sign_BYTES, sig_pk)) return 6;
 #endif
 
   return 0;
@@ -681,9 +678,9 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
   // dst hash(len(protoname) | "DKG for protocol " | protoname)
   crypto_generichash_state dst_state;
   crypto_generichash_init(&dst_state, NULL, 0, crypto_generichash_BYTES);
-  uint16_t len=htons((uint16_t) proto_name_len+17); // we have a guard above restricting to 1KB the proto_name_len
+  uint16_t len=htons((uint16_t) proto_name_len+20); // we have a guard above restricting to 1KB the proto_name_len
   crypto_generichash_update(&dst_state, (uint8_t*) &len, 2);
-  crypto_generichash_update(&dst_state, (uint8_t*) "DKG for protocol ", 17);
+  crypto_generichash_update(&dst_state, (uint8_t*) "TP DKG for protocol ", 20);
   crypto_generichash_update(&dst_state, (uint8_t*) proto_name, proto_name_len);
   uint8_t dst[crypto_generichash_BYTES];
   crypto_generichash_final(&dst_state,dst,sizeof dst);
@@ -695,26 +692,15 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
   crypto_sign_keypair(ctx->sig_pk, ctx->sig_sk);
 
   // data = {tp_sign_pk, dst, sessionid, n, t}
-  msg0->len=htonl(tpdkg_msg0_SIZE);
-  msg0->msgno=0;
-  msg0->from=0;
-  msg0->to=0xff;
-  msg0->ts=htonll((uint64_t)time(NULL));
-
   uint8_t *ptr = msg0->data;
   memcpy(ptr, ctx->sig_pk, sizeof ctx->sig_pk);
   ptr+=sizeof ctx->sig_pk;
   memcpy(ptr, dst, sizeof dst);
   ptr+=sizeof dst;
-  memcpy(ptr, ctx->sessionid, sizeof ctx->sessionid);
-  ptr+=sizeof ctx->sessionid;
   *ptr++ = n;
   *ptr++ = t;
 
-  // sign messages
-  crypto_sign_detached(msg0->sig, NULL, (uint8_t*) &msg0->msgno, msg0_len - crypto_sign_BYTES,ctx->sig_sk);
-  //dump(msg0->sig, sizeof msg0->sig, "sig");
-  //dump(&msg0->msgno, msg0_len - crypto_sign_BYTES, "msg");
+  if(0!=send_msg((uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
 
   // init transcript
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
@@ -739,32 +725,25 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
     fprintf(log_file,"[?] msgno: %d, from: %d to: 0x%x ", msg0->msgno, msg0->from, msg0->to);
     dump((uint8_t*) msg0, tpdkg_msg0_SIZE, "msg");
   }
-#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-  if(0!=crypto_sign_verify_detached((uint8_t*) msg0->sig,
-                                    &msg0->msgno,
-                                    tpdkg_msg0_SIZE - crypto_sign_BYTES,
-                                    msg0->data/*tp_sig_pk*/)) return 2;
-#endif
-  if(msg0->msgno!=0) return 3;
-  if(ntohl(msg0->len)!=tpdkg_msg0_SIZE) return 4;
-  if(msg0->from!=0) return 5;
-  if(msg0->to!=0xff) return 6;
+
   ctx->last_ts=(uint64_t)time(NULL);
-  if(0!=check_ts(ts_epsilon, &ctx->last_ts, ntohll(msg0->ts))) return 7;
   ctx->ts_epsilon = ts_epsilon;
 
+  int ret = recv_msg((uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, msg0->data, msg0->sessionid, ts_epsilon, &ctx->last_ts);
+  if(0!=ret) return 64 + ret;
+
   // extract data from message
+  memcpy(ctx->sessionid, msg0->sessionid, sizeof ctx->sessionid);
+
   const uint8_t *ptr=msg0->data;
   memcpy(ctx->tp_sig_pk,ptr,sizeof ctx->tp_sig_pk);
   ptr+=sizeof ctx->tp_sig_pk + crypto_generichash_BYTES; // also skip DST
-  memcpy(ctx->sessionid, ptr, sizeof ctx->sessionid);
-  ptr+=sizeof ctx->sessionid;
   ctx->n = *ptr++;
   ctx->t = *ptr++;
 
-  if(ctx->t < 2) return 8;
-  if(ctx->t >= ctx->n) return 9;
-  if(ctx->n > 128) return 10;
+  if(ctx->t < 2) return 1;
+  if(ctx->t >= ctx->n) return 2;
+  if(ctx->n > 128) return 3;
 
   ctx->complaints_len = 0;
   ctx->my_complaints_len = 0;
@@ -1739,6 +1718,7 @@ char* tpdkg_recv_err(const int code) {
   case 4: return "invalid recipient";
   case 5: return "expired message";
   case 6: return "invalid signature";
+  case 7: return "invalid sessionid";
   }
   return "invalid recv_msg error code";
 }

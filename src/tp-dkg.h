@@ -65,7 +65,6 @@
 #define tpdkg_sessionid_SIZE 32
 #define tpdkg_msg0_SIZE ( sizeof(TP_DKG_Message)                                         \
                         + crypto_generichash_BYTES/*dst*/                                \
-                        + tpdkg_sessionid_SIZE /*sessionid*/                             \
                         + 2 /*n,t*/                                                      \
                         + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */                    )
 #define noise_xk_handshake3_SIZE 64UL
@@ -113,6 +112,7 @@ typedef struct {
   uint8_t from;
   uint8_t to;
   uint64_t ts;
+  uint8_t sessionid[tpdkg_sessionid_SIZE];
   uint8_t data[];
 } __attribute((packed)) TP_DKG_Message;
 

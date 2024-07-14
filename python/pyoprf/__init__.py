@@ -422,7 +422,6 @@ def dkg_reconstruct(responses) -> bytes_list_t:
 tpdkg_sessionid_SIZE=32
 tpdkg_msg0_SIZE = 177 # ( sizeof(TP_DKG_Message)                       \
                       # + crypto_generichash_BYTES/*dst*/              \
-                      # + tpdkg_sessionid_SIZE /*sessionid*/           \
                       # + 2 /*n,t*/                                    \
                       # + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */)
 tpdkg_msg8_SIZE = 224 # (sizeof(TP_DKG_Message) /* header */                             \
