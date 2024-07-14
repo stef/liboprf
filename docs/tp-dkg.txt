@@ -1,11 +1,11 @@
-Trusted-party DKG
+Trusted-party (TP) Distributed Key Generation (DKG)
 
 This document specifies a proposal for a non-robust DKG that can work
 for small deployments with a small number of parties and infrequent
 DKG executions. Non-robust means that the protocol succeeds only if no
 party aborts. If someone aborts then the protocol needs to run again,
-possibly after kicking out misbehaving parties. This protocol does not
-support more than 127 peers, this is probably already too much for a
+possibly after kicking out misbehaving parties. This protocol does
+support maximum 127 peers. This is probably already too much for a
 non-robust protocol, but it might work in very special circumstances.
 
 Broadcast is implemented by the trusted party (TP) opening a channel
@@ -20,27 +20,28 @@ by the TP.
 The basis for this protocol is JF-DKG (fig 1.) a variant on Pedersens
 DKG from the 2006 paper "Secure Distributed Key Generation for
 Discrete-Log Based Cryptosystems" by R. Gennaro, S. Jarecki,
-H. Krawczyk, and T. Rabin. The algorithm JF-DKG is presented in the
-paper as a reduced example how an adversary can influence the bits in
-the generated secret by manipulating the complaints and thus the final
-composition of the QUAL set, gaining a 3/4 chance to influence a
-bit. Since in our TP variant is non-robust, we do not allow individual
-disqualifications of peers, - either all peers qualify or the protocol
-fails - this mitigates the case where an adversary can adaptively
-disqualify a peer. Thus the JF-DKG is a simple and sufficient
-algorithm for our purposes.
+H. Krawczyk, and T. Rabin [GJKR06]. The algorithm JF-DKG is presented
+in the paper as a reduced example how an adversary can influence the
+bits in the generated secret by manipulating the complaints and thus
+the final composition of the QUAL set, gaining a 3/4 chance to
+influence a bit. Since in our TP variant is non-robust, we do not
+allow individual disqualifications of peers, - either all peers
+qualify or the protocol fails - this mitigates the case where an
+adversary can adaptively disqualify a peer. Thus the JF-DKG is a
+simple and sufficient algorithm for our purposes.
 
 ------<=[ Rationale                                     ]=>-------
 
 Traditionally DKGs are used in setting where all parties are equal and
 are using the distributed key together, without having any one party
-having a different role in the protocol. This does not apply to
-threshold-OPRFs and protocols based on these.
+having a different role in the protocol utilizing the shared key. This
+does not translate entirely to threshold OPRFs (tOPRF) and protocols
+based on these.
 
 In an OPRF there is normally two parties, one holding the key, and
-another one holding the input and learning the output. In a
-threshold-OPRF the party holding the key is a group of parties that
-hold the key in threshold setting.
+another one holding the input and learning the output. In a tOPRF the
+party holding the key is a group of peers that hold shares of the key
+in a threshold setting.
 
 The whole point of OPRFs is to be able to learn the output for a
 certain input, without being able to do so without the contribution of
@@ -83,8 +84,31 @@ The protocol has the following phases:
   1. Initialization and introduction (step 1 - 5)
   2. Setup secure P2P channels (step 5 - 10)
   3. core DKG (step 11 - 17)
-  4. complaint resolution (only if there are complaints)  (step 17 - 19)
-  5. verification of transcript and completion of protocol (step 20 - 22)
+  4. Finish with failure: complaint resolution (only if there are
+     complaints) (step 17 - 19)
+  5. Finish with success: verification of transcript and completion of
+     protocol (step 20 - 22)
+
+------<=[ Simplified API                                ]=>-------
+
+Since the protocol consists of many steps, it is recommended to
+abstract the API to the following schema:
+
+0. Initialize
+While not done and not error:
+  1. Allocate input buffers
+  2. input = receive()
+  3. allocate output buffer
+  4. run next step of protocol
+  5. if there is output: send(output)
+6. Post-processing
+
+This simple schema simplifies the load of an implementer using this
+protocol, reducing opportunities for errors and provides strict
+security.
+
+The reference implementation in tp-dkg.c follows this schema for both
+the TP and the peers.
 
 ------<=[ Protocol transcript                           ]=>-------
 
@@ -94,14 +118,14 @@ parties publish their signed transcripts and only if all signatures
 are correct and the transcripts match, is the protocol successful.
 
 The transcript is a hash, that is initialized with the string:
-   "dkg session transcript"
+   "tp dkg session transcript"
 
 in pseudo-code:
 
    transcript_state = hash_init("tp dkg session transcript")
 
 Updating the transcript first updates the hash with the canonical
-16bit size of the message to be added to the transcript, then the
+32bit size of the message to be added to the transcript, then the
 message itself is added to the hash.
 
     transcript_state = hash_update(transcript_state, I2OSP(len(msg))
@@ -137,9 +161,10 @@ All messages have a message header:
   uint8  from
   uint8  to
   uint64 timestamp
+  uint8  sessionid[32]
 
 The first field in the header is really a state identifier. A
-recipient must verify that the messageno is matching with the expected
+recipient MUST verify that the messageno is matching with the expected
 number related to the state of the protocol.
 
 The len field MUST be equal to the size of the packet received on the
@@ -147,42 +172,42 @@ network including the packet header.
 
 The `from` field is simply the index of the peer, since peers are
 indexed starting from 1, the value 0 is used for the trusted
-party. Any value greater than 128 is invalid.
+party. Any value greater than 128 is invalid. The state defines from
+whom to receive messages, and thus the from field MUST be validated
+against these expectations.
 
 The `to` field is similar to the `from` field, with the difference
-that the value 0xff is reserved for broadcast messages.
+that the value 0xff is reserved for broadcast messages. The peer (or
+TP) MUST validate that it is indeed the recipient of a given message.
 
 The timestamp field is just a 64bit timestamp as seconds elapsed since
 1970/01/01, for peers that have no accurate clock themselves but do
-have an RTC, the first initiating message from the TP should be used
-as a reference during the protocol.
+have an RTC, the first initiating message from the TP SHOULD be used
+as a reference for synchronizing during the protocol.
 
 ------<=[ Message signatures                            ]=>-------
 
 Every message MUST be signed using the sender peers ephemeral signing
 key. The signature is made over the message and the appended session
-id. The session id is announced by the TP in the first message, and
-never sent again, it is however used in every message as a message
-post-fix during singing/verifying the signature.
+id. The session id is announced by the TP in the first message.
 
 ------<=[ Verifying messages                            ]=>-------
 
 Whenever a message is received by any participant, they first MUST
-check the correctness of the signature over the concatenation of the
-message and the session id:
+check the correctness of the signature:
 
 ```
    msg, sig = recv()
-   sign_pk = sign_keys(msg.from)
-   assert(verify(sign_pk, msg | sessionid, sig))
+   sign_pk = sign_keys[expected_sender_id]
+   assert(verify(sign_pk, msg, sig))
 ```
 
-The recipient MUST also assert the
-correctness of all the other header fields:
+The recipient MUST also assert the correctness of all the other header
+fields:
 
 ```
    assert(msg.messageno == expected_messageno)
-   assert(msg.from == expected_participant_id)
+   assert(msg.from == expected_sender_id)
    assert(msg.to == (own_peer_id or 0xff))
    assert(ref_ts <= msg.ts < ref_ts + timeout))
    ref_ts = msg.ts
@@ -204,7 +229,7 @@ sending:
 msg, sig = send_msg(msgno, from, to, sign_sk, session_id, data)
     ts = timestamp()
     msg = messageno: msgno, len: len(header) + len(data) + len(sig), from: from, to: to, ts: ts, data
-    sig = sign(sign_sk, msg | sessionid)
+    sig = sign(sign_sk, msg)
     return msg, sig
 ```
 
@@ -213,7 +238,7 @@ And for validating incoming messages:
 ```
 
 data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
-    assert(verify(sign_pk, msg | sessionid, sig)
+    assert(verify(sign_pk, msg, sig)
     assert(msg.messageno == msgno)
     assert(msg.len == len(msg|sig))
     assert(msg.from == from)
@@ -230,23 +255,26 @@ values expected according to the current protocol state.
 ------<=[ Cheater detection                             ]=>-------
 
 The TP MUST report to the user all errors that can identify cheating
-peers. For this each step the TP executes MUST be executed for each
-peer until a abort condition is detected:
+peers in a given step. For each detected cheating peer the TP MUST
+record the following information:
+
  - the current protocol step,
- - the violating peer, and
+ - the violating peer,
+ - the other peer involved, and
  - the type of violation
 
-MUST be noted. In order to detect other misbehaving peers in the
-current step processing for the rest of the SHOULD peers continue, and
-further violations should be handled as above.
+In order to detect other misbehaving peers in the current step,
+processing for the rest of the SHOULD peers continue until the end of
+the current step. Any further violations should be recorded as above.
 
 Before the next message to the peers is sent, the TP must
 check if there are no noted violations, if so the TP aborts and
 reports all violators with their parameters to the user.
 
-Abort conditions include any errors detected by recv_msg(), that is:
-invalid messages. As well any of the checks of the JF-DKG algorithm
-from GJKR06.
+Abort conditions include any errors detected by recv_msg(), or when
+the number of complaints is more than t for one peer, or more than t^2
+in total, as well any of the checks of the JF-DKG algorithm from
+GJKR06.
 
 ------<=[ The protocol                                  ]=>-------
 
@@ -259,9 +287,10 @@ Client knows long-term signing keys of all peers.
 ------<=[ 1. DKG Announcement - TP(peers, t, proto_name) ]=>-------
 
 The protocol starts by asking the trusted party (TP) to initiate a new
-instantiation of the DKG protocol, by providing it with a list of the
-peers, a threshold value and protocol instance name used as a domain
-separation token.
+run of the DKG protocol by providing it with:
+  - a list of the peers,
+  - a threshold value, and
+  - protocol instance name used as a domain separation token.
 
 The TP then sanity checks these parameters:
 
@@ -278,19 +307,11 @@ hash (so that the message is always of fixed size) of the DST,
 the values N and T and its own public signing key:
 
 ```
-dst_str = "DKG for protocol %s" % proto_name
+dst_str = "TP DKG for protocol %s" % proto_name
 dst = hash(I2OSP(len(dst_str)) | dst_str)
-sessionid=random_bytes(32)
-data = {dst, sessionid, n, t, tp_sign_pk}
-```
-
-Since the session id is not yet known by the peers, the message and
-its signature are manually created instead of using send_msg():
-
-```
-ts = timestamp()
-msg_0 = { messageno: 0, from: 0, to: 0xff, ts, data}
-sig_0 = sign(tp_sign_sk, msg_0)
+sessionid = random_bytes(32)
+data = {dst, n, t, tp_sign_pk}
+msg_0, sig_0 = send_msg(0, 0, 0xff, tp_sign_sk, session_id, data)
 broadcast(msg_0 | sig_0)
 ```
 
@@ -304,9 +325,9 @@ state = update_ts(state, msg, sig)
 
 Since the order of the peers is random, and important for the protocol
 a custom message is created for each peer by the TP and sent
-individually notifying each peer of their index. This is essentially
-an empty message consisting only of a header. The msg.to field conveys
-the index of the peer.
+individually notifying each peer of their index in this protocol
+run. This is essentially an empty message consisting only of a
+header. The msg.to field conveys the index of the peer.
 
 ```
 # sending each peer its index
@@ -317,33 +338,25 @@ for i in 1..n:
 
 ------<=[ 2. each peer(msg_0, sig_0)                   ]=>-------
 
+In this step each peer receives the initial parameter broadcast,
+verifies it, initializes the transcript and adds the initial
+message. Then receives the message assigning its index.
+
 ```
 msg_0, sig_0 = recv()
-assert(verify(msg_0.data.tp_sign_pk, msg_0, sig)
-assert(msg_0.messageno == 0)
-assert(msg_0.len == tpdkg_msg0_SIZE)
-assert(msg_0.from == 0)
-assert(msg_0.to == 0xff)
+assert(recv_msg(0, 0, 0xff, ref_ts, msg.data.tp_sign_pk, session_id, msg_0, sig_0))
 ```
 
-If the peer has an accurate internal clock then it SHOULD also assert
-freshness of the message timestamp:
-
-```
-ts = timestamp()
-assert(ts < msg_0.ts < ts + timeout))
-```
-
-Else if the peer has at least an RTC, it SHOULD set the ref_ts to the
-message timestamp:
+If the peer has no accurate internal clock but has at least an RTC, it
+SHOULD set the ref_ts to the message timestamp:
 
 ```
 ref_ts = msg_0.ts
 ```
 
-Furthermore also verify that the N&T parameters are sane, and if
-possible the peer SHOULD also check if the session id is fresh (if
-it is not possible, isfresh() MAY always return true.
+Furthermore the peer MUST also verify that the N&T parameters are
+sane, and if possible the peer SHOULD also check if the session id is
+fresh (if it is not possible, isfresh() MAY always return true.
 
 ```
 assert(2 <= msg_0.t < n)
@@ -372,7 +385,7 @@ peerid = msg.to
 ------<=[ 3. peers broadcast their keys via TP        ]=>-------
 
 If this protocol requires anonymity from each peer all peers broadcast
-fresh signing and noise keys (and ts) to all peers via the TP. If no
+fresh signing and noise keys to all peers via the TP. If no
 peer-anonymity is required it is ok to either send long-term keys keys
 here, or skip to the 2nd half or step 5 below.
 
@@ -393,10 +406,9 @@ broadcast(ltsig | msg_2 | sig_2 )
 ------<=[ 4. TP collects and broadcasts all peer keys ]=>-------
 
 The TP first checks if each of the received messages is signed by the
-expected long-term signing key if this fails the TP aborts. If all
+expected long-term signing key, if this fails the TP aborts. If all
 long-term signatures are correct the TP MUST strip those signatures
-from all the messages. This is to ensure to the TP that all peers are
-indeed who they claim to be, and to ensure their anonymity from each
+from all the messages. This is to ensure their anonymity from each
 other.
 
 Then the TP acts as a broadcast medium on the long-term
@@ -407,7 +419,8 @@ intermediary role:
 
   1. receives the messages from each peer
   2. validates the message using recv_msg()
-  3. extracts all signing pubkeys for usage in the rest of the protocol
+  3. extracts all signing pubkeys (or other information depending on
+     the current step) for usage by the TP in the rest of the protocol
   4. concatenates all received messages into a new message
   5. signs the message of messages
   6. adds this the message of messages and its signature to the transcript
@@ -420,7 +433,7 @@ for i in 1..N
    ltsig, msg_2, sig_2 = recv()
    assert(verify(lt_sign_pk[i], msg_2 | sig_2, ltsig))
    sig_pk, noise_pk = recv_msg(2, i, 0xff, ref_ts, msg_2.data.peer_sign_pk, session_id, msg_2, sig_2)
-   peer_sig_pks = peer_sig_pks | sig_pk
+   peer_sig_pks[i] = sig_pk
    msgs = msgs | { msg_2 , sig_2 }
 
 msg_3, sig_3 = send_msg(3, 0, 0xff, tp_sign_sk, session_id, msgs)
@@ -433,8 +446,13 @@ broadcast(msg_3|sig_3)
 ------<=[ 5. each peer get all keys and initiate noise channels with all peers ]=>-------
 
 In this phase all peers process the broadcast signing and noise keys
-from all peers, and initiate a noise_xk handshake with each of them
-(including themselves).
+received from all peers, and initiate a noise_xk handshake with each
+of them (including themselves for simplicity and thus security).
+
+Note: For performance it MAY be, that each peer only initiates
+handshakes with peers having a higher index than themselves. But this
+would create a packet-size and timing side-channel revealing the index
+of the peer.
 
 ```
 msg_3, sig_3 = recv()
@@ -485,7 +503,8 @@ for i in 1..N
 
 ------<=[ 8. TP routes handshakes from each peer to each peer ]=>-------
 
-TP just routes all messages from all peer to the recipients of the messages.
+TP just routes all P2P messages from all peers to the correct
+recipients of the messages.
 
 ```
 for i in 1..N
@@ -508,6 +527,10 @@ for i in 1..N
 ------<=[ 10. Setup complete ]=>-------
 
 Each peer has a confidential connection with every peer (including self, for simplicity)
+
+The one time this channel is used, when distributing the shares from
+step 13. The sender uses the initiator interface of the noise session,
+and the receiver uses the responder interface.
 
 ------<=[ 11. each peer executes DKG Round 1 ]=>-------
 
@@ -665,7 +688,7 @@ The next step of the protocol depends on the number of complaints
 received, if none then the next step is 21. otherwise 18.
 
 If the next TP step is 18 (there are complaints) the next input buffer
-sized depends on the number of complaints against each peer.
+size depends on the number of complaints against each peer.
 
 Each complaint is answered by the symmetric encryption key used to
 encrypt the share of the accused belonging to the complainer. Each
@@ -676,10 +699,15 @@ accused packs all answers into one message.
 All complaint messages broadcast are received by each peer. If peer_i
 is being complained about by peer_j, peer_i sends the symmetric
 encryption key that was used to encrypt s_ij to the TP. This is the
-first part of step 3. in JF-DKG of GJKR06.
+first part of step 3. in JF-DKG of GJKR06. There is a slight
+variation, instead of broadcasting the share, the accused peer reveals
+the symmetric encryption key that was used to encrypt the share. The
+TP has a copy of this encrypted message, and with the symmetric
+encryption key, it can decrypt the originally sent share. This is some
+kind of poor mans provable encryption.
 
-If no complaints have been lodged by any peer, then skip ahead to step
-20.
+If any complaints have been lodged by any peer the protocol ends here
+for all the peers.
 
 ```
 msg_10, sig_10 = recv()
@@ -767,8 +795,8 @@ All peers receive the OK acknowledgment from the TP and calculate the
 final share, this is equivalent with the calculation of x_j in the
 4. step in JF-DKG of GJKR06. Finally all peers acknowledge this step
 with another "OK" message sent to the TP. This is the final step for
-the peers, and a user needs to persist the calculated x_j share for
-usage in other threshold protocols.
+the peers, each needs to persist the calculated x_j share for usage in
+later threshold protocol runs (such as tOPRF).
 
 ```
 msg_21, sig_21 = recv()
@@ -779,6 +807,8 @@ for i in 1..N
    share += s[i]
 
 msg_22, sig_22 = send_msg(22, peerid, 0, peers_sign_sk, session_id, "OK")
+
+persist(own_peer_id, share)
 ```
 
 ------<=[ 22. TP asserts all peers respond with "OK" ]=>-------
