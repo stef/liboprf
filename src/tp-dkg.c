@@ -440,6 +440,12 @@ static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx, const int step, const in
   return cheater;
 }
 
+static void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
+  uint32_t msg_size_32b = htonl(msg_len);
+  crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
+  crypto_generichash_update(transcript, (uint8_t*) msg, msg_len);
+}
+
 size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
   switch(ctx->step) {
   case 0: return 0;
@@ -714,7 +720,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
   crypto_generichash_update(&ctx->transcript, (uint8_t*) "tp dkg session transcript", 25);
   // feed msg0 into transcript
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) msg0, msg0_len);
+  update_transcript(&ctx->transcript, (uint8_t*) msg0, msg0_len);
 
   if(log_file!=NULL) {
     fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg0->msgno, msg0->from, msg0->to);
@@ -767,7 +773,7 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
   crypto_generichash_update(&ctx->transcript, (uint8_t*) "tp dkg session transcript", 25);
   // feed msg0 into transcript
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) msg0, tpdkg_msg0_SIZE);
+  update_transcript(&ctx->transcript, (uint8_t*) msg0, tpdkg_msg0_SIZE);
 
   ctx->dev = NULL;
   ctx->step = 0;
@@ -864,7 +870,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
   }
   if(0!=send_msg(msg3_buf, msg3_buf_len, 3, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;;
 
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) msg3_buf, msg3_buf_len);
+  update_transcript(&ctx->transcript, (uint8_t*) msg3_buf, msg3_buf_len);
 
   return 0;
 }
@@ -877,7 +883,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
   uint64_t last_ts = ctx->last_ts;
   if(0!=recv_msg(input, input_len, 3, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &last_ts)) return 3;
 
-  crypto_generichash_update(&ctx->transcript, input, input_len);
+  update_transcript(&ctx->transcript, input, input_len);
 
   // create noise device
   uint8_t iname[13];
@@ -1041,7 +1047,7 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
   }
 
   // add broadcast msg to transcript
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) msg7_buf, msg7_buf_len);
+  update_transcript(&ctx->transcript, (uint8_t*) msg7_buf, msg7_buf_len);
 
   return 0;
 }
@@ -1061,7 +1067,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   if(0!=recv_msg(input, input_len, 7, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &last_ts)) return 3;
 
   // add broadcast msg to transcript
-  crypto_generichash_update(&ctx->transcript, input, input_len);
+  update_transcript(&ctx->transcript, input, input_len);
 
   const uint8_t *ptr = msg7->data;
   uint8_t *wptr = output;
@@ -1274,7 +1280,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   }
 
   // add broadcast msg to transcript
-  crypto_generichash_update(&ctx->transcript, (uint8_t*) output, output_len);
+  update_transcript(&ctx->transcript, (uint8_t*) output, output_len);
 
   return 0;
 }
@@ -1296,7 +1302,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   if(0!=ret) return 16+ret;
 
   // add broadcast msg to transcript
-  crypto_generichash_update(&ctx->transcript, input, input_len);
+  update_transcript(&ctx->transcript, input, input_len);
 
   const uint8_t *ptr = msg10->data;
   for(uint8_t i=0;i<ctx->n;i++) {
