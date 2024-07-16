@@ -11,6 +11,7 @@ CFLAGS 	+= -Iinclude -I include/karmel -I include/karmel/minimal \
 				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \
 				-ftrapv
+CC?=gcc
 
 SOEXT?=so
 STATICEXT?=a
