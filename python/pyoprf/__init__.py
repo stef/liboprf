@@ -517,7 +517,6 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     noisy_shares = (ctypes.c_uint8 * (n*n*tpdkg_msg8_SIZE))()
     cheaters = (TP_DKG_Cheater * (t*t - 1))()
     peer_lt_pks = b''.join(peer_lt_pks)
-    print('asdf', t*t-1, len(cheaters))
 
     liboprf.tpdkg_tp_set_bufs(ctypes.byref(state),
                               ctypes.byref(commitments),
