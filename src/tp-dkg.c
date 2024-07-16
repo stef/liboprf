@@ -438,7 +438,7 @@ static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx, const int step, const in
 }
 
 static void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
-  uint32_t msg_size_32b = htonl(msg_len);
+  uint32_t msg_size_32b = htonl((uint32_t)msg_len);
   crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
   crypto_generichash_update(transcript, (uint8_t*) msg, msg_len);
 }
