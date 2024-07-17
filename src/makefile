@@ -85,19 +85,19 @@ $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/oprf.h: oprf.h
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
 test: liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
