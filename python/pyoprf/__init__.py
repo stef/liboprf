@@ -424,7 +424,7 @@ tpdkg_msg0_SIZE = 177 # ( sizeof(TP_DKG_Message)                       \
                       # + crypto_generichash_BYTES/*dst*/              \
                       # + 2 /*n,t*/                                    \
                       # + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */)
-tpdkg_msg8_SIZE = 224 # (sizeof(TP_DKG_Message) /* header */                             \
+tpdkg_msg8_SIZE = 256 # (sizeof(TP_DKG_Message) /* header */                             \
                       #  + noise_xk_handshake3_SIZE /* 4th&final noise handshake */      \
                       #  + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped share */     \
                       #  + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */  \
@@ -509,12 +509,12 @@ class TP_DKG_TPState(ctypes.Structure):
 def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     state = TP_DKG_TPState()
     msg = ctypes.create_string_buffer(tpdkg_msg0_SIZE)
-    __check(liboprf.tpdkg_start_tp(ctypes.byref(state), ts_epsilon, n, t, proto_name, len(proto_name), len(msg), msg))
+    __check(liboprf.tpdkg_start_tp(ctypes.byref(state), ts_epsilon, n, t, proto_name, ctypes.c_size_t(len(proto_name)), ctypes.c_size_t(len(msg.raw)), msg))
 
     peers_sig_pks = ctypes.create_string_buffer(n*pysodium.crypto_sign_PUBLICKEYBYTES)
     commitments = ctypes.create_string_buffer(n*t*pysodium.crypto_core_ristretto255_BYTES)
     complaints = ctypes.create_string_buffer(n*n*2)
-    noisy_shares = (ctypes.c_uint8 * (n*n*tpdkg_msg8_SIZE))()
+    noisy_shares = ctypes.create_string_buffer(n*n*tpdkg_msg8_SIZE)
     cheaters = (TP_DKG_Cheater * (t*t - 1))()
     peer_lt_pks = b''.join(peer_lt_pks)
 
