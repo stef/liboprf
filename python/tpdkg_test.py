@@ -53,9 +53,6 @@ print(f"n: {tp[0].n}, t: {tp[0].t}, sid: {bytes(c for c in tp[0].sessionid).hex(
 
 # initialize all peers with the 1st message from TP
 
-# it is important to shuffle the peers before each protocol run, to
-# allow for identifying and isolating repeat cheaters.
-
 peers=[]
 for i in range(n):
     peer = pyoprf.tpdkg_peer_start(ts_epsilon, peer_lt_sks[i], msg0)
