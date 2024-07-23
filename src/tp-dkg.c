@@ -857,7 +857,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
 
   const uint8_t *ptr = msg2s;
   uint8_t *wptr = ((TP_DKG_Message *) msg3_buf)->data;
-  for(uint8_t i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++,ptr+=tpdkg_msg2_SIZE+crypto_sign_BYTES) {
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     // verify long-term pk sig on initial message
     if(log_file!=NULL) {
@@ -878,8 +878,6 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
     // strip away long-term signature
     memcpy(wptr, ptr, tpdkg_msg2_SIZE);
     wptr+=tpdkg_msg2_SIZE;
-
-    ptr+=tpdkg_msg2_SIZE+crypto_sign_BYTES;
   }
   if(ctx->cheater_len>0) return 6;
 
