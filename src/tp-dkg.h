@@ -244,7 +244,7 @@ typedef struct {
   uint8_t t;
   uint8_t sig_pk[crypto_sign_PUBLICKEYBYTES];
   uint8_t sig_sk[crypto_sign_SECRETKEYBYTES];
-  uint64_t last_ts;
+  uint64_t (*last_ts)[];
   uint64_t ts_epsilon;
   uint8_t (*peer_sig_pks)[][crypto_sign_PUBLICKEYBYTES];
   uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES];
@@ -333,7 +333,8 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
                        uint8_t (*encrypted_shares)[][tpdkg_msg8_SIZE],
                        TP_DKG_Cheater (*cheaters)[], const size_t cheater_max,
                        uint8_t (*tp_peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
-                       uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES]);
+                       uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES],
+                       uint64_t (*last_ts)[]);
 
 /**
    This function calculates the size of the buffer needed to hold all

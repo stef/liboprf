@@ -505,7 +505,8 @@ class TP_DKG_TPState(ctypes.Structure):
 #                  uint16_t (*complaints)[],
 #                  uint8_t (*suspicious)[],
 #                  uint8_t (*tp_peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
-#                  uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES]);
+#                  uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES],
+#                  uint64_t (*last_ts)[]);
 def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     state = TP_DKG_TPState()
     msg = ctypes.create_string_buffer(tpdkg_msg0_SIZE)
@@ -517,6 +518,7 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     noisy_shares = ctypes.create_string_buffer(n*n*tpdkg_msg8_SIZE)
     cheaters = (TP_DKG_Cheater * (t*t - 1))()
     peer_lt_pks = b''.join(peer_lt_pks)
+    last_ts = (ctypes.c_uint64 * n)()
 
     liboprf.tpdkg_tp_set_bufs(ctypes.byref(state),
                               ctypes.byref(commitments),
@@ -525,10 +527,11 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
                               ctypes.byref(cheaters),
                               len(cheaters),
                               ctypes.byref(peers_sig_pks),
-                              peer_lt_pks)
+                              peer_lt_pks,
+                              ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, peers_sig_pks, commitments, complaints, noisy_shares, cheaters, peer_lt_pks)
+    ctx = (state, peers_sig_pks, commitments, complaints, noisy_shares, cheaters, peer_lt_pks, last_ts)
 
     return ctx, msg.raw
 
