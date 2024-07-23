@@ -64,7 +64,10 @@ for i in range(n):
 
 peer_msgs = []
 while pyoprf.tpdkg_tp_not_done(tp):
+    ret, sizes = pyoprf.tpdkg_tp_input_sizes(tp)
+    # peer_msgs = (recv(size) for size in sizes)
     msgs = b''.join(peer_msgs)
+
     tp_out = pyoprf.tpdkg_tp_next(tp, msgs)
     #print(f"tp: msg[{tp[0].step}]: {tp_out.raw.hex()}")
 

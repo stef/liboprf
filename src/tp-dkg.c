@@ -469,6 +469,36 @@ size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
   return 0;
 }
 
+int tpdkg_tp_input_sizes(const TP_DKG_TPState *ctx, size_t *sizes) {
+  size_t item=0;
+  switch(ctx->step) {
+  case 0: { item=0; break; }
+  case 1: { item=(tpdkg_msg2_SIZE + crypto_sign_BYTES); break; }
+  case 2: { item=tpdkg_msg4_SIZE * ctx->n; break; }
+  case 3: { item=tpdkg_msg4_SIZE * ctx->n; break; }
+  case 4: { item=tpdkg_msg6_SIZE(ctx); break; }
+  case 5: { item=ctx->n * tpdkg_msg8_SIZE; break; }
+  case 6: { item=tpdkg_msg9_SIZE(ctx); break; }
+  case 7: {
+    uint8_t ctr[ctx->n];
+    memset(ctr,0,ctx->n);
+    for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
+    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) sizes[i]=sizeof(TP_DKG_Message) + (1+tpdkg_noise_key_SIZE) * ctr[i];
+    return 0;
+  }
+  case 8: { item=tpdkg_msg19_SIZE; break; }
+  case 9: { item=tpdkg_msg21_SIZE; break; }
+  default: {
+    if(log_file!=NULL) fprintf(log_file, "[!] invalid tp step\n");
+  }
+  }
+
+  for(uint8_t i=0;i<ctx->n;i++) {
+    sizes[i] = item;
+  }
+  return 1;
+}
+
 size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx) {
   switch(ctx->step) {
   case 0: return ctx->n*tpdkg_msg1_SIZE;

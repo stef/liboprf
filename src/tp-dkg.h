@@ -352,6 +352,19 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
 size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx);
 
 /**
+   This function calculates the size of the message from each peer to
+   be received by the TP.
+
+   @param [in] ctx: an initialized TP_DKG_TPState struct.
+   @param [out] sizes: a array of type size_t with exactly N elements.
+
+   @return 0 on if the sizes differ from peer to peer, otherwise all
+           peers will be sending messages of equal size. In the latter
+           case all items of the sizes array hold the same valid value.
+ */
+int tpdkg_tp_input_sizes(const TP_DKG_TPState *ctx, size_t *sizes);
+
+/**
    This function calculates the size of the buffer needed to hold the
    output from the tpdkg_tp_next() function.
 

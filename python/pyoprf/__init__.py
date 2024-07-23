@@ -537,6 +537,12 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
 def tpdkg_tp_input_size(ctx):
    return liboprf.tpdkg_tp_input_size(ctypes.byref(ctx[0]))
 
+#int tpdkg_tp_input_sizes(const TP_DKG_TPState *ctx, size_t *sizes);
+def tpdkg_tp_input_sizes(ctx):
+   sizes = (ctypes.c_size_t * ctx[0].n)()
+   ret = liboprf.tpdkg_tp_input_sizes(ctypes.byref(ctx[0]), ctypes.byref(sizes))
+   return ret, [x for x in sizes]
+
 #size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx);
 def tpdkg_tp_output_size(ctx):
    return liboprf.tpdkg_tp_output_size(ctypes.byref(ctx[0]))
