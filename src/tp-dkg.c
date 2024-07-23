@@ -796,14 +796,13 @@ static int tp_step1_handler(TP_DKG_TPState *ctx, const uint8_t *input, const siz
   if(output_len!=ctx->n * tpdkg_msg1_SIZE) return 2;
 
   uint8_t* ptr = output;
-  for(uint8_t i=1;i<=ctx->n;i++) {
+  for(uint8_t i=1;i<=ctx->n;i++,ptr+=tpdkg_msg1_SIZE) {
     if(0!=send_msg(ptr, sizeof(TP_DKG_Message), 1, 0, i, ctx->sig_sk, ctx->sessionid)) return 3;
     if(log_file!=NULL) {
       TP_DKG_Message *msg1 = (TP_DKG_Message*) ptr;
       fprintf(log_file,"[!] msgno: %d, len: %d, from: %d to: %x ", msg1->msgno, htonl(msg1->len), msg1->from, msg1->to);
       dump(ptr, tpdkg_msg1_SIZE, "msg");
     }
-    ptr+=tpdkg_msg1_SIZE;
   }
 
   return 0;
@@ -1036,7 +1035,7 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
   if(msg7_buf_len != sizeof(TP_DKG_Message) + msg6s_len) return 2;
   const uint8_t *ptr = msg6s;
   uint8_t *wptr = ((TP_DKG_Message *) msg7_buf)->data;
-  for(uint8_t i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++,ptr+=tpdkg_msg6_SIZE(ctx)) {
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     if(log_file!=NULL) {
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
@@ -1055,7 +1054,6 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
 
     memcpy(wptr, ptr, tpdkg_msg6_SIZE(ctx));
     wptr+=tpdkg_msg6_SIZE(ctx);
-    ptr+=tpdkg_msg6_SIZE(ctx);
   }
   if(ctx->cheater_len>0) return 6;
 
@@ -1254,7 +1252,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
   const uint8_t *ptr = input;
   uint8_t *wptr = ((TP_DKG_Message *) output)->data;
-  for(uint8_t i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++, ptr+=tpdkg_msg9_SIZE(ctx)) {
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     if(log_file!=NULL) {
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
@@ -1288,7 +1286,6 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
     memcpy(wptr, ptr, tpdkg_msg9_SIZE(ctx));
     wptr+=tpdkg_msg9_SIZE(ctx);
-    ptr+=tpdkg_msg9_SIZE(ctx);
   }
   dump((uint8_t*) (*ctx->complaints), ctx->complaints_len*sizeof(uint16_t), "[!] complaints");
 
@@ -1653,7 +1650,7 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   if(output_len != 0) return 2;
 
   const uint8_t *ptr = input;
-  for(uint8_t i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++, ptr+=tpdkg_msg21_SIZE) {
     const TP_DKG_Message* msg = (const TP_DKG_Message*) ptr;
     if(log_file!=NULL) {
       fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
@@ -1670,7 +1667,6 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
         fprintf(log_file,"\e[0;31m[!] failed to get ack from %d!\e[0m\n", i);
       }
     }
-    ptr+=tpdkg_msg21_SIZE;
   }
   if(ctx->cheater_len>0) return 5;
 
