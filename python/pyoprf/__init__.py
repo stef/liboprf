@@ -443,7 +443,8 @@ class TP_DKG_PeerState(ctypes.Structure):
                 ('noise_pk',         ctypes.c_uint8 * pysodium.crypto_scalarmult_BYTES),
                 ('noise_sk',         ctypes.c_uint8 * pysodium.crypto_scalarmult_SCALARBYTES),
                 ('tp_sig_pk',        ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                ('last_ts',          ctypes.c_uint64),
+                ('tp_last_ts',       ctypes.c_uint64),
+                ('last_ts',          ctypes.c_void_p),
                 ('ts_epsilon',       ctypes.c_uint64),
                 ('peer_sig_pks',     ctypes.c_char_p),
                 ('peer_noise_pks',   ctypes.c_char_p),
@@ -457,7 +458,7 @@ class TP_DKG_PeerState(ctypes.Structure):
                 ('complaints',       ctypes.POINTER(ctypes.c_uint16)),
                 ('my_complaints_len',ctypes.c_uint8),
                 ('my_complaints',    ctypes.c_char_p),
-                ('padding',          ctypes.c_byte * 32), # important padding generichash_state must be 64byte aligned
+                ('padding',          ctypes.c_byte * 24), # important padding generichash_state must be 64byte aligned
                 ('transcript',       ctypes.c_uint8 * pysodium.crypto_generichash_STATEBYTES),
                 ('share',            ctypes.c_uint8 * 33),
                 ]
@@ -478,7 +479,7 @@ class TP_DKG_TPState(ctypes.Structure):
                 ('t',                ctypes.c_uint8),
                 ('sig_pk',           ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
                 ('sig_sk',           ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                ('last_ts',          ctypes.c_uint64),
+                ('last_ts',          ctypes.c_void_p),
                 ('ts_epsilon',       ctypes.c_uint64),
                 ('peer_sig_pks',     ctypes.c_char_p),
                 ('peer_lt_pks',      ctypes.c_char_p),
@@ -601,6 +602,7 @@ def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
     commitments = ctypes.create_string_buffer(state.n * state.t * pysodium.crypto_core_ristretto255_BYTES)
     complaints = ctypes.create_string_buffer(state.n * state.n * 2)
     my_complaints = ctypes.create_string_buffer(state.n)
+    last_ts = (ctypes.c_uint64 * state.n)()
     liboprf.tpdkg_peer_set_bufs(ctypes.byref(state),
                                 ctypes.byref(peers_sig_pks),
                                 ctypes.byref(peers_noise_pks),
@@ -610,10 +612,11 @@ def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
                                 ctypes.byref(xshares),
                                 ctypes.byref(commitments),
                                 ctypes.byref(complaints),
-                                ctypes.byref(my_complaints))
+                                ctypes.byref(my_complaints),
+                                ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, peers_sig_pks, peers_noise_pks, noise_outs, noise_ins, shares, xshares, commitments, complaints, my_complaints)
+    ctx = (state, peers_sig_pks, peers_noise_pks, noise_outs, noise_ins, shares, xshares, commitments, complaints, my_complaints, last_ts)
     return ctx
 
 #size_t tpdkg_peer_input_size(const TP_DKG_PeerState *ctx);

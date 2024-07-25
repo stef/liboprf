@@ -442,6 +442,8 @@ int main(const int argc, const char **argv) {
   memset(peer_complaints, 0, sizeof peer_complaints);
   uint8_t peer_my_complaints[peers[1].n][peers[1].n];
   memset(peer_my_complaints, 0, sizeof peer_my_complaints);
+  uint64_t peer_last_ts[n][n];
+  memset(peer_last_ts, 0, sizeof peer_last_ts);
 
   for(uint8_t i=0;i<n;i++) {
     // in a real deployment peers do not share the same pks buffers
@@ -449,7 +451,8 @@ int main(const int argc, const char **argv) {
                         &noise_outs[i], &noise_ins[i],
                         &ishares[i], &xshares[i],
                         &commitments[i],
-                        &peer_complaints[i], &peer_my_complaints[i]);
+                        &peer_complaints[i], &peer_my_complaints[i],
+                        &peer_last_ts[i]);
   }
 
 

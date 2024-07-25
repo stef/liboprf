@@ -154,7 +154,8 @@ typedef struct {
   uint8_t noise_pk[crypto_scalarmult_BYTES];
   uint8_t noise_sk[crypto_scalarmult_SCALARBYTES];
   uint8_t tp_sig_pk[crypto_sign_PUBLICKEYBYTES];
-  uint64_t last_ts;
+  uint64_t tp_last_ts;
+  uint64_t (*last_ts)[];
   uint64_t ts_epsilon;
   uint8_t (*peer_sig_pks)[][crypto_sign_PUBLICKEYBYTES];
   uint8_t (*peer_noise_pks)[][crypto_scalarmult_BYTES];
@@ -517,7 +518,9 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
                          TOPRF_Share (*xshares)[],
                          uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                          uint16_t (*complaints)[],
-                         uint8_t (*my_complaints)[]);
+                         uint8_t (*my_complaints)[],
+                         uint64_t (*last_ts)[]);
+
 
 
 /**
