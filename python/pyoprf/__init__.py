@@ -510,6 +510,10 @@ class TP_DKG_TPState(ctypes.Structure):
 #                  uint64_t (*last_ts)[]);
 def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     state = TP_DKG_TPState()
+    # force 32 byte alignment of state
+    while ctypes.addressof(state) % 32 != 0:
+      state = TP_DKG_TPState()
+
     msg = ctypes.create_string_buffer(tpdkg_msg0_SIZE)
     __check(liboprf.tpdkg_start_tp(ctypes.byref(state), ts_epsilon, n, t, proto_name, ctypes.c_size_t(len(proto_name)), ctypes.c_size_t(len(msg.raw)), msg))
 
@@ -590,6 +594,9 @@ def tpdkg_tp_not_done(ctx):
 #                         uint8_t (*my_complaints)[]);
 def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
     state = TP_DKG_PeerState()
+    # force 32 byte alignment of state
+    while ctypes.addressof(state) % 32 != 0:
+      state = TP_DKG_PeerState()
 
     __check(liboprf.tpdkg_start_peer(ctypes.byref(state), ts_epsilon, peer_lt_sk, msg0))
 
