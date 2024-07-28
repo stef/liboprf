@@ -95,8 +95,14 @@ static uint64_t ntohll(uint64_t n) {
 #endif // ntohll
 
 static int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
-  if(*last_ts > ts) return 1;
-  if(ts > *last_ts + ts_epsilon) return 2;
+  if(*last_ts == 0) {
+    uint64_t now = (uint64_t)time(NULL);
+    if(ts < now - ts_epsilon) return 3;
+    if(ts > now + ts_epsilon) return 4;
+  } else {
+    if(*last_ts > ts) return 1;
+    if(ts > *last_ts + ts_epsilon) return 2;
+  }
   *last_ts = ts;
   return 0;
 }
@@ -582,7 +588,6 @@ int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size
   }
   }
 
-  // todo int overflow protection
   if(base+base_size < *msg + *len) {
     if(log_file!=NULL) fprintf(log_file, "buffer overread detected in tpdkg_tp_peer_msg %ld\n", (base+base_size) - (*msg + *len));
     return 2;
@@ -660,8 +665,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
   ctx->complaints = complaints;
   ctx->my_complaints = my_complaints;
   ctx->last_ts = last_ts;
-  uint64_t now = (uint64_t)time(NULL);
-  for(uint8_t i=0;i<ctx->n;i++) (*ctx->last_ts)[i]=now;
+  for(uint8_t i=0;i<ctx->n;i++) (*ctx->last_ts)[i]=0;
 }
 
 int tpdkg_tp_not_done(const TP_DKG_TPState *tp) {
@@ -770,7 +774,7 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
   }
 
   ctx->ts_epsilon = ts_epsilon;
-  ctx->tp_last_ts = (uint64_t)time(NULL);
+  ctx->tp_last_ts = 0;
 
   int ret = recv_msg((uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, msg0->data, msg0->sessionid, ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 64 + ret;
