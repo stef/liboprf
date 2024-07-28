@@ -456,29 +456,15 @@ static void update_transcript(crypto_generichash_state *transcript, const uint8_
 }
 
 size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
-  switch(ctx->step) {
-  case 0: return 0;
-  case 1: return ((tpdkg_msg2_SIZE + crypto_sign_BYTES) * ctx->n);
-  case 2: return tpdkg_msg4_SIZE * ctx->n * ctx->n;
-  case 3: return tpdkg_msg4_SIZE * ctx->n * ctx->n;
-  case 4: return (tpdkg_msg6_SIZE(ctx) * ctx->n);
-  case 5: return ctx->n * ctx->n * tpdkg_msg8_SIZE;
-  case 6: return tpdkg_msg9_SIZE(ctx) * ctx->n;
-  case 7: {
-    size_t total = 0;
-    uint8_t ctr[ctx->n];
-    memset(ctr,0,ctx->n);
-    for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
-    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) total+=sizeof(TP_DKG_Message) + (1+tpdkg_noise_key_SIZE) * ctr[i];
-    return total;
+  size_t sizes[ctx->n];
+  //memset(sizes,0,sizeof sizes);
+  if(tpdkg_tp_input_sizes(ctx, sizes) == 1) {
+    return sizes[0] * ctx->n;
+  } else {
+    size_t result=0;
+    for(int i=0;i<ctx->n;i++) result+=sizes[i];
+    return result;
   }
-  case 8: return tpdkg_msg19_SIZE * ctx->n;
-  case 9: return (tpdkg_msg21_SIZE * ctx->n);
-  default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] invalid tp step\n");
-  }
-  }
-  return 0;
 }
 
 int tpdkg_tp_input_sizes(const TP_DKG_TPState *ctx, size_t *sizes) {
@@ -495,7 +481,13 @@ int tpdkg_tp_input_sizes(const TP_DKG_TPState *ctx, size_t *sizes) {
     uint8_t ctr[ctx->n];
     memset(ctr,0,ctx->n);
     for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
-    for(int i=0;i<ctx->n;i++) if(ctr[i]>0) sizes[i]=sizeof(TP_DKG_Message) + (1+tpdkg_noise_key_SIZE) * ctr[i];
+    for(int i=0;i<ctx->n;i++) {
+      if(ctr[i]>0) {
+        sizes[i]=sizeof(TP_DKG_Message) + (1+tpdkg_noise_key_SIZE) * ctr[i];
+      } else {
+        sizes[i]=0;
+      }
+    }
     return 0;
   }
   case 8: { item=tpdkg_msg19_SIZE; break; }
