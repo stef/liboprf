@@ -1222,8 +1222,8 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
 #ifdef UNITTEST_CORRUPT
   static int totalfails = 0;
-  for(int i=1;i<=ctx->n;i++) {
-    if(totalfails < ctx->t*ctx->t && *fails_len < ctx->t-1 && i != ctx->index) {
+  for(uint8_t i=1;i<=ctx->n;i++) {
+    if(totalfails < ctx->t && *fails_len < ctx->t-1 && i != ctx->index) {
       // avoid duplicates
       int j;
       for(j=1;j<=msg9->data[0];j++) if(msg9->data[j]==i) break;
