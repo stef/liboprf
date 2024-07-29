@@ -27,11 +27,15 @@ All rights reserved.
 
 import ctypes
 import ctypes.util
-import pysodium
+import pysodium, os
 from typing import List, Tuple
 from itertools import zip_longest
 
-liboprf = ctypes.cdll.LoadLibrary(ctypes.util.find_library('oprf') or ctypes.util.find_library('liboprf'))
+if "BYZANTINE_DKG" in os.environ:
+    liboprf = ctypes.cdll.LoadLibrary(os.environ['BYZANTINE_DKG'])
+else:
+    liboprf = ctypes.cdll.LoadLibrary(ctypes.util.find_library('oprf') or ctypes.util.find_library('liboprf'))
+
 if not liboprf._name:
     raise ValueError('Unable to find liboprf')
 
