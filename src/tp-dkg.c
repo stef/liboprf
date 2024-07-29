@@ -1122,7 +1122,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     static int corrupted_shares = 0;
     uint8_t corrupted_share[sizeof(TOPRF_Share)];
     memcpy(corrupted_share, &(*ctx->shares)[i], sizeof(TOPRF_Share));
-    if(i+1 != ctx->index && corrupted_shares++<ctx->t) {
+    if(i+1 != ctx->index && corrupted_shares++ < ctx->t-1) {
       dump(corrupted_share, sizeof(TOPRF_Share), "[%d] corrupting share_%d", ctx->index, i+1);
       corrupted_share[2]^=0xff; // flip some bits
       dump(corrupted_share, sizeof(TOPRF_Share), "[%d] corrupted share_%d ", ctx->index, i+1);
@@ -1223,7 +1223,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 #ifdef UNITTEST_CORRUPT
   static int totalfails = 0;
   for(uint8_t i=1;i<=ctx->n;i++) {
-    if(totalfails < ctx->t && *fails_len < ctx->t-1 && i != ctx->index) {
+    if(totalfails < ctx->t - ctx->index && *fails_len < ctx->t-1 && i != ctx->index) {
       // avoid duplicates
       int j;
       for(j=1;j<=msg9->data[0];j++) if(msg9->data[j]==i) break;
