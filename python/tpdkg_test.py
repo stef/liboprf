@@ -68,8 +68,16 @@ while pyoprf.tpdkg_tp_not_done(tp):
     # peer_msgs = (recv(size) for size in sizes)
     msgs = b''.join(peer_msgs)
 
-    tp_out = pyoprf.tpdkg_tp_next(tp, msgs)
-    #print(f"tp: msg[{tp[0].step}]: {tp_out.raw.hex()}")
+    cur_step = tp[0].step
+    try:
+      tp_out = pyoprf.tpdkg_tp_next(tp, msgs)
+      #print(f"tp: msg[{tp[0].step}]: {tp_out.raw.hex()}")
+    except Exception as e:
+      cheaters, cheats = pyoprf.tpdkg_get_cheaters(tp)
+      print(f"Warning during the distributed key generation the peers misbehaved: {sorted(cheaters)}")
+      for k, v in cheats:
+          print(f"\tmisbehaving peer: {k} was caught: {v}")
+      raise ValueError(f"{e} | tp step {cur_step}")
 
     peer_msgs = []
     while(len(b''.join(peer_msgs))==0 and pyoprf.tpdkg_peer_not_done(peers[0])):
