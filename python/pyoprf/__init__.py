@@ -429,6 +429,7 @@ tpdkg_msg8_SIZE = 256 # (sizeof(TP_DKG_Message) /* header */                    
                       #  + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped share */     \
                       #  + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */  \
                       #  + crypto_auth_hmacsha256_BYTES /* key-committing mac over msg*/ )
+tpdkg_max_err_SIZE = 128
 
 class TP_DKG_PeerState(ctypes.Structure):
     _fields_ = [('step',             ctypes.c_int),
@@ -536,7 +537,7 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
                               ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, peers_sig_pks, commitments, complaints, noisy_shares, cheaters, peer_lt_pks, last_ts)
+    ctx = (state, cheaters, peers_sig_pks, commitments, complaints, noisy_shares, peer_lt_pks, last_ts)
 
     return ctx, msg.raw
 
@@ -575,6 +576,19 @@ def tpdkg_tp_peer_msg(ctx, base, peer):
 #int tpdkg_tp_not_done(const TP_DKG_TPState *tp);
 def tpdkg_tp_not_done(ctx):
     return liboprf.tpdkg_tp_not_done(ctypes.byref(ctx[0])) == 1
+
+def tpdkg_get_cheaters(ctx):
+    cheats = []
+    cheaters = set()
+    for i in range(ctx[0].cheater_len):
+        err = ctypes.create_string_buffer(tpdkg_max_err_SIZE)
+        p = liboprf.tpdkg_cheater_msg(ctypes.byref(ctx[1][i]), err, tpdkg_max_err_SIZE)
+        if 0 >= p > ctx[0].n:
+            print(f"invalid cheater index: {p}, skipping this entry")
+            continue
+        cheaters.add(p)
+        cheats.append((p, err.raw[:err.raw.find(b'\x00')].decode('utf8')))
+    return cheaters, cheats
 
 #int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
 #               const uint8_t peer_lt_sk[crypto_sign_SECRETKEYBYTES],
