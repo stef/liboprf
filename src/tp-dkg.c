@@ -1762,7 +1762,7 @@ uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outle
       return c->peer;
   }
   if(c->step==16) {
-    if(c->error == 5) {
+    if(c->error == 6) {
       snprintf(out, outlen, "more than t^2 complaints, most peers are cheating.");
       return 0;
     } else if(c->error == 7) {
