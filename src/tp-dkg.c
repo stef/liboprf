@@ -1469,10 +1469,11 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
         fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg8->msgno, msg8->from, msg8->to);
         dump(msg8_ptr, tpdkg_msg8_SIZE, "msg");
       }
+      uint64_t last_ts = ntohll(msg8->ts);
       ret = recv_msg(msg8_ptr, tpdkg_msg8_SIZE, 8,
                      accused, complainer,
                      (*ctx->peer_sig_pks)[accused-1], ctx->sessionid,
-                     ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+                     ctx->ts_epsilon, &last_ts);
       if(0!=ret) {
         // key reveal msg_recv failure
         if(add_cheater(ctx, 18, 16+ret, accused, complainer) == NULL) return 4;
