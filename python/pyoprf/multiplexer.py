@@ -63,6 +63,8 @@ class Peer:
     def close(self):
         if self.state == "closed": return
         if self.fd and self.fd.fileno() != -1:
+            try: self.fd.shutdown(socket.SHUT_RDWR)
+            except OSError: pass
             self.fd.close()
             self.state = "closed"
         else:
