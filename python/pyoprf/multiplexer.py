@@ -38,7 +38,7 @@ class Peer:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(self.timeout)
         if self.type == "SSL":
-            self.fd = ctx.wrap_socket(s, server_hostname=self.name)
+            self.fd = ctx.wrap_socket(s, server_hostname=self.address[0])
         self.fd.connect(self.address)
         self.state="connected"
 
@@ -119,10 +119,13 @@ class Multiplexer:
                    responses[idx]=None
                    continue
                responses[idx]=pkt if not proc else proc(pkt)
+           #if peer.fd.fileno() < 0:
+           #  print(f"{peer} has negative fileno: {peer.fd.fileno()}")
            #elif pending != 0:
            #    print(f"wtf peer {peer.name} has {peer.fd.pending()} bytes pending, which is not equ {expectedmsglen}")
        while len(responses)<n:
-          fds={x.fd.fileno(): (i, x) for i,x in enumerate(self.peers) if i not in responses}
+          fds={x.fd.fileno(): (i, x) for i,x in enumerate(self.peers) if i not in responses and x.fd.fileno() >= 0}
+          if not fds: raise ValueError("not enough peers left to get enough results")
           #print("select")
           r, _,_ =select.select(fds.keys(),[],[],2)
           #print("select done")
@@ -138,7 +141,9 @@ class Multiplexer:
                  responses[idx]=None
                  continue
              if debug: print(f"{idx} got response of {len(pkt)}")
-             responses[idx]=pkt if not proc else proc(pkt)
+             tmp = pkt if not proc else proc(pkt)
+             if tmp is None: continue
+             responses[idx]=tmp
        if set((tuple(e) if isinstance(e,list) else e) for e in responses.values())=={None}:
            raise ValueError("oracles failed")
        if None in responses.values():
