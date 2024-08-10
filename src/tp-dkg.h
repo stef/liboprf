@@ -490,8 +490,8 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
 
   The buffer sizes depend on the N and T parameters to the DKG, if
   they are known in advance, great. If not, they are announced by the
-  TP in msg0, which is an input to the tpdkg_peer_start() function,
-  after this tpdkg_peer_start() function the peerstate is initialized
+  TP in msg0, which is an input to the tpdkg_start_peer() function,
+  after this tpdkg_start_peer() function the peerstate is initialized
   and can be used to find out the N and T parameters.
 
   If you want you can allocate all the buffers on the stack like this:
