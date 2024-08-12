@@ -22,8 +22,8 @@
 #include <sodium.h>
 #include <stdint.h>
 
-#define TOPRF_Share_BYTES crypto_core_ristretto255_SCALARBYTES+1
-#define TOPRF_Part_BYTES crypto_core_ristretto255_BYTES+1
+#define TOPRF_Share_BYTES (crypto_core_ristretto255_SCALARBYTES+1UL)
+#define TOPRF_Part_BYTES (crypto_core_ristretto255_BYTES+1UL)
 
 /**
  * This function calculates a lagrange coefficient based on the index
