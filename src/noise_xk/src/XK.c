@@ -279,39 +279,6 @@ bool Noise_XK_rcode_is_stuck(Noise_XK_rcode c)
     return false;
 }
 
-typedef struct Noise_XK_init_state_t_s
-{
-  Noise_XK_init_state_t_tags tag;
-  union {
-    struct 
-    {
-      uint32_t step;
-      uint8_t *cipher_key;
-      uint8_t *chaining_key;
-      uint8_t *h;
-      uint8_t *spriv;
-      uint8_t *spub;
-      uint8_t *epriv;
-      uint8_t *epub;
-      uint8_t *rs;
-      uint8_t *re;
-    }
-    case_IMS_Handshake;
-    struct 
-    {
-      uint8_t *h;
-      bool recv_transport_message;
-      uint8_t *send_key;
-      uint64_t send_nonce;
-      uint8_t *receive_key;
-      uint64_t receive_nonce;
-    }
-    case_IMS_Transport;
-  }
-  val;
-}
-Noise_XK_init_state_t;
-
 typedef struct Noise_XK_peer_t_s
 {
   uint32_t p_id;
@@ -338,71 +305,6 @@ typedef struct Noise_XK_device_t_s
 Noise_XK_device_t;
 
 typedef Noise_XK_device_t *device_p;
-
-typedef struct Noise_XK_resp_state_t_s
-{
-  Noise_XK_init_state_t_tags tag;
-  union {
-    struct 
-    {
-      uint32_t step;
-      uint8_t *cipher_key;
-      uint8_t *chaining_key;
-      uint8_t *h;
-      uint8_t *spriv;
-      uint8_t *spub;
-      uint8_t *epriv;
-      uint8_t *epub;
-      uint8_t *rs;
-      uint8_t *re;
-    }
-    case_IMS_Handshake;
-    struct 
-    {
-      uint8_t *h;
-      uint8_t *send_key;
-      uint64_t send_nonce;
-      uint8_t *receive_key;
-      uint64_t receive_nonce;
-    }
-    case_IMS_Transport;
-  }
-  val;
-}
-Noise_XK_resp_state_t;
-
-typedef struct Noise_XK_session_t_s
-{
-  Noise_XK_session_t_tags tag;
-  union {
-    struct 
-    {
-      Noise_XK_init_state_t state;
-      uint32_t id;
-      Noise_XK_noise_string *info;
-      uint8_t *spriv;
-      uint8_t *spub;
-      uint32_t pid;
-      Noise_XK_noise_string *pinfo;
-      Noise_XK_device_t *dv;
-    }
-    case_DS_Initiator;
-    struct 
-    {
-      Noise_XK_resp_state_t state;
-      uint32_t id;
-      Noise_XK_noise_string *info;
-      uint8_t *spriv;
-      uint8_t *spub;
-      uint32_t pid;
-      Noise_XK_noise_string *pinfo;
-      Noise_XK_device_t *dv;
-    }
-    case_DS_Responder;
-  }
-  val;
-}
-Noise_XK_session_t;
 
 typedef Noise_XK_session_t *session_p;
 
@@ -754,7 +656,7 @@ void Noise_XK_serialize_device_secret(uint32_t *outlen, uint8_t **out, Noise_XK_
   uint8_t *name_raw = scrut.snd;
   uint8_t *n8 = outb;
   uint8_t *c = outb + (uint32_t)8U;
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   randombytes_buf(n8, (uint32_t)8U);
 #else // WITH_SODIUM
   Lib_RandomBuffer_System_crypto_random(n8, (uint32_t)8U);
@@ -999,7 +901,7 @@ void Noise_XK_device_remove_peer(Noise_XK_device_t *dvp, uint32_t pid)
           if (!(str == NULL))
             KRML_HOST_FREE(str);
           KRML_HOST_FREE(p.p_info);
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
           sodium_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
 #else // WITH_SODIUM
           Lib_Memzero0_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
@@ -1019,7 +921,7 @@ void Noise_XK_device_remove_peer(Noise_XK_device_t *dvp, uint32_t pid)
         if (!(str == NULL))
           KRML_HOST_FREE(str);
         KRML_HOST_FREE(p.p_info);
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
         sodium_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
 #else // WITH_SODIUM
         Lib_Memzero0_memzero(p.p_s, (uint32_t)32U * sizeof (p.p_s[0U]));
@@ -1089,7 +991,7 @@ Noise_XK_serialize_peer_secret(
     uint8_t *name_raw = scrut.snd;
     uint8_t *n8 = outb;
     uint8_t *c = outb + (uint32_t)8U;
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
     randombytes_buf(n8, (uint32_t)8U);
 #else // WITH_SODIUM
     Lib_RandomBuffer_System_crypto_random(n8, (uint32_t)8U);
@@ -1650,7 +1552,7 @@ Noise_XK_session_t *Noise_XK_session_create_initiator(Noise_XK_device_t *dvp, ui
 {
   uint8_t epriv[32U] = { 0U };
   uint8_t epub[32U] = { 0U };
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   randombytes_buf(epriv, (uint32_t)32U);
 #else // WITH_SODIUM
   Lib_RandomBuffer_System_crypto_random(epriv, (uint32_t)32U);
@@ -1949,7 +1851,7 @@ Noise_XK_session_t *Noise_XK_session_create_initiator(Noise_XK_device_t *dvp, ui
         res = NULL;
       }
   }
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   sodium_memzero(epriv, (uint32_t)32U * sizeof (epriv[0U]));
   sodium_memzero(epub, (uint32_t)32U * sizeof (epub[0U]));
 #else // WITH_SODIUM
@@ -1969,7 +1871,7 @@ Noise_XK_session_t *Noise_XK_session_create_responder(Noise_XK_device_t *dvp)
 {
   uint8_t epriv[32U] = { 0U };
   uint8_t epub[32U] = { 0U };
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   randombytes_buf(epriv, (uint32_t)32U);
 #else // WITH_SODIUM
   Lib_RandomBuffer_System_crypto_random(epriv, (uint32_t)32U);
@@ -2163,7 +2065,7 @@ Noise_XK_session_t *Noise_XK_session_create_responder(Noise_XK_device_t *dvp)
         res = NULL;
       }
   }
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   sodium_memzero(epriv, (uint32_t)32U * sizeof (epriv[0U]));
   sodium_memzero(epub, (uint32_t)32U * sizeof (epub[0U]));
 #else //WITH_SODIUM
@@ -2554,7 +2456,7 @@ state_handshake_write(
               Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
               memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
               memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
               sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
               sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
 #else // WITH_SODIUM
@@ -2760,7 +2662,7 @@ state_handshake_write(
               Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
               memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
               memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
               sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
               sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
 #else // WITH_SODIUM
@@ -3234,7 +3136,7 @@ state_handshake_read(
                 Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
                 memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
                 memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
                 sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
                 sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
 #else // WITH_SODIUM
@@ -3696,7 +3598,7 @@ state_handshake_read(
                 Noise_XK_kdf(st_ck1, (uint32_t)0U, NULL, temp_k1, temp_k2, NULL);
                 memcpy(k1, temp_k1, (uint32_t)32U * sizeof (uint8_t));
                 memcpy(k2, temp_k2, (uint32_t)32U * sizeof (uint8_t));
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
                 sodium_memzero(temp_k1, (uint32_t)64U * sizeof (temp_k1[0U]));
                 sodium_memzero(temp_k2, (uint32_t)64U * sizeof (temp_k2[0U]));
 #else // WITH_SODIUM

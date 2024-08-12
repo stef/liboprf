@@ -7,7 +7,7 @@
 #include "krml/internal/target.h"
 #include "krml/internal/types.h"
 
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
 #include <sodium.h>
 #else // WITH_SODIUM
 #include "Hacl.h"

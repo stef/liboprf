@@ -27,7 +27,7 @@ uint64_t Noise_XK_bytes_to_nonce(uint8_t *n8)
 
 Noise_XK_error_code Noise_XK_dh_secret_to_public(uint8_t *dest, uint8_t *priv)
 {
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   crypto_scalarmult_base(dest, priv);
 #else // WITH_SODIUM
   Hacl_Curve25519_64_secret_to_public(dest, priv);
@@ -37,7 +37,7 @@ Noise_XK_error_code Noise_XK_dh_secret_to_public(uint8_t *dest, uint8_t *priv)
 
 Noise_XK_error_code Noise_XK_dh(uint8_t *dest, uint8_t *priv, uint8_t *pub)
 {
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   bool b = crypto_scalarmult(dest, priv, pub) == 0;
 #else // WITH_SODIUM
   bool b = Hacl_Curve25519_64_ecdh(dest, priv, pub);
@@ -63,7 +63,7 @@ Noise_XK_aead_encrypt(
   uint8_t n12[12U] = { 0U };
   uint8_t *nonce12_end = n12 + (uint32_t)4U;
   store64_le(nonce12_end, nonce);
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   crypto_aead_chacha20poly1305_ietf_encrypt(cipher, NULL, plain, plen, aad, aad_len, NULL, n12, key);
   sodium_memzero(n12, (uint32_t)12U * sizeof (n12[0U]));
 #else
@@ -88,7 +88,7 @@ Noise_XK_aead_decrypt(
   uint8_t n12[12U] = { 0U };
   uint8_t *nonce12_end = n12 + (uint32_t)4U;
   store64_le(nonce12_end, nonce);
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   uint32_t
     r = crypto_aead_chacha20poly1305_ietf_decrypt(plain,
                                               NULL,  // *plen
@@ -115,7 +115,7 @@ Noise_XK_aead_decrypt(
 
 void Noise_XK_hash(uint8_t *output, uint32_t inlen, uint8_t *input)
 {
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   crypto_generichash(output, (uint32_t)64U, input, inlen, NULL, 0);
 #else // WITH_SODIUM
   Hacl_Blake2b_32_blake2b((uint32_t)64U, output, inlen, input, (uint32_t)0U, NULL);
@@ -124,7 +124,7 @@ void Noise_XK_hash(uint8_t *output, uint32_t inlen, uint8_t *input)
 
 void Noise_XK_mix_hash(uint8_t *hash1, uint32_t inlen, uint8_t *input)
 {
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   crypto_generichash_state state;
   crypto_generichash_init(&state, NULL, 0, 64);
   crypto_generichash_update(&state, hash1, 64);
@@ -162,7 +162,7 @@ void Noise_XK_mix_hash(uint8_t *hash1, uint32_t inlen, uint8_t *input)
 #endif // WITH_SODIUM
 }
 
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
 #define HMAC_IPAD   0x36
 #define HMAC_OPAD   0x5C
 
@@ -177,7 +177,7 @@ static void Noise_XK_hashstate_xor_key(uint8_t *key, size_t key_len, uint8_t val
 void
 Noise_XK_hmac(uint8_t *output, uint32_t keylen, uint8_t *key, uint32_t datalen, uint8_t *data)
 {
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   size_t hash_len = 64;
   size_t block_len = 128;
   uint8_t key_block[block_len];
@@ -250,7 +250,7 @@ Noise_XK_kdf(
       }
     }
   }
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   sodium_memzero(output, (uint32_t)65U * sizeof (output[0U]));
   sodium_memzero(secret, (uint32_t)64U * sizeof (secret[0U]));
 #else // WITH_SODIUM
@@ -265,13 +265,13 @@ void Noise_XK_mix_psk(uint8_t *psk, uint8_t *st_cs_k, uint8_t *st_ck, uint8_t *s
   uint8_t temp_k[64U] = { 0U };
   Noise_XK_kdf(st_ck, (uint32_t)32U, psk, st_ck, temp_hash, temp_k);
   memcpy(st_cs_k, temp_k, (uint32_t)32U * sizeof (uint8_t));
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   sodium_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
 #else // WITH_SODIUM
   Lib_Memzero0_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
 #endif // WITH_SODIUM
   Noise_XK_mix_hash(st_h, (uint32_t)64U, temp_hash);
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   sodium_memzero(temp_hash, (uint32_t)64U * sizeof (temp_hash[0U]));
 #else // WITH_SODIUM
   Lib_Memzero0_memzero(temp_hash, (uint32_t)64U * sizeof (temp_hash[0U]));
@@ -325,7 +325,7 @@ Noise_XK_mix_dh(uint8_t *sec, uint8_t *pub, uint8_t *cipher_key, uint8_t *ck, ui
     uint8_t temp_k[64U] = { 0U };
     Noise_XK_kdf(ck, (uint32_t)32U, dh_key, ck, temp_k, NULL);
     memcpy(cipher_key, temp_k, (uint32_t)32U * sizeof (uint8_t));
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
     sodium_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
 #else // WITH_SODIUM
     Lib_Memzero0_memzero(temp_k, (uint32_t)64U * sizeof (temp_k[0U]));
@@ -335,7 +335,7 @@ Noise_XK_mix_dh(uint8_t *sec, uint8_t *pub, uint8_t *cipher_key, uint8_t *ck, ui
   else
     r2 = r1;
   Noise_XK_error_code r = r2;
-#ifdef WITH_SODIUM
+#ifndef WITH_HACL
   sodium_memzero(dh_key, (uint32_t)32U * sizeof (dh_key[0U]));
 #else // WITH_SODIUM
   Lib_Memzero0_memzero(dh_key, (uint32_t)32U * sizeof (dh_key[0U]));

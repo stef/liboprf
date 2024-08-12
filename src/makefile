@@ -26,7 +26,7 @@ else
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
 endif
 
-CFLAGS+=$(INCLUDES) -DWITH_SODIUM
+CFLAGS+=$(INCLUDES)
 
 SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))

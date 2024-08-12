@@ -7,7 +7,7 @@
 #include "krml/internal/target.h"
 #include "krml/internal/types.h"
 
-#ifndef WITH_SODIUM
+#ifdef WITH_HACL
 #include "Hacl.h"
 #endif // WITH_SODIUM
 #include "Noise_XK.h"
@@ -182,6 +182,8 @@ typedef struct Noise_XK_resp_state_t_s Noise_XK_resp_state_t;
 #define Noise_XK_DS_Responder 1
 
 typedef uint8_t Noise_XK_session_t_tags;
+
+#include "noise_private.h"
 
 typedef struct Noise_XK_session_t_s Noise_XK_session_t;
 
