@@ -451,7 +451,7 @@ int main(const int argc, const char **argv) {
                         &noise_outs[i], &noise_ins[i],
                         &ishares[i], &xshares[i],
                         &commitments[i],
-                        &peer_complaints[i], peer_my_complaints[i],
+                        peer_complaints[i], peer_my_complaints[i],
                         &peer_last_ts[i]);
   }
 

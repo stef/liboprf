@@ -166,7 +166,7 @@ typedef struct {
   TOPRF_Share (*shares)[];
   TOPRF_Share (*xshares)[];
   uint16_t complaints_len;
-  uint16_t (*complaints)[];
+  uint16_t *complaints;
   uint8_t my_complaints_len;
   uint8_t *my_complaints;
   crypto_generichash_state transcript;
@@ -517,7 +517,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
                          TOPRF_Share (*shares)[],
                          TOPRF_Share (*xshares)[],
                          uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
-                         uint16_t (*complaints)[],
+                         uint16_t *complaints,
                          uint8_t *my_complaints,
                          uint64_t (*last_ts)[]);
 

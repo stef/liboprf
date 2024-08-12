@@ -568,7 +568,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
                          TOPRF_Share (*shares)[],
                          TOPRF_Share (*xshares)[],
                          uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
-                         uint16_t (*complaints)[],
+                         uint16_t *complaints,
                          uint8_t *my_complaints,
                          uint64_t (*last_ts)[]) {
   ctx->peer_sig_pks = peers_sig_pks;
@@ -1275,9 +1275,9 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     for(int k=0;k<msg9->data[0] && (k+1)<msg9->len-sizeof(TP_DKG_Message);k++) {
       uint16_t pair=(uint16_t) (((i+1)<<8) | msg9->data[k+1]);
       int j=0;
-      for(j=0;j<ctx->complaints_len;j++) if((*ctx->complaints)[j]==pair) break;
+      for(j=0;j<ctx->complaints_len;j++) if(ctx->complaints[j]==pair) break;
       if(j<ctx->complaints_len) continue;
-      (*ctx->complaints)[ctx->complaints_len++] = pair;
+      ctx->complaints[ctx->complaints_len++] = pair;
 
       if(msg9->data[k+1] == ctx->index) {
         ctx->my_complaints[ctx->my_complaints_len++] = i+1;
