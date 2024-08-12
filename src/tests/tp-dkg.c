@@ -412,7 +412,7 @@ int main(const int argc, const char **argv) {
   TP_DKG_Cheater cheaters[t*t - 1];
   memset(cheaters,0,sizeof(cheaters));
   uint64_t last_ts[n];
-  tpdkg_tp_set_bufs(&tp, &tp_commitments, &tp_complaints, &noisy_shares, &cheaters, sizeof(cheaters) / sizeof(TP_DKG_Cheater), &tp_peers_sig_pks, &peer_lt_pks, &last_ts);
+  tpdkg_tp_set_bufs(&tp, &tp_commitments, &tp_complaints, &noisy_shares, &cheaters, sizeof(cheaters) / sizeof(TP_DKG_Cheater), &tp_peers_sig_pks, &peer_lt_pks, last_ts);
 
   // only tp_out can survive for the peers in local scope of the "main protocol loop"
   // and thus we simulate a network with this buffer
@@ -452,7 +452,7 @@ int main(const int argc, const char **argv) {
                         &ishares[i], &xshares[i],
                         &commitments[i],
                         peer_complaints[i], peer_my_complaints[i],
-                        &peer_last_ts[i]);
+                        peer_last_ts[i]);
   }
 
 

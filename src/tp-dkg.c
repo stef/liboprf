@@ -570,7 +570,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
                          uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                          uint16_t *complaints,
                          uint8_t *my_complaints,
-                         uint64_t (*last_ts)[]) {
+                         uint64_t *last_ts) {
   ctx->peer_sig_pks = peers_sig_pks;
   ctx->peer_noise_pks = peers_noise_pks;
   ctx->noise_outs = noise_outs;
@@ -581,7 +581,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
   ctx->complaints = complaints;
   ctx->my_complaints = my_complaints;
   ctx->last_ts = last_ts;
-  for(uint8_t i=0;i<ctx->n;i++) (*ctx->last_ts)[i]=0;
+  for(uint8_t i=0;i<ctx->n;i++) ctx->last_ts[i]=0;
 }
 
 int tpdkg_tp_not_done(const TP_DKG_TPState *tp) {
@@ -607,7 +607,7 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
                        TP_DKG_Cheater (*cheaters)[], const size_t cheater_max,
                        uint8_t (*tp_peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                        uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES],
-                       uint64_t (*last_ts)[]) {
+                       uint64_t *last_ts) {
   ctx->commitments = (uint8_t (*)[][crypto_core_ristretto255_BYTES]) commitments;
   ctx->complaints = complaints;
   ctx->encrypted_shares = encrypted_shares;
@@ -618,7 +618,7 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
   ctx->peer_lt_pks = peer_lt_pks;
   ctx->last_ts = last_ts;
   uint64_t now = (uint64_t)time(NULL);
-  for(uint8_t i=0;i<ctx->n;i++) (*ctx->last_ts)[i]=now;
+  for(uint8_t i=0;i<ctx->n;i++) ctx->last_ts[i]=now;
 }
 
 int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
@@ -799,7 +799,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_sign_verify_detached(ptr+tpdkg_msg2_SIZE,ptr,tpdkg_msg2_SIZE,(*ctx->peer_lt_pks)[i])) return 3;
 #endif
-    int ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 4, 64+ret, i+1,0xff) == NULL) return 7;
       continue;
@@ -845,7 +845,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
       fprintf(log_file,"[%d] msgno: %d, from: %d to: %x ", ctx->index, msg2->msgno, msg2->from, msg2->to);
       dump(ptr, tpdkg_msg2_SIZE, "msg");
     }
-    ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg2->data, ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg2->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
     // extract peer sig and noise pk
     memcpy((*ctx->peer_sig_pks)[i], msg2->data, crypto_sign_PUBLICKEYBYTES);
@@ -880,7 +880,7 @@ static int tp_step68_handler(TP_DKG_TPState *ctx, const uint8_t *msg4s, const si
         if(log_file!=NULL) fprintf(log_file, "tpdkg_msg4_SIZE must be equal tpdkg_msg5_SIZE for the check to be correct in tp_step68_handler\n");
         return 3;
       } 
-      int ret = recv_msg((*inputs)[j][i], tpdkg_msg4_SIZE, (uint8_t) (2+ctx->step), j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[j]);
+      int ret = recv_msg((*inputs)[j][i], tpdkg_msg4_SIZE, (uint8_t) (2+ctx->step), j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[j]);
       if(0!=ret) {
         if(add_cheater(ctx, 6 + (ctx->step - 1) * 2, 64+ret, j+1, i+1) == NULL) return 7;
         TP_DKG_Message *msg = (TP_DKG_Message*) (*inputs)[j][i];
@@ -910,7 +910,7 @@ static int peer_step7_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
       fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg4->msgno, msg4->from, msg4->to);
       dump(ptr, tpdkg_msg4_SIZE, "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg4_SIZE, 4, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg4_SIZE, 4, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
     ptr+=tpdkg_msg4_SIZE;
 
@@ -942,7 +942,7 @@ static int peer_step911_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
       fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg5->msgno, msg5->from, msg5->to);
       dump(ptr, tpdkg_msg5_SIZE, "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg5_SIZE, 5, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg5_SIZE, 5, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
     ptr+=tpdkg_msg5_SIZE;
     // process final step of noise handshake
@@ -974,7 +974,7 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg6_SIZE(ctx), "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 12, 64+ret, i+1,0xff) == NULL) return 7;
       continue;
@@ -1028,7 +1028,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
       fprintf(log_file,"[%d] msgno: %d, from: %d to: 0x%x ", ctx->index, msg6->msgno, msg6->from, msg6->to);
       dump(ptr, tpdkg_msg6_SIZE(ctx), "msg");
     }
-    if(0!=recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i])) return 64+ret;
+    if(0!=recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i])) return 64+ret;
     // extract peer commitments
     memcpy((*ctx->commitments)[i*ctx->t], msg6->data, crypto_core_ristretto255_BYTES * ctx->t);
 
@@ -1088,7 +1088,7 @@ static int tp_step14_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
         fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg8->msgno, msg8->from, msg8->to);
         dump((*inputs)[j][i], tpdkg_msg8_SIZE, "msg");
       }
-      int ret = recv_msg((*inputs)[j][i], tpdkg_msg8_SIZE, 8, j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[j]);
+      int ret = recv_msg((*inputs)[j][i], tpdkg_msg8_SIZE, 8, j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[j]);
       if(0!=ret) {
         if(add_cheater(ctx, 14, 64+ret, j+1, i+1) == NULL) return 7;
         continue;
@@ -1118,7 +1118,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
       fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg8->msgno, msg8->from, msg8->to);
       dump(ptr, tpdkg_msg8_SIZE, "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg8_SIZE, 8, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg8_SIZE, 8, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
 
     // decrypt final empty handshake packet
@@ -1190,7 +1190,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg9_SIZE(ctx), "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 16, 64+ret, i+1, 0xff) == NULL) return 6;
       continue;
@@ -1267,7 +1267,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
       fprintf(log_file,"[%d] msgno: %d, from: %d to: 0x%x ", ctx->index, msg9->msgno, msg9->from, msg9->to);
       dump(ptr, tpdkg_msg9_SIZE(ctx), "msg");
     }
-    ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 32+ret;
     if(msg9->len - sizeof(TP_DKG_Message) < msg9->data[0]) return 5;
 
@@ -1360,7 +1360,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: 0x%x ", msg->msgno, msg->from, msg->to);
       dump(ptr, msg_len, "msg");
     }
-    int ret = recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 18, 32+ret, i+1, 0xfe) == NULL) return 4;
       continue;
@@ -1515,7 +1515,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg19_SIZE, "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 20, 1+ret, i+1, 0) == NULL) return 4;
 
@@ -1588,7 +1588,7 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       fprintf(log_file,"[!] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
       dump(ptr, tpdkg_msg21_SIZE, "msg");
     }
-    int ret = recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &(*ctx->last_ts)[i]);
+    int ret = recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 22, 64+ret, i+1, 0) == NULL) return 6;
       continue;

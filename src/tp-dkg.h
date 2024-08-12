@@ -155,7 +155,7 @@ typedef struct {
   uint8_t noise_sk[crypto_scalarmult_SCALARBYTES];
   uint8_t tp_sig_pk[crypto_sign_PUBLICKEYBYTES];
   uint64_t tp_last_ts;
-  uint64_t (*last_ts)[];
+  uint64_t *last_ts;
   uint64_t ts_epsilon;
   uint8_t (*peer_sig_pks)[][crypto_sign_PUBLICKEYBYTES];
   uint8_t (*peer_noise_pks)[][crypto_scalarmult_BYTES];
@@ -245,7 +245,7 @@ typedef struct {
   uint8_t t;
   uint8_t sig_pk[crypto_sign_PUBLICKEYBYTES];
   uint8_t sig_sk[crypto_sign_SECRETKEYBYTES];
-  uint64_t (*last_ts)[];
+  uint64_t *last_ts;
   uint64_t ts_epsilon;
   uint8_t (*peer_sig_pks)[][crypto_sign_PUBLICKEYBYTES];
   uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES];
@@ -335,7 +335,7 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
                        TP_DKG_Cheater (*cheaters)[], const size_t cheater_max,
                        uint8_t (*tp_peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                        uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES],
-                       uint64_t (*last_ts)[]);
+                       uint64_t *last_ts);
 
 /**
    This function calculates the size of the buffer needed to hold all
@@ -519,7 +519,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
                          uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                          uint16_t *complaints,
                          uint8_t *my_complaints,
-                         uint64_t (*last_ts)[]);
+                         uint64_t *last_ts);
 
 
 
