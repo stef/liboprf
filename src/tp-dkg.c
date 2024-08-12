@@ -569,7 +569,7 @@ void tpdkg_peer_set_bufs(TP_DKG_PeerState *ctx,
                          TOPRF_Share (*xshares)[],
                          uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                          uint16_t (*complaints)[],
-                         uint8_t (*my_complaints)[],
+                         uint8_t *my_complaints,
                          uint64_t (*last_ts)[]) {
   ctx->peer_sig_pks = peers_sig_pks;
   ctx->peer_noise_pks = peers_noise_pks;
@@ -1280,7 +1280,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
       (*ctx->complaints)[ctx->complaints_len++] = pair;
 
       if(msg9->data[k+1] == ctx->index) {
-        (*ctx->my_complaints)[ctx->my_complaints_len++] = i+1;
+        ctx->my_complaints[ctx->my_complaints_len++] = i+1;
         if(log_file!=NULL) fprintf(log_file,"\e[0;31m[%d] peer %d failed to verify commitments from peer %d!\e[0m\n", ctx->index, i+1, msg9->data[1+k]);
       }
     }
@@ -1311,11 +1311,11 @@ static int peer_step17a_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
   TP_DKG_Message* msg11 = (TP_DKG_Message*) output;
   uint8_t *wptr = msg11->data;
   for(int i=0;i<ctx->my_complaints_len;i++) {
-    if(log_file!=NULL) fprintf(log_file, "\e[0;36m[%d] defending against complaint from %d\e[0m\n", ctx->index, (*ctx->my_complaints)[i]);
+    if(log_file!=NULL) fprintf(log_file, "\e[0;36m[%d] defending against complaint from %d\e[0m\n", ctx->index, ctx->my_complaints[i]);
 
-    *wptr++ = (*ctx->my_complaints)[i];
+    *wptr++ = ctx->my_complaints[i];
     // reveal key for noise wrapped share sent previously
-    memcpy(wptr, Noise_XK_session_get_key((*ctx->noise_outs)[(*ctx->my_complaints)[i]-1]), tpdkg_noise_key_SIZE);
+    memcpy(wptr, Noise_XK_session_get_key((*ctx->noise_outs)[ctx->my_complaints[i]-1]), tpdkg_noise_key_SIZE);
     wptr+=tpdkg_noise_key_SIZE;
   }
 
