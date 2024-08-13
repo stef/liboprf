@@ -58,7 +58,7 @@ toprf: oprf.c toprf.c main.c
 	$(CC) -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
 
 clean:
-	rm -f *.o liboprf.so liboprf.a toprf
+	rm -f *.o liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf liboprf-corrupt-dkg.$(SOEXT)
 	make -C tests clean
 	make -C noise_xk clean
 
@@ -103,7 +103,7 @@ $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
 	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
-test: liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
+test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
 	make -C tests tests
 	make -C noise_xk test
 
