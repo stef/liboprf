@@ -1570,9 +1570,9 @@ static int peer_step21_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
         fprintf(log_file,"[%d] msgno: %d, from: %d to: %d ", ctx->index, msg22->msgno, msg22->from, msg22->to);
         dump(output, tpdkg_msg21_SIZE, "msg");
     }
+    return 0;
   }
-
-  return fail*4;
+  return 4;
 }
 
 static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
