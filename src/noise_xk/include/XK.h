@@ -183,8 +183,6 @@ typedef struct Noise_XK_resp_state_t_s Noise_XK_resp_state_t;
 
 typedef uint8_t Noise_XK_session_t_tags;
 
-#include "noise_private.h"
-
 typedef struct Noise_XK_session_t_s Noise_XK_session_t;
 
 typedef Noise_XK_session_t Noise_XK_session_t0;

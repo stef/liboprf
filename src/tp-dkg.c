@@ -11,6 +11,7 @@
 #include "XK.h"
 #include "dkg.h"
 #include "tp-dkg.h"
+#include "noise_private.h"
 
 /*
     @copyright 2024, Stefan Marsiske toprf@ctrlc.hu

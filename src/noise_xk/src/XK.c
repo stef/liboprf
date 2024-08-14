@@ -279,6 +279,8 @@ bool Noise_XK_rcode_is_stuck(Noise_XK_rcode c)
     return false;
 }
 
+#include "noise_private.h"
+
 typedef struct Noise_XK_peer_t_s
 {
   uint32_t p_id;
