@@ -1483,7 +1483,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 }
 
 static int peer_step19_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "[%d] step 19. send final transcript\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 19. send final transcript\e[0m\n", ctx->index);
   if(input_len != 0) return 1;
   if(output_len != tpdkg_msg19_SIZE) return 2;
 
