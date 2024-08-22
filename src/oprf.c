@@ -46,7 +46,7 @@ static toprf_cfg proxy_cfg={0};
  * @param [out] kU - the per-user OPRF private key
  */
 void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
-#if (defined CFRG_TEST_VEC)
+#if (defined CFRG_TEST_VEC && defined oprf_key_len)
   memcpy(kU,oprf_key,oprf_key_len);
 #else
   if(proxy_cfg.keygen) proxy_cfg.keygen(kU);
