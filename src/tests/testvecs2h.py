@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import json, sys
 from itertools import zip_longest # for Python 3.x
