@@ -17,7 +17,7 @@ dkg: ../dkg.c ../utils.c dkg.c
 	gcc $(CFLAGS) -g -I.. -DUNIT_TEST -o dkg dkg.c ../dkg.c ../utils.c ../liboprf.a -lsodium
 
 tp-dkg: ../tp-dkg.c tp-dkg.c
-	gcc $(CFLAGS) -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
+	gcc $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
 
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c
 	gcc $(CFLAGS) -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
