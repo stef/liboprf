@@ -403,10 +403,9 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
   return 0;
 }
 
-int oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen) {
+void oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen) {
   proxy_cfg.eval=eval;
   proxy_cfg.keygen=keygen;
-  return 0;
 }
 
 void oprf_clear_evalproxy(void) {

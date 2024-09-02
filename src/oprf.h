@@ -137,7 +137,7 @@ void oprf_clear_evalproxy(void);
  *                   provide their own means to contact the
  *                   shareholders and communicate with them.
  */
-int oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen);
+void oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen);
 
 #ifdef __EMSCRIPTEN__
 /**
