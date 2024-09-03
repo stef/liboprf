@@ -138,11 +138,12 @@ void toprf_thresholdcombine(const size_t response_len,
  *
  */
 
-typedef int (*toprf_evalcb)(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+typedef int (*toprf_evalcb)(const void* ctx,
+                            const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                             const uint8_t alpha[crypto_core_ristretto255_BYTES],
                             uint8_t beta[crypto_core_ristretto255_BYTES]);
 
-typedef int (*toprf_keygencb)(uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
+typedef int (*toprf_keygencb)(const void* ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
 
 typedef struct {
   toprf_evalcb eval;

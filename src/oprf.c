@@ -49,7 +49,7 @@ void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
 #if (defined CFRG_TEST_VEC && defined oprf_key_len)
   memcpy(kU,oprf_key,oprf_key_len);
 #else
-  if(proxy_cfg.keygen) proxy_cfg.keygen(kU);
+  if(proxy_cfg.keygen) proxy_cfg.keygen(NULL, kU);
   else crypto_core_ristretto255_scalar_random(kU);
 #endif
 }
@@ -350,7 +350,7 @@ int oprf_Blind(const uint8_t *x, const uint8_t x_len,
 int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                   const uint8_t blinded[crypto_core_ristretto255_BYTES],
                   uint8_t Z[crypto_core_ristretto255_BYTES]) {
-  if(proxy_cfg.eval) return proxy_cfg.eval(k, blinded, Z);
+  if(proxy_cfg.eval) return proxy_cfg.eval(NULL, k, blinded, Z);
   return crypto_scalarmult_ristretto255(Z, k, blinded);
 }
 
