@@ -1,9 +1,9 @@
-CFLAGS= -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
-		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -fstack-clash-protection -ftrapv -D_GLIBCXX_ASSERTIONS \
-		  -fcf-protection=full -Wl,-z,defs -Wl,-z,relro \
-		  -Wl,-z,noexecstack -Wl,-z,now -fsanitize=signed-integer-overflow \
-		  -fsanitize-undefined-trap-on-error
+CFLAGS?= -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+		   -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
+		   -fstack-clash-protection -ftrapv -D_GLIBCXX_ASSERTIONS \
+		   -fcf-protection=full -Wl,-z,defs -Wl,-z,relro \
+		   -Wl,-z,noexecstack -Wl,-z,now -fsanitize=signed-integer-overflow \
+		   -fsanitize-undefined-trap-on-error
 
 all: tv1 tv2 dkg tp-dkg tp-dkg-corrupt
 
@@ -20,7 +20,7 @@ tp-dkg: ../tp-dkg.c tp-dkg.c
 	gcc $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
 
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c
-	gcc $(CFLAGS) -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
+	gcc $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium 
 
 ../liboprf.a:
 	make -C .. liboprf.a
