@@ -61,12 +61,10 @@ int oprf_Blind(const uint8_t *x, const uint8_t x_len,
  * This function evaluates input element blinded using private key k, yielding output
  * element Z.
  *
- * This is the Evaluate OPRF function defined in the RFC. If the
- * internal proxy_cfg variable has been set using oprf_set_evalproxy() then
- * the Evaluation will be a threshold computation.
+ * This is the Evaluate OPRF function defined in the RFC.
  *
  * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
- * key) - if proxy_cfg is set, than this value will be ignored!
+ * key)
  * @param [in] blinded - a serialized OPRF group element, a byte array of fixed length,
  * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
  * password)
@@ -112,32 +110,6 @@ int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[cry
  * uniform_bytes of length: len_in_bytes
  */
 int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
-
-/**
- * Clears the internal variable that stores the configuration for
- * proxying to a threshold oprf.
-*/
-void oprf_clear_evalproxy(void);
-
-/**
- * Sets the configuration of the proxy theshold evaluator
- *
- * @param [in] eval: a callback function that has the same parameters
- *                   as oprf_Evaluate. This is provided, so
- *                   implementers can provide their own means to
- *                   contact the shareholders and communicate with
- *                   them and can decide if they want to do
- *                   toprf_thresholdmult or toprf_thresholdcombine
- *                   based evaluation. Also this can be subverted for
- *                   providing static values for testvectors.
- *
- * @param [in] keygen: a callback function that takes an index, the
- *                   blinded operand, and returns an partly evaluated
- *                   element. This is provided, so implementers can
- *                   provide their own means to contact the
- *                   shareholders and communicate with them.
- */
-void oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen);
 
 #ifdef __EMSCRIPTEN__
 /**

@@ -67,10 +67,10 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
  * threshold or non-threshold oprf evaluation, from their perspective
  * nothing changes in this approach.
  *
+ * @param [in] responses_len - the number of elements in the response array
+ *
  * @param [in] responses - is an array of shares (k_i) multiplied by a
  *        point (P) on the r255 curve
- *
- * @param [in] responses_len - the number of elements in the response array
  *
  * @param [out] result - the reconstructed value of P multipled by k
  *
@@ -127,27 +127,11 @@ void toprf_thresholdcombine(const size_t response_len,
                             const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                             uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
-/**
- * This struct type is used as a parameter to toprf_evalproxy()
- *
- * it provides a threshold configuration and a callback through which
- * a caller can provide a callback that handles communication with the
- * shareholders.
- *
- * @param []
- *
- */
-
-typedef int (*toprf_evalcb)(const void* ctx,
+typedef int (*toprf_evalcb)(void* ctx,
                             const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                             const uint8_t alpha[crypto_core_ristretto255_BYTES],
                             uint8_t beta[crypto_core_ristretto255_BYTES]);
 
-typedef int (*toprf_keygencb)(const void* ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
-
-typedef struct {
-  toprf_evalcb eval;
-  toprf_keygencb keygen;
-} toprf_cfg;
+typedef int (*toprf_keygencb)(void* ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
 
 #endif // TOPRF_H

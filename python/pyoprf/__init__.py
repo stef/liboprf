@@ -88,12 +88,9 @@ def blind(x: bytes) -> (bytes, bytes):
 # This function evaluates input element blinded using private key k, yielding output
 # element Z.
 #
-# This is the Evaluate OPRF function defined in the RFC. If the
-# internal proxy_cfg variable has been set using oprf_set_evalproxy() then
-# the Evaluation will be a threshold computation.
+# This is the Evaluate OPRF function defined in the RFC.
 #
-# @param [in] key - a private key - the output of keygen() - if
-#                     proxy_cfg is set, than this value will be ignored!
+# @param [in] key - a private key - the output of keygen()
 # @param [in] blinded - a serialized OPRF group element, a byte array
 #                     of fixed length, an output of blind()
 # @param [out] Z - a serialized OPRF group element, a byte array of fixed

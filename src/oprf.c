@@ -34,8 +34,6 @@
 
 #define VOPRF "OPRFV1"
 
-static toprf_cfg proxy_cfg={0};
-
 /**
  * This function generates an OPRF private key.
  *
@@ -49,8 +47,7 @@ void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
 #if (defined CFRG_TEST_VEC && defined oprf_key_len)
   memcpy(kU,oprf_key,oprf_key_len);
 #else
-  if(proxy_cfg.keygen) proxy_cfg.keygen(NULL, kU);
-  else crypto_core_ristretto255_scalar_random(kU);
+  crypto_core_ristretto255_scalar_random(kU);
 #endif
 }
 
@@ -334,12 +331,10 @@ int oprf_Blind(const uint8_t *x, const uint8_t x_len,
  * This function evaluates input element blinded using private key k, yielding output
  * element Z.
  *
- * This is the Evaluate OPRF function defined in the RFC. If the
- * internal proxy_cfg variable has been set using oprf_set_evalproxy() then
- * the Evaluation will be a threshold computation.
- *
+ * This is the Evaluate OPRF function defined in the RFC.
+ * 
  * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
- * key) - if proxy_cfg is set, than this value will be ignored!
+ * key)
  * @param [in] blinded - a serialized OPRF group element, a byte array of fixed length,
  * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
  * password)
@@ -350,7 +345,6 @@ int oprf_Blind(const uint8_t *x, const uint8_t x_len,
 int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                   const uint8_t blinded[crypto_core_ristretto255_BYTES],
                   uint8_t Z[crypto_core_ristretto255_BYTES]) {
-  if(proxy_cfg.eval) return proxy_cfg.eval(NULL, k, blinded, Z);
   return crypto_scalarmult_ristretto255(Z, k, blinded);
 }
 
@@ -401,14 +395,4 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
 
   sodium_munlock(ir, sizeof ir);
   return 0;
-}
-
-void oprf_set_evalproxy(const toprf_evalcb eval, const toprf_keygencb keygen) {
-  proxy_cfg.eval=eval;
-  proxy_cfg.keygen=keygen;
-}
-
-void oprf_clear_evalproxy(void) {
-  proxy_cfg.eval=0;
-  proxy_cfg.keygen=0;
 }
