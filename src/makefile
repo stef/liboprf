@@ -14,16 +14,21 @@ STATICEXT?=a
 SOVER=0
 
 UNAME := $(shell uname -s)
+ARCH := $(shell uname -m)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
-			  -fcf-protection=full -fstack-clash-protection 
+			  -fstack-clash-protection 
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
+	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)	
+endif
+
+ifeq ($(ARCH),x86_64)
+	CFLAGS+=-fcf-protection=full 
 endif
 
 CFLAGS+=$(INCLUDES)
