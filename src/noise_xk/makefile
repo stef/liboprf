@@ -18,15 +18,19 @@ STATICEXT?=a
 SOVER=0
 
 UNAME := $(shell uname -s)
+ARCH := $(shell uname -m)
 ifeq ($(UNAME),Darwin)
    SOEXT=dylib
    SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT)
 else
    ifeq ($(shell uname),Linux)
-	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fcf-protection=full -fstack-clash-protection
+	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fstack-clash-protection
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER)
    endif
+endif
+ifeq ($(ARCH),x86_64)
+	CFLAGS+=-fcf-protection=full 
 endif
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))

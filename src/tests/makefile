@@ -1,9 +1,14 @@
 CFLAGS?= -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		   -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
 		   -fstack-clash-protection -ftrapv -D_GLIBCXX_ASSERTIONS \
-		   -fcf-protection=full -Wl,-z,defs -Wl,-z,relro \
+		   -Wl,-z,defs -Wl,-z,relro \
 		   -Wl,-z,noexecstack -Wl,-z,now -fsanitize=signed-integer-overflow \
 		   -fsanitize-undefined-trap-on-error
+
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),x86_64)
+	CFLAGS+=-fcf-protection=full 
+endif
 
 all: tv1 tv2 dkg tp-dkg tp-dkg-corrupt
 

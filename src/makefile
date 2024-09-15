@@ -38,7 +38,11 @@ OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf noise_xk/liboprf-noiseXK.$(SOEXT)
 
-asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
+asan: 
+	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
+	ifeq ($(ARCH),x86_64)
+		CFLAGS+=-fcf-protection=full 
+	endif
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
