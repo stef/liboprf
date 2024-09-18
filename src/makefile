@@ -24,17 +24,17 @@ else
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)	
+   ifeq ($(ARCH),x86_64)
+   	CFLAGS+=-fcf-protection=full 
+   endif
+   
+   ifeq ($(ARCH),parisc64)
+   else ifeq ($(ARCH),parisc64)
+   else
+   	CFLAGS+=-fstack-clash-protection
+   endif
 endif
 
-ifeq ($(ARCH),x86_64)
-	CFLAGS+=-fcf-protection=full 
-endif
-
-ifeq ($(ARCH),parisc64)
-else ifeq ($(ARCH),parisc64)
-else
-	CFLAGS+=-fstack-clash-protection
-endif
 
 CFLAGS+=$(INCLUDES)
 
