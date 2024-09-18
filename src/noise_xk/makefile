@@ -24,13 +24,18 @@ ifeq ($(UNAME),Darwin)
    SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT)
 else
    ifeq ($(shell uname),Linux)
-	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -fstack-clash-protection
+	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER)
    endif
-endif
-ifeq ($(ARCH),x86_64)
-	CFLAGS+=-fcf-protection=full 
+   ifeq ($(ARCH),x86_64)
+   	CFLAGS+=-fcf-protection=full 
+   endif
+   ifeq ($(ARCH),parisc64)
+   else ifeq ($(ARCH),parisc64)
+   else
+   	CFLAGS+=-fstack-clash-protection
+   endif
 endif
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))

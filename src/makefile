@@ -20,8 +20,7 @@ ifeq ($(UNAME),Darwin)
 	SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
-			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
-			  -fstack-clash-protection 
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)	
@@ -29,6 +28,12 @@ endif
 
 ifeq ($(ARCH),x86_64)
 	CFLAGS+=-fcf-protection=full 
+endif
+
+ifeq ($(ARCH),parisc64)
+else ifeq ($(ARCH),parisc64)
+else
+	CFLAGS+=-fstack-clash-protection
 endif
 
 CFLAGS+=$(INCLUDES)
@@ -39,9 +44,14 @@ OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf noise_xk/liboprf-noiseXK.$(SOEXT)
 
 asan: 
-	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
+	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 	ifeq ($(ARCH),x86_64)
 		CFLAGS+=-fcf-protection=full 
+	endif
+	ifeq ($(ARCH),parisc64)
+	else ifeq ($(ARCH),parisc64)
+	else
+		CFLAGS+=-fstack-clash-protection
 	endif
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all

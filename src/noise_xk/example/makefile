@@ -7,10 +7,19 @@ CFLAGS 	+= -I../.. -I../include -I ../include/karmel -I ../include/karmel/minima
 				-Wno-unused-parameter -Wno-infinite-recursion -fPIC \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
-				-fasynchronous-unwind-tables -fpic -fstack-clash-protection \
-				-fcf-protection=full -Werror=format-security \
+				-fasynchronous-unwind-tables -fpic -Werror=format-security \
 				-Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro \
 				-ftrapv -Wl,-z,noexecstack
+
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),x86_64)
+	CFLAGS+=-fcf-protection=full 
+endif
+ifeq ($(ARCH),parisc64)
+else ifeq ($(ARCH),parisc64)
+else
+	CFLAGS+=-fstack-clash-protection
+endif
 
 all: xk-ex
 
