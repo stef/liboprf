@@ -134,4 +134,26 @@ typedef int (*toprf_evalcb)(void* ctx,
 
 typedef int (*toprf_keygencb)(void* ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
 
+
+/** Implements 3hashtdh from the paper Threshold PAKE with Security against Compromise of all Servers
+    see: https://eprint.iacr.org/2024/1455
+
+    Use this function if you implement a threshold OPRF.
+
+    @param [in] k - the share of k
+    @param [in] z - the share of zero
+    @param [in] alpha - the blinded element from the client
+    @param [in] ssid_S - a sub-session identifier that all
+                participants to the threshold evaluation must agree on
+                (it must be the same for all of them).
+    @param [in] ssid_S_len - the length of the ssid_S identifier
+    @param [out] beta - the result of the evaluation, to be returned
+                 to the client.
+ */
+int toprf_3hashtdh(const uint8_t k[TOPRF_Share_BYTES],
+                   const uint8_t z[TOPRF_Share_BYTES],
+                   const uint8_t alpha[crypto_core_ristretto255_BYTES],
+                   const uint8_t *ssid_S, const uint16_t ssid_S_len,
+                   uint8_t beta[TOPRF_Part_BYTES]);
+
 #endif // TOPRF_H

@@ -151,3 +151,68 @@ secret = pyoprf.dkg_reconstruct(shares[:t])
 #print("secret", secret.hex())
 assert v0 == pysodium.crypto_scalarmult_ristretto255_base(secret)
 print("all ok")
+
+######################################################################
+# toprf based on 2024/1455 [JSPPJ24] https://eprint.iacr.org/2024/1455
+# using explicit implementation of 3hashtdh
+
+print("tOPRF (3hashTDH), (3,5), with centrally shared key interpolation at client")
+shares = pyoprf.create_shares(k2, 5, 3)
+zero_shares = pyoprf.create_shares(bytes([0]*32), 5, 3)
+
+r, alpha = pyoprf.blind(b"test")
+
+ssid_S = pysodium.randombytes(32)
+betas = []
+for k, z in zip(shares,zero_shares):
+    h2 = pyoprf.evaluate(
+        z[1:],
+        pysodium.crypto_core_ristretto255_from_hash(pysodium.crypto_generichash(ssid_S + alpha, outlen=64)),
+        )
+    beta = pyoprf.evaluate(k[1:], alpha)
+    betas.append(k[:1]+pysodium.crypto_core_ristretto255_add(beta, h2))
+
+# normal 2hashdh(k2,"test")
+beta = pyoprf.evaluate(k2, alpha)
+Nt0 = pyoprf.unblind(r, beta)
+print(Nt0)
+beta = pyoprf.thresholdmult(betas[:3])
+Nt1 = pyoprf.unblind(r, beta)
+print(Nt1)
+beta = pyoprf.thresholdmult(betas[1:4])
+Nt2 = pyoprf.unblind(r, beta)
+print(Nt2)
+beta = pyoprf.thresholdmult(betas[2:5])
+Nt3 = pyoprf.unblind(r, beta)
+print(Nt3)
+
+
+######################################################################
+# toprf based on 2024/1455 [JSPPJ24] https://eprint.iacr.org/2024/1455
+# using libopr native implementation of 3hashtdh
+
+
+print("tOPRF (3hashTDH), (3,5), with centrally shared key interpolation at client")
+shares = pyoprf.create_shares(k2, 5, 3)
+zero_shares = pyoprf.create_shares(bytes([0]*32), 5, 3)
+
+r, alpha = pyoprf.blind(b"test")
+
+ssid_S = pysodium.randombytes(32)
+betas = []
+for k, z in zip(shares,zero_shares):
+    betas.append(pyoprf._3hashtdh(k, z, alpha, ssid_S))
+
+# normal 2hashdh(k2,"test")
+beta = pyoprf.evaluate(k2, alpha)
+Nt0 = pyoprf.unblind(r, beta)
+print(Nt0)
+beta = pyoprf.thresholdmult(betas[:3])
+Nt1 = pyoprf.unblind(r, beta)
+print(Nt1)
+beta = pyoprf.thresholdmult(betas[1:4])
+Nt2 = pyoprf.unblind(r, beta)
+print(Nt2)
+beta = pyoprf.thresholdmult(betas[2:5])
+Nt3 = pyoprf.unblind(r, beta)
+print(Nt3)

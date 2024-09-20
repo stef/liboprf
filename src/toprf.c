@@ -1,6 +1,7 @@
 #include <string.h>
 #include "oprf.h"
 #include "toprf.h"
+#include <arpa/inet.h>
 
 /*
     @copyright 2023, Stefan Marsiske toprf@ctrlc.hu
@@ -187,4 +188,47 @@ void toprf_thresholdcombine(const size_t response_len,
   for(size_t i=0;i<response_len;i++) {
     crypto_core_ristretto255_add(result,result,responses[indexed_indexes[i]].value);
   }
+}
+
+
+int toprf_3hashtdh(const uint8_t _k[TOPRF_Share_BYTES],
+                   const uint8_t _z[TOPRF_Share_BYTES],
+                   const uint8_t alpha[crypto_core_ristretto255_BYTES],
+                   const uint8_t *ssid_S, const uint16_t ssid_S_len,
+                   uint8_t _beta[TOPRF_Part_BYTES]) {
+  // essentially calculates the following pythonish value
+  //h2 = evaluate(
+  //    z[1:],
+  //    crypto_core_ristretto255_from_hash(crypto_generichash(ssid_S + alpha, outlen=64)),
+  //    )
+  //beta = evaluate(k[1:], alpha)
+  //return (k[0]+crypto_core_ristretto255_add(beta, h2))
+
+  const TOPRF_Share *k=(TOPRF_Share*) _k;
+  TOPRF_Part *beta=(TOPRF_Part*) _beta;
+
+  beta->index=k->index;
+  if(oprf_Evaluate(k->value, alpha, beta->value)) return 1;
+
+  // hash (ssid_S + alpha, outlen=64)
+  crypto_generichash_state h_state;
+  crypto_generichash_init(&h_state, NULL, 0, crypto_core_ristretto255_HASHBYTES);
+  uint16_t len=htons((uint16_t) ssid_S_len); // we have a guard above restricting to 1KB the proto_name_len
+  crypto_generichash_update(&h_state, (uint8_t*) &len, 2);
+  crypto_generichash_update(&h_state, ssid_S, ssid_S_len);
+  crypto_generichash_update(&h_state, alpha, crypto_core_ristretto255_BYTES);
+  uint8_t hash[crypto_core_ristretto255_HASHBYTES];
+  crypto_generichash_final(&h_state,hash,sizeof hash);
+
+  // hash-to-curve
+  uint8_t point[crypto_scalarmult_ristretto255_BYTES];
+  if(0!=voprf_hash_to_group(hash, sizeof hash, point)) return -1;
+
+  TOPRF_Part h2;
+  const TOPRF_Share *z=(TOPRF_Share*) _z;
+  if(oprf_Evaluate(z->value, point, h2.value)) return 1;
+
+  crypto_core_ristretto255_add(beta->value, beta->value, h2.value);
+
+  return 0;
 }

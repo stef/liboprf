@@ -341,6 +341,34 @@ def threshold_combine(responses: bytes_list_t) -> bytes:
     __check(liboprf.toprf_thresholdcombine(responses_len, responses_buf, result))
     return result.raw
 
+#int toprf_3hashtdh(const uint8_t k[TOPRF_Share_BYTES],
+#                   const uint8_t z[TOPRF_Share_BYTES],
+#                   const uint8_t alpha[crypto_core_ristretto255_BYTES],
+#                   const uint8_t *ssid_S, const uint16_t ssid_S_len,
+#                   uint8_t beta[TOPRF_Part_BYTES]);
+def _3hashtdh(k: bytes, z: bytes, alpha: bytes, ssid_S: bytes) -> bytes:
+    if len(k) != TOPRF_Share_BYTES:
+        raise ValueError("param k has incorrect length")
+    if not isinstance(k, bytes):
+        raise ValueError("param k is not of type bytes")
+    if len(z) != TOPRF_Share_BYTES:
+        raise ValueError("param z has incorrect length")
+    if not isinstance(z, bytes):
+        raise ValueError("param z is not of type bytes")
+    if len(alpha) != pysodium.crypto_core_ristretto255_BYTES:
+        raise ValueError("alpha param has incorrect length")
+    if not isinstance(alpha, bytes):
+        raise ValueError("alpha is not of type bytes")
+    if not isinstance(ssid_S, bytes):
+        raise ValueError("ssid_S is not of type bytes")
+    if len(ssid_S) > (1<<16)-1:
+        raise ValueError("ssid_S is too long")
+
+    ssid_S_len=ctypes.c_uint16(len(ssid_S))
+    beta = ctypes.create_string_buffer(TOPRF_Part_BYTES)
+    __check(liboprf.toprf_3hashtdh(k, z, alpha, ssid_S, ssid_S_len, beta))
+    return beta.raw
+
 # todo documentation!
 #int dkg_start(const uint8_t n,
 #              const uint8_t threshold,
