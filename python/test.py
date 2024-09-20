@@ -2,6 +2,7 @@
 
 import pyoprf, pysodium
 from binascii import unhexlify
+from itertools import combinations
 
 ######################################################################
 
@@ -176,22 +177,14 @@ for k, z in zip(shares,zero_shares):
 beta = pyoprf.evaluate(k2, alpha)
 Nt0 = pyoprf.unblind(r, beta)
 print(Nt0)
-beta = pyoprf.thresholdmult(betas[:3])
-Nt1 = pyoprf.unblind(r, beta)
-print(Nt1)
-beta = pyoprf.thresholdmult(betas[1:4])
-Nt2 = pyoprf.unblind(r, beta)
-print(Nt2)
-beta = pyoprf.thresholdmult(betas[2:5])
-Nt3 = pyoprf.unblind(r, beta)
-print(Nt3)
-
+for peers in combinations(betas, 3):
+    beta = pyoprf.thresholdmult(betas[:3])
+    Nt1 = pyoprf.unblind(r, beta)
+    assert Nt0 == Nt1
 
 ######################################################################
 # toprf based on 2024/1455 [JSPPJ24] https://eprint.iacr.org/2024/1455
 # using libopr native implementation of 3hashtdh
-
-
 print("tOPRF (3hashTDH), (3,5), with centrally shared key interpolation at client")
 shares = pyoprf.create_shares(k2, 5, 3)
 zero_shares = pyoprf.create_shares(bytes([0]*32), 5, 3)
@@ -203,16 +196,7 @@ betas = []
 for k, z in zip(shares,zero_shares):
     betas.append(pyoprf._3hashtdh(k, z, alpha, ssid_S))
 
-# normal 2hashdh(k2,"test")
-beta = pyoprf.evaluate(k2, alpha)
-Nt0 = pyoprf.unblind(r, beta)
-print(Nt0)
-beta = pyoprf.thresholdmult(betas[:3])
-Nt1 = pyoprf.unblind(r, beta)
-print(Nt1)
-beta = pyoprf.thresholdmult(betas[1:4])
-Nt2 = pyoprf.unblind(r, beta)
-print(Nt2)
-beta = pyoprf.thresholdmult(betas[2:5])
-Nt3 = pyoprf.unblind(r, beta)
-print(Nt3)
+for peers in combinations(betas, 3):
+    beta = pyoprf.thresholdmult(betas[:3])
+    Nt1 = pyoprf.unblind(r, beta)
+    assert Nt0 == Nt1
