@@ -7,13 +7,19 @@ Additionally it implements a threshold OPRF variant based on
 https://eprint.iacr.org/2017/363 by Krawczyk et al. which is
 compatible with the CFRG OPRF(ristretto255, SHA-512) variant.
 
+Furthermore it also implements the 3hashTDH from
+https://eprint.iacr.org/2024/1455 "Threshold PAKE with Security
+against Compromise of all Servers" by Gu, Jarecki, Kedzior, Nazarian,
+Xu. This too is compatible with the CFRG OPRF(ristretto255, SHA-512)
+variant.
+
 For the threshold OPRF this library also provides distributed
 key-generation (DKG) implementation that is based on a trusted
 party handling the broadcasts necessary for the DKG, this is
 based on the JF-DKG (fig 1.) a variant on Pedersens DKG from
 the paper "Secure Distributed Key Generation for Discrete-Log
 Based Cryptosystems" by R. Gennaro, S. Jarecki, H. Krawczyk,
-and T.  Rabin.
+and T. Rabin.
 
 Additionally a python wrapper is provided, which can be installed
 using `pip install pyoprf`
