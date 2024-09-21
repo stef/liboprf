@@ -198,7 +198,7 @@ TOPRF_Part_BYTES=pysodium.crypto_core_ristretto255_BYTES+1
 def coeff(index: int, peers: list) -> bytes:
     if index < 1: raise ValueError("index must be positive integer")
     if len(peers) < 2: ValueError("peers must be a list of at least 2 integers")
-    peers_len=ctypes.c_size_t(len(x))
+    peers_len=ctypes.c_size_t(len(peers))
     c = ctypes.create_string_buffer(pysodium.crypto_core_ristretto255_SCALARBYTES)
     liboprf.coeff(index, peers_len, peers, c)
     return c.raw
