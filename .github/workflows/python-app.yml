@@ -30,6 +30,9 @@ jobs:
         sudo apt update
         sudo apt install -y libsodium-dev pkgconf # build-essential git
         pip install python/ pysodium SecureString
+        cd src
+        sudo PREFIX=/usr make install
+        cd ..
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
