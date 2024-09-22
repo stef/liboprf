@@ -204,10 +204,10 @@ class TestEndToEnd(unittest.TestCase):
     ts_epsilon = 5
 
     # enable verbose logging for tp-dkg
-    #libc = ctypes.cdll.LoadLibrary('libc.so.6')
-    #cstderr = ctypes.c_void_p.in_dll(libc, 'stderr')
-    #log_file = ctypes.c_void_p.in_dll(pyoprf.liboprf,'log_file')
-    #log_file.value = cstderr.value
+    libc = ctypes.cdll.LoadLibrary('libc.so.6')
+    cstderr = ctypes.c_void_p.in_dll(libc, 'stderr')
+    log_file = ctypes.c_void_p.in_dll(pyoprf.liboprf,'log_file')
+    log_file.value = cstderr.value
 
     # create some long-term keypairs
     peer_lt_pks = []
