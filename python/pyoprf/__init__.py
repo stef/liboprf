@@ -539,10 +539,17 @@ class TP_DKG_TPState(ctypes.Structure):
 #                  uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES],
 #                  uint64_t (*last_ts)[]);
 def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
-    state = TP_DKG_TPState()
-    # force 32 byte alignment of state
-    while ctypes.addressof(state) % 32 != 0:
-      state = TP_DKG_TPState()
+    #state = TP_DKG_TPState()
+    ## force 32 byte alignment of state
+    #while ctypes.addressof(state) % 32 != 0:
+    #  state = TP_DKG_TPState()
+    b = ctypes.create_string_buffer(ctypes.sizeof(TP_DKG_TPState)+32)
+    b_addr = ctypes.addressof(b)
+    s_addr = b_addr + (b_addr % 32)
+    s_p = ctypes.c_void_p(s_addr)
+    state = ctypes.cast(s_p, ctypes.POINTER(TP_DKG_TPState)).contents
+    if ctypes.addressof(state) % 32 != 0:
+      raise ValueError("cannot align at 32bytes the TP_DKG_PeerState struct")
 
     msg = ctypes.create_string_buffer(tpdkg_msg0_SIZE)
     __check(liboprf.tpdkg_start_tp(ctypes.byref(state), ts_epsilon, n, t, proto_name, ctypes.c_size_t(len(proto_name)), ctypes.c_size_t(len(msg.raw)), msg))
@@ -566,7 +573,7 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
                               ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, cheaters, peers_sig_pks, commitments, complaints, noisy_shares, peer_lt_pks, last_ts)
+    ctx = (state, cheaters, peers_sig_pks, commitments, complaints, noisy_shares, peer_lt_pks, last_ts, b)
 
     return ctx, msg.raw
 
@@ -636,10 +643,17 @@ def tpdkg_get_cheaters(ctx):
 #                         uint16_t (*complaints)[],
 #                         uint8_t (*my_complaints)[]);
 def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
-    state = TP_DKG_PeerState()
+    #state = TP_DKG_PeerState()
     # force 32 byte alignment of state
-    while ctypes.addressof(state) % 32 != 0:
-      state = TP_DKG_PeerState()
+    #while ctypes.addressof(state) % 32 != 0:
+    #  state = TP_DKG_PeerState()
+    b = ctypes.create_string_buffer(ctypes.sizeof(TP_DKG_PeerState)+32)
+    b_addr = ctypes.addressof(b)
+    s_addr = b_addr + (b_addr % 32)
+    s_p = ctypes.c_void_p(s_addr)
+    state = ctypes.cast(s_p, ctypes.POINTER(TP_DKG_PeerState)).contents
+    if ctypes.addressof(state) % 32 != 0:
+      raise ValueError("cannot align at 32bytes the TP_DKG_PeerState struct")
 
     __check(liboprf.tpdkg_start_peer(ctypes.byref(state), ts_epsilon, peer_lt_sk, msg0))
 
@@ -666,7 +680,7 @@ def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
                                 ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, peers_sig_pks, peers_noise_pks, noise_outs, noise_ins, shares, xshares, commitments, complaints, my_complaints, last_ts)
+    ctx = (state, peers_sig_pks, peers_noise_pks, noise_outs, noise_ins, shares, xshares, commitments, complaints, my_complaints, b, last_ts)
     return ctx
 
 #size_t tpdkg_peer_input_size(const TP_DKG_PeerState *ctx);
