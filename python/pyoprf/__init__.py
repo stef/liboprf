@@ -639,6 +639,7 @@ def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
     state = TP_DKG_PeerState()
     # force 32 byte alignment of state
     while ctypes.addressof(state) % 32 != 0:
+      print(f"bad TP_DKG_PeerState alignment: {ctypes.addressof(state) % 32}")
       state = TP_DKG_PeerState()
 
     __check(liboprf.tpdkg_start_peer(ctypes.byref(state), ts_epsilon, peer_lt_sk, msg0))
