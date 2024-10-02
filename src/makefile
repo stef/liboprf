@@ -5,7 +5,7 @@ CFLAGS?=-march=native -Wall -O2 -g \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -ftrapv -D_GLIBCXX_ASSERTIONS
+		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES)
 
 LDFLAGS?=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
@@ -42,6 +42,9 @@ SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf noise_xk/liboprf-noiseXK.$(SOEXT)
+
+debug: DEFINES=-DTRACE
+debug: all
 
 asan: 
 	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
