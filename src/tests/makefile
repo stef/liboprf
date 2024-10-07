@@ -16,7 +16,7 @@ else
 	CFLAGS+=-fstack-clash-protection
 endif
 
-all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt
+all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
 	$(CC) -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
@@ -36,6 +36,9 @@ tp-dkg: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
+mpmult: ../mpmult.c ../liboprf.a
+	$(CC) $(CFLAGS) -g -I.. -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../liboprf.a -lsodium
+
 ../liboprf.a:
 	make -C .. liboprf.a
 
@@ -52,6 +55,7 @@ tests: all
 	./toprf
 	(ulimit -s 66000; ./tp-dkg 3 2)
 	(ulimit -s 66000; ./tp-dkg-corrupt 3 2 || exit 0)
+	./mpmult
 
 clean:
-	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg toprf
+	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg toprf mpmult
