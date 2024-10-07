@@ -8,7 +8,7 @@ CC?=gcc
 
 ARCH := $(shell uname -m)
 ifeq ($(ARCH),x86_64)
-	CFLAGS+=-fcf-protection=full 
+	CFLAGS+=-fcf-protection=full
 endif
 ifeq ($(ARCH),parisc64)
 else ifeq ($(ARCH),parisc64)

@@ -35,7 +35,6 @@ else
    endif
 endif
 
-
 CFLAGS+=$(INCLUDES)
 
 SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c mpmult.c $(EXTRA_SOURCES)
