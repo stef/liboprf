@@ -23,15 +23,15 @@ else
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)	
+	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
    ifeq ($(ARCH),x86_64)
-   	CFLAGS+=-fcf-protection=full 
+		CFLAGS+=-fcf-protection=full
    endif
-   
+
    ifeq ($(ARCH),parisc64)
    else ifeq ($(ARCH),parisc64)
    else
-   	CFLAGS+=-fstack-clash-protection
+		CFLAGS+=-fstack-clash-protection
    endif
 endif
 
@@ -41,15 +41,15 @@ CFLAGS+=$(INCLUDES)
 SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf noise_xk/liboprf-noiseXK.$(SOEXT)
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT)
 
 debug: DEFINES=-DTRACE
 debug: all
 
-asan: 
+asan:
 	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
 	ifeq ($(ARCH),x86_64)
-		CFLAGS+=-fcf-protection=full 
+		CFLAGS+=-fcf-protection=full
 	endif
 	ifeq ($(ARCH),parisc64)
 	else ifeq ($(ARCH),parisc64)
@@ -63,7 +63,7 @@ AR ?= ar
 
 liboprf.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
-  
+
 liboprf-corrupt-dkg.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
 
@@ -76,11 +76,8 @@ noise_xk/liboprf-noiseXK.$(SOEXT):
 noise_xk/liboprf-noiseXK.$(STATICEXT):
 	make -C noise_xk all
 
-toprf: oprf.c toprf.c main.c
-	$(CC) -g -o toprf oprf.c toprf.c main.c $(EXTRA_SOURCES) -lsodium
-
 clean:
-	rm -f *.o liboprf.$(SOEXT) liboprf.$(STATICEXT) toprf liboprf-corrupt-dkg.$(SOEXT)
+	rm -f *.o liboprf.$(SOEXT) liboprf.$(STATICEXT) liboprf-corrupt-dkg.$(SOEXT)
 	make -C tests clean
 	make -C noise_xk clean
 

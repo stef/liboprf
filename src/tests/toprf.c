@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "oprf.h"
-#include "toprf.h"
+#include "../oprf.h"
+#include "../toprf.h"
 
 int main(void) {
   // setup
