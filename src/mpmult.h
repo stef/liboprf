@@ -78,9 +78,10 @@ int toprf_mpc_mul_start(const uint8_t _a[TOPRF_Share_BYTES],
  *
  * @return The function returns 0 if everything is correct.
  */
-void toprf_mpc_mul_finish(const uint8_t peers, const uint8_t indexes[peers],
+void toprf_mpc_mul_finish(const uint8_t dealers,
+                          const uint8_t indexes[dealers],
                           const uint8_t peer,
-                          const uint8_t shares[peers][TOPRF_Share_BYTES],
+                          const uint8_t shares[dealers][TOPRF_Share_BYTES],
                           uint8_t _share[TOPRF_Share_BYTES]);
 
 #endif // THMULT_H

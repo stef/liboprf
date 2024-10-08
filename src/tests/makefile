@@ -36,8 +36,8 @@ tp-dkg: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
-mpmult: ../mpmult.c ../liboprf.a
-	$(CC) $(CFLAGS) -g -I.. -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../liboprf.a -lsodium
+mpmult: ../mpmult.c ../liboprf.a mpmult.c
+	$(CC) $(CFLAGS) -Wall -g -I.. -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../liboprf.a -lsodium
 
 ../liboprf.a:
 	make -C .. liboprf.a

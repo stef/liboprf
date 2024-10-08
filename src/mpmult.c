@@ -158,24 +158,25 @@ int toprf_mpc_mul_start(const uint8_t _a[TOPRF_Share_BYTES],
   return 0;
 }
 
-void toprf_mpc_mul_finish(const uint8_t peers, const uint8_t indexes[peers],
+void toprf_mpc_mul_finish(const uint8_t dealers,
+                          const uint8_t indexes[dealers],
                           const uint8_t peer,
-                          const uint8_t shares[peers][TOPRF_Share_BYTES],
+                          const uint8_t shares[dealers][TOPRF_Share_BYTES],
                           uint8_t _share[TOPRF_Share_BYTES]) {
   TOPRF_Share *share=(TOPRF_Share*) _share;
 
   // pre-calculate inverted vandermonde matrix of the indexes of the peers
-  uint8_t vdm[peers][peers][crypto_core_ristretto255_SCALARBYTES];
-  genVDMmatrix(indexes, peers, vdm);
-  uint8_t inverted[peers][peers][crypto_core_ristretto255_SCALARBYTES];
-  invert(peers, vdm, inverted);
+  uint8_t vdm[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
+  genVDMmatrix(indexes, dealers, vdm);
+  uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
+  invert(dealers, vdm, inverted);
 
   // execute step 2 of simple mult
   // H(j) = sum(lambda[i] * h[i](j) for i in 1..2t+1)
   memset(share,0,TOPRF_Share_BYTES);
   share->index=peer;
   uint8_t tmp[crypto_core_ristretto255_SCALARBYTES];
-  for(unsigned i=0;i<peers;i++) {
+  for(unsigned i=0;i<dealers;i++) {
     crypto_core_ristretto255_scalar_mul(tmp, shares[i]+1, inverted[0][i]);
     //dump(shares[i], TOPRF_Share_BYTES, "mulshare[i][j]");
     crypto_core_ristretto255_scalar_add(share->value, share->value, tmp);
