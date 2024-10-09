@@ -3,6 +3,12 @@
 #include <string.h>
 #include "toprf.h"
 
+/** Implements the Simple-Mult algorithm from page 5 fig. 2 of
+    "Simplified VSS and Fast-track Multiparty Computations with
+    Applications to Threshold Cryptography" by Gennaro, Rabin, Rabin,
+    1998.
+ */
+
 typedef struct {
   uint8_t index;
   uint8_t value[crypto_core_ristretto255_SCALARBYTES];
@@ -170,6 +176,9 @@ void toprf_mpc_mul_finish(const uint8_t dealers,
   genVDMmatrix(indexes, dealers, vdm);
   uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
   invert(dealers, vdm, inverted);
+  // todo optimization
+  // note this can be precomputed and broadcast to all peers, and only
+  // the first row of this matix is actually needed by the peers.
 
   // execute step 2 of simple mult
   // H(j) = sum(lambda[i] * h[i](j) for i in 1..2t+1)

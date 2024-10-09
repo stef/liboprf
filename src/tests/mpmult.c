@@ -86,7 +86,7 @@ int main(void) {
     return 1;
   }
 
-  for(unsigned i=0;i<peers-threshold;i++) {
+  for(unsigned i=0;i<=peers-threshold;i++) {
     uint8_t v[crypto_core_ristretto255_BYTES];
     TOPRF_Share *shares = (TOPRF_Share *) sharesP[i];
     dkg_reconstruct(threshold, shares, v);
