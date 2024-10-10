@@ -144,6 +144,14 @@ static void genVDMmatrix(const uint8_t indexes[], const uint8_t index_len,
   }
 }
 
+void invertedVDMmatrix(const uint8_t dealers,
+                       const uint8_t indexes[dealers],
+                       uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES]) {
+  uint8_t vdm[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
+  genVDMmatrix(indexes, dealers, vdm);
+  invert(dealers, vdm, inverted);
+}
+
 int toprf_mpc_mul_start(const uint8_t _a[TOPRF_Share_BYTES],
                         const uint8_t _b[TOPRF_Share_BYTES],
                         const uint8_t peers, const uint8_t threshold,
@@ -172,10 +180,8 @@ void toprf_mpc_mul_finish(const uint8_t dealers,
   TOPRF_Share *share=(TOPRF_Share*) _share;
 
   // pre-calculate inverted vandermonde matrix of the indexes of the peers
-  uint8_t vdm[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
-  genVDMmatrix(indexes, dealers, vdm);
   uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
-  invert(dealers, vdm, inverted);
+  invertedVDMmatrix(dealers, indexes, inverted);
   // todo optimization
   // note this can be precomputed and broadcast to all peers, and only
   // the first row of this matix is actually needed by the peers.

@@ -20,6 +20,11 @@
 #include <sodium.h>
 #include "toprf.h"
 
+/** generates an inverted Van der Monde matrix
+ */
+void invertedVDMmatrix(const uint8_t dealers,
+                       const uint8_t indexes[dealers],
+                       uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES]);
 
 /**
  * This function is the first phase of a multiparty threshold
