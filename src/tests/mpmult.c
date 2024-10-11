@@ -101,22 +101,12 @@ int test_mpmul(void) {
   return 0;
 }
 
-static void print_matrix(const uint8_t size, const uint8_t matrix[size][size][crypto_core_ristretto255_SCALARBYTES]) {
-  for(int i=0;i<size;i++) {
-    for(int j=0;j<size;j++) {
-      for(int k=0;k<crypto_core_ristretto255_SCALARBYTES;k++)
-        fprintf(stderr,"%02x", matrix[i][j][k]);
-      fprintf(stderr, " ");
-    }
-    fprintf(stderr, "\n");
-  }
-}
-
 static int _vsps(const uint8_t t,
                  const uint8_t C[t][crypto_core_ristretto255_BYTES],
                  const uint8_t delta[crypto_core_ristretto255_SCALARBYTES],
                  const uint8_t inverted[t][t][crypto_core_ristretto255_SCALARBYTES],
                  uint8_t v[crypto_core_ristretto255_BYTES]) {
+  // calculates product(A_i ^ Δ_i), where i=1..t+1,  Δ_i = sum(invertedVDM_ji * δ^j,  j= 0..t
 
   // pre-calculate δ^j for j=0..t
   uint8_t delta_exp[t][crypto_core_ristretto255_SCALARBYTES];
@@ -135,9 +125,10 @@ static int _vsps(const uint8_t t,
       // calculate λ_ij * δ^j
       uint8_t tmp[crypto_core_ristretto255_SCALARBYTES];
       crypto_core_ristretto255_scalar_mul(tmp, inverted[j][i], delta_exp[j]);
-      // sum_(j=0..t) (λ_ij * δ^j)
+      // Δ_i = sum_(j=0..t) (λ_ij * δ^j)
       crypto_core_ristretto255_scalar_add(DELTAi, DELTAi, tmp);
     }
+    //dump(DELTAi,sizeof DELTAi, "Δ_%d", i);
     uint8_t tmp[crypto_core_ristretto255_BYTES];
     if(0!=crypto_scalarmult_ristretto255(tmp, DELTAi, C[i])) return 1;
     crypto_core_ristretto255_add(v, v, tmp);
@@ -147,7 +138,7 @@ static int _vsps(const uint8_t t,
 }
 
 int vsps_check(const uint8_t t, const uint8_t C[t*2][crypto_core_ristretto255_BYTES]) {
-  uint8_t indexes[t];
+  uint8_t indexes[t+1];
 
   uint8_t delta[crypto_core_ristretto255_SCALARBYTES] = {0};
   crypto_core_ristretto255_scalar_random(delta);
@@ -156,19 +147,19 @@ int vsps_check(const uint8_t t, const uint8_t C[t*2][crypto_core_ristretto255_BY
   for(int i=0;i<=t;i++) indexes[i]=i;
   uint8_t inverted[t+1][t+1][crypto_core_ristretto255_SCALARBYTES];
   invertedVDMmatrix(t+1,indexes,inverted);
-  print_matrix(t+1,inverted);
+  //print_matrix(t,inverted);
 
   uint8_t v1[crypto_core_ristretto255_BYTES] = {0};
   if(0!=_vsps(t+1, C, delta, inverted, v1)) return 1;
   dump(v1, sizeof v1, "v1");
 
   // right-hand side of the equation (1)
-  for(int i=0;i<=t;i++) indexes[i]=t+i+1;
+  for(int i=0;i<=t;i++) indexes[i]=t+i;
   invertedVDMmatrix(t+1,indexes,inverted);
-  print_matrix(t+1,inverted);
+  //print_matrix(t,inverted);
 
   uint8_t v2[crypto_core_ristretto255_BYTES] = {0};
-  if(0!=_vsps(t+1, &C[t], delta, inverted, v2)) return 1;
+  if(0!=_vsps(t+1, &C[t+1], delta, inverted, v2)) return 1;
   dump(v2, sizeof v2, "v2");
 
   // v1 == v2
@@ -178,7 +169,7 @@ int vsps_check(const uint8_t t, const uint8_t C[t*2][crypto_core_ristretto255_BY
 
 int test_vsps(void) {
   const uint8_t t = 3;
-  const uint8_t n = 2*t + 1;
+  const uint8_t n = 2*t + 2;
   uint8_t a[crypto_core_ristretto255_SCALARBYTES] = {0};
   crypto_core_ristretto255_scalar_random(a);
   uint8_t r[crypto_core_ristretto255_SCALARBYTES] = {0};
@@ -186,11 +177,11 @@ int test_vsps(void) {
 
   // callculate A_i = f(i)
   uint8_t A[n][TOPRF_Share_BYTES];
-  toprf_create_shares(a, n, t, A);
+  toprf_create_shares(a, n, t+1, A);
 
   // callculate R_i = r(i)
   uint8_t R[n][TOPRF_Share_BYTES];
-  toprf_create_shares(r, n, t, R);
+  toprf_create_shares(r, n, t+1, R);
 
   // we need a second generator h = g^z, without knowning what z is.
   const uint8_t numsn[] = "nothing up my sleeve number";
@@ -220,7 +211,7 @@ int test_vsps(void) {
 
   // in practice each peer i receives their f(i) and their r(i) privately
   // and C is broadcast to everyone
-  // each peer i checks if C[i] == g^f[i]*h^r[i]
+  // each peer i checks if C[i] == g^f(i)*h^r(i)
   // we skip this for this test
 
   if(0!=vsps_check(t, C)) {
