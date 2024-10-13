@@ -149,9 +149,9 @@ int vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristretto255_BY
   crypto_core_ristretto255_scalar_random(delta);
 
   // left-hand side of the equation (1)
-  for(int i=1;i<=t;i++) indexes[i]=i; // left side of equation Π i:=1..t,
-                                      // and is used to index A,
-                                      // leaving out A_0 as mentioned in p8para3L2
+  for(int i=1;i<=t;i++) indexes[i-1]=i; // left side of equation Π i:=1..t,
+                                        // and is used to index A,
+                                        // leaving out A_0 as mentioned in p8para3L2
   // since λ has two indexes, J's hunch is that λ is an inv VDM matrix
   // should this inv VDM be of t or t+1 size?
   uint8_t inverted[t+1][t+1][crypto_core_ristretto255_SCALARBYTES];
@@ -165,7 +165,7 @@ int vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristretto255_BY
 
   // right-hand side of the equation (1)
   // since the RHS has A_i, i:=t+1..2t+1 see p8para3L2
-  for(int i=1;i<=t+1;i++) indexes[i]=t+i;
+  for(int i=1;i<=t+1;i++) indexes[i-1]=t+i;
   invertedVDMmatrix(t+1,indexes,inverted);
   //print_matrix(t,inverted);
 
