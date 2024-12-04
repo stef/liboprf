@@ -82,7 +82,10 @@ int main(void) {
 
   // now comes the threshold combination part, were we do barely do
   // any lagrange magic in the exponent
-  toprf_thresholdcombine(response_len, xresps, beta);
+  if(0!=toprf_thresholdcombine(response_len, xresps, beta)) {
+    printf("humiliating failure /o\\ in thresholdcombine()\n");
+    return 1;
+  }
 
   // end of magic trick
   // from here on the threshold and non-threshold version join paths again

@@ -136,6 +136,7 @@ int toprf_thresholdmult(const size_t response_len,
   uint8_t gki[crypto_scalarmult_ristretto255_BYTES];
   memset(result,0,crypto_scalarmult_ristretto255_BYTES);
 
+  // sort the responses by their indexes
   uint8_t indexed_indexes[response_len];
   if(response_len>255) return 1;
   sort_parts((uint8_t) response_len, (TOPRF_Part*) responses, indexed_indexes);
@@ -174,20 +175,20 @@ int toprf_Evaluate(const uint8_t _k[TOPRF_Share_BYTES],
   return 0;
 }
 
-void toprf_thresholdcombine(const size_t response_len,
+int toprf_thresholdcombine(const size_t response_len,
                             const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                             uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
-
+  if(response_len>255) return 1;
   const TOPRF_Part *responses=(TOPRF_Part*) _responses;
   memset(result,0,crypto_scalarmult_ristretto255_BYTES);
 
   uint8_t indexed_indexes[response_len];
-  //if(response_len>255) return 1;
   sort_parts((uint8_t) response_len, (TOPRF_Part*) responses, indexed_indexes);
 
   for(size_t i=0;i<response_len;i++) {
     crypto_core_ristretto255_add(result,result,responses[indexed_indexes[i]].value);
   }
+  return 0;
 }
 
 

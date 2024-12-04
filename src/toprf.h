@@ -123,7 +123,7 @@ int toprf_Evaluate(const uint8_t k[TOPRF_Share_BYTES],
  *
  * @return The function returns 0 if everything is correct.
  */
-void toprf_thresholdcombine(const size_t response_len,
+int toprf_thresholdcombine(const size_t response_len,
                             const uint8_t _responses[response_len][TOPRF_Part_BYTES],
                             uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
