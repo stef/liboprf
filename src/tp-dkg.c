@@ -63,6 +63,7 @@ FILE* log_file=NULL;
 #define tpdkg_msg21_SIZE (sizeof(TP_DKG_Message) + 2)
 #define tpdkg_noise_key_SIZE (32UL)
 
+// todo merge with dump from utils.c
 static void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   if(log_file==NULL) return;
   va_list args;
@@ -73,6 +74,7 @@ static void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   for(size_t i=0;i<len;i++)
     fprintf(log_file,"%02x", p[i]);
   fprintf(log_file,"\n");
+  fflush(log_file);
 }
 
 #ifndef htonll
