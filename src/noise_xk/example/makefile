@@ -6,7 +6,7 @@ CFLAGS 	+= -I../.. -I../include -I ../include/karmel -I ../include/karmel/minima
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fPIC \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
-				-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
+				-O2 -fstack-protector-strong -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic -Werror=format-security \
 				-Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro \
 				-ftrapv -Wl,-z,noexecstack
