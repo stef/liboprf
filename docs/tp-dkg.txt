@@ -30,7 +30,7 @@ qualify or the protocol fails - this mitigates the case where an
 adversary can adaptively disqualify a peer. Thus the JF-DKG is a
 simple and sufficient algorithm for our purposes.
 
-------<=[ Rationale                                     ]=>-------
+------<=[ Rationale                                     ]=>-----------
 
 Traditionally DKGs are used in setting where all parties are equal and
 are using the distributed key together, without having any one party
@@ -77,7 +77,7 @@ parties - and more importantly the location of the other keyshares. If
 this keyshare-holder anonymity is not necessary, steps 3, 4 and the
 first half of step 5 in the following protocol can be skipped.
 
-------<=[ Prototocol Phases                             ]=>-------
+------<=[ Prototocol Phases                             ]=>-----------
 
 The protocol has the following phases:
 
@@ -89,7 +89,7 @@ The protocol has the following phases:
   5. Finish with success: verification of transcript and completion of
      protocol (step 20 - 22)
 
-------<=[ Simplified API                                ]=>-------
+------<=[ Simplified API                                ]=>-----------
 
 Since the protocol consists of many steps, it is recommended to
 abstract the API to the following schema:
@@ -110,7 +110,7 @@ security.
 The reference implementation in tp-dkg.c follows this schema for both
 the TP and the peers.
 
-------<=[ Protocol transcript                           ]=>-------
+------<=[ Protocol transcript                           ]=>-----------
 
 Transcript - all broadcast messages are accumulated into a transcript
 by each peer and the trusted party, at the end of the protocol all
@@ -145,14 +145,14 @@ update_ts(state,msg,sig)
     return state
 ```
 
-------<=[ Session id                                    ]=>-------
+------<=[ Session id                                    ]=>-----------
 
 Every execution of the protocol starts by the TP sending out a message
 with a unique and fresh session id, this is to ensure that no messages
 can be replayed. The session id is a 256 bit (32B) random value of
 cryptographic quality.
 
-------<=[ Message header                                ]=>-------
+------<=[ Message header                                ]=>-----------
 
 All messages have a message header:
 
@@ -185,13 +185,13 @@ The timestamp field is just a 64bit timestamp as seconds elapsed since
 have an RTC, the first initiating message from the TP SHOULD be used
 as a reference for synchronizing during the protocol.
 
-------<=[ Message signatures                            ]=>-------
+------<=[ Message signatures                            ]=>-----------
 
 Every message MUST be signed using the sender peers ephemeral signing
 key. The signature is made over the message and the appended session
 id. The session id is announced by the TP in the first message.
 
-------<=[ Verifying messages                            ]=>-------
+------<=[ Verifying messages                            ]=>-----------
 
 Whenever a message is received by any participant, they first MUST
 check the correctness of the signature:
@@ -220,7 +220,7 @@ If at any step of the protocol the TP receives one or more messages
 that fail these checks, the TP MUST abort the protocol and report all
 violating peers to the user.
 
-------<=[ Message transmission                          ]=>-------
+------<=[ Message transmission                          ]=>-----------
 
 A higher level message transmission interface can be provided, for
 sending:
@@ -252,7 +252,7 @@ data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
 The parameters `msgno`, `from`, `to`, `session_id` should be the
 values expected according to the current protocol state.
 
-------<=[ Cheater detection                             ]=>-------
+------<=[ Cheater detection                             ]=>-----------
 
 The TP MUST report to the user all errors that can identify cheating
 peers in a given step. For each detected cheating peer the TP MUST
@@ -276,15 +276,15 @@ the number of complaints is more than t for one peer, or more than t^2
 in total, as well any of the checks of the JF-DKG algorithm from
 GJKR06.
 
-------<=[ The protocol                                  ]=>-------
+------<=[ The protocol                                  ]=>-----------
 
-------<=[ 0. Precondition                               ]=>-------
+------<=[ 0. Precondition                               ]=>-----------
 
 Peers use TLS or TP knows long-term encryption keys for all peers.
 
 Client knows long-term signing keys of all peers.
 
-------<=[ 1. DKG Announcement - TP(peers, t, proto_name) ]=>-------
+------<=[ 1. DKG Announcement - TP(peers, t, proto_name) ]=>----------
 
 The protocol starts by asking the trusted party (TP) to initiate a new
 run of the DKG protocol by providing it with:
@@ -336,7 +336,7 @@ for i in 1..n:
   send(i, msg_1 | sig_1)
 ```
 
-------<=[ 2. each peer(msg_0, sig_0)                   ]=>-------
+------<=[ 2. each peer(msg_0, sig_0)                   ]=>------------
 
 In this step each peer receives the initial parameter broadcast,
 verifies it, initializes the transcript and adds the initial
@@ -382,7 +382,7 @@ assert(msg1.to <= 128 and msg1.to > 0)
 peerid = msg.to
 ```
 
-------<=[ 3. peers broadcast their keys via TP        ]=>-------
+------<=[ 3. peers broadcast their keys via TP        ]=>-------------
 
 If this protocol requires anonymity from each peer all peers broadcast
 fresh signing and noise keys to all peers via the TP. If no
@@ -403,7 +403,7 @@ ltsig = sign(peer_long_term_sig_sk, msg_2|sig_2)
 broadcast(ltsig | msg_2 | sig_2 )
 ```
 
-------<=[ 4. TP collects and broadcasts all peer keys ]=>-------
+------<=[ 4. TP collects and broadcasts all peer keys ]=>-------------
 
 The TP first checks if each of the received messages is signed by the
 expected long-term signing key, if this fails the TP aborts. If all
@@ -524,7 +524,7 @@ for i in 1..N
    send_session[i] = noisexk_initiator_session_complete(send_session[i], handshake3)
 ```
 
-------<=[ 10. Setup complete ]=>-------
+------<=[ 10. Setup complete                                  ]=>-------
 
 Each peer has a confidential connection with every peer (including self, for simplicity)
 
@@ -532,7 +532,7 @@ The one time this channel is used, when distributing the shares from
 step 13. The sender uses the initiator interface of the noise session,
 and the receiver uses the responder interface.
 
-------<=[ 11. each peer executes DKG Round 1 ]=>-------
+------<=[ 11. each peer executes DKG Round 1                  ]=>-------
 
 This step is as described by GJKR06 (fig 1. JF-DKG) step 1: Each party
 P_i (as a dealer) chooses a random polynomial f_i(z) over Z_q of degree t:
@@ -558,7 +558,7 @@ msg_6, sig_6 = send_msg(6, peerid, 0xff, peer_sign_sk, session_id, A)
 send(msg_6 | sig_6)
 ```
 
-------<=[ 12. TP collects and broadcasts all A vectors ]=>-------
+------<=[ 12. TP collects and broadcasts all A vectors        ]=>-------
 
 This is another broadcast pattern instance:
 receive-verify-collect-sign-transcript-broadcast. The TP keeps a copy
@@ -623,7 +623,7 @@ for i in 1..N
       encrypted_shares[i][j] = msg
 ```
 
-------<=[ 15. each peer executes DKG Round 2 ]=>-------
+------<=[ 15. each peer executes DKG Round 2                  ]=>-------
 
 Each peer having received all their shares from all the peers,
 verifies the messages, and then verifies the shares against the
@@ -653,7 +653,7 @@ msg, sig = send_msg(9, peerid, 0xff, peer_sign_sk, session_id, len(complaints) |
 send(msg | sig)
 ```
 
-------<=[ 16. TP collects complaints                   ]=>-------
+------<=[ 16. TP collects complaints                          ]=>-------
 
 Another receive-verify-collect-sign-transcribe-broadcast
 instantiation. The TP keeps a copy of all complaints for the 18th
@@ -694,7 +694,7 @@ Each complaint is answered by the symmetric encryption key used to
 encrypt the share of the accused belonging to the complainer. Each
 accused packs all answers into one message.
 
-------<=[ 17. Each peer receives all complaints ]=>-------
+------<=[ 17. Each peer receives all complaints               ]=>-------
 
 All complaint messages broadcast are received by each peer. If peer_i
 is being complained about by peer_j, peer_i sends the symmetric
@@ -763,7 +763,7 @@ for i in 1..N
             suspicious = suspicious | identity(j)
 ```
 
-------<=[ 19. Compare all transcripts ]=>-------
+------<=[ 19. Compare all transcripts                         ]=>-------
 
 Each peer calculates the final transcripts and sends it to TP.
 
@@ -773,7 +773,7 @@ msg_20, sig_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, transcript)
 send(msg_20, sig_20)
 ```
 
-------<=[ 20. TP receives all and verifies transcripts ]=>-------
+------<=[ 20. TP receives all and verifies transcripts        ]=>-------
 
 TP receives all transcripts, and asserts that they all match its own
 transcript, it aborts if any transcript mismatch is detected. If
@@ -789,7 +789,7 @@ for i in 1..N
 
 msg_21, sig_21 = send_msg(21, 0, 0xff, tp_sign_sk, session_id, { "OK" })
 
-------<=[ 21. SUCCESS, peers set their share and confirm ]=>-------
+------<=[ 21. SUCCESS, peers set their share and confirm      ]=>-------
 
 All peers receive the OK acknowledgment from the TP and calculate the
 final share, this is equivalent with the calculation of x_j in the
@@ -811,7 +811,7 @@ msg_22, sig_22 = send_msg(22, peerid, 0, peers_sign_sk, session_id, "OK")
 persist(own_peer_id, share)
 ```
 
-------<=[ 22. TP asserts all peers respond with "OK" ]=>-------
+------<=[ 22. TP asserts all peers respond with "OK"          ]=>-------
 
 The TP collects all "OK" messages from all peers.
 
