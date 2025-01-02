@@ -89,4 +89,8 @@ void toprf_mpc_mul_finish(const uint8_t dealers,
                           const uint8_t shares[dealers][TOPRF_Share_BYTES],
                           uint8_t _share[TOPRF_Share_BYTES]);
 
+// todo document API
+int toprf_mpc_vsps_check(const uint8_t t,
+                         const uint8_t A[t*2][crypto_core_ristretto255_BYTES]);
+
 #endif // THMULT_H

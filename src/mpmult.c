@@ -2,6 +2,9 @@
 #include <stdint.h>
 #include <string.h>
 #include "toprf.h"
+#ifdef UNIT_TEST
+#include "utils.h"
+#endif
 
 /** Implements the Simple-Mult algorithm from page 5 fig. 2 of
     "Simplified VSS and Fast-track Multiparty Computations with
@@ -197,4 +200,107 @@ void toprf_mpc_mul_finish(const uint8_t dealers,
     crypto_core_ristretto255_scalar_add(share->value, share->value, tmp);
   }
   //dump(share->value, sizeof share->value, "share");
+}
+
+static int vsps_check(const uint8_t t,
+                      const uint8_t A[t][crypto_core_ristretto255_BYTES],
+                      const uint8_t λ[t+1][t+1][crypto_core_ristretto255_SCALARBYTES],
+                      const uint8_t δ_exp[t+1][crypto_core_ristretto255_SCALARBYTES],
+                      uint8_t v[crypto_core_ristretto255_BYTES]) {
+  // calculates Π(A_i ^ Δ_i), where i=1..t+1,  Δ_i = Σ(λ_ji * δ^j,  j= 0..t
+
+  // v = 0
+  memset(v, 0,crypto_core_ristretto255_BYTES);
+
+  for(int i=0;i<=t;i++) {
+    uint8_t Δi[crypto_core_ristretto255_SCALARBYTES]={0};
+    for(int j=0;j<=t;j++) {
+      // calculate λ_ji * δ^j
+      uint8_t tmp[crypto_core_ristretto255_SCALARBYTES];
+#ifdef UNIT_TEST
+      dump(λ[j][i], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", j, i);
+      dump(δ_exp[j], crypto_core_ristretto255_SCALARBYTES, "d^%d", j);
+#endif
+      crypto_core_ristretto255_scalar_mul(tmp, λ[j][i], δ_exp[j]);
+      // Δ_i = sum_(j=0..t) (λ_ji * δ^j)
+      crypto_core_ristretto255_scalar_add(Δi, Δi, tmp);
+    }
+#ifdef UNIT_TEST
+    dump(Δi,sizeof Δi, "Δ%d", i);
+#endif
+    uint8_t tmp[crypto_core_ristretto255_BYTES];
+    // A_i ^ Δ_i
+    if(0!=crypto_scalarmult_ristretto255(tmp, Δi, A[i])) return 1;
+#ifdef UNIT_TEST
+    dump(tmp, crypto_scalarmult_ristretto255_BYTES, "A%d^Δ%d", i, i);
+#endif
+    // Π, but we are in an additive group
+    crypto_core_ristretto255_add(v, v, tmp);
+  }
+
+  return 0;
+}
+
+int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristretto255_BYTES]) {
+  uint8_t indexes[t+1]; // p8para3L2: A0..At & At+1..A2t+1
+  // left-hand side of the equation (1)
+  for(int i=0;i<=t;i++) indexes[i]=i; // left side of equation Π i:=1..t, which is a typo? should be 0..t
+  uint8_t λ[t+1][t+1][crypto_core_ristretto255_SCALARBYTES];
+  invertedVDMmatrix(t+1,indexes,λ);
+#ifdef UNIT_TEST
+  fprintf(stderr,"vdm1\n");
+  for(int i=0;i<t+1;i++) {
+    for(int j=0;j<t+1;j++) {
+      fprintf(stderr,"\t");
+      dump(λ[i][j], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", i, j);
+    }
+  }
+#endif
+
+  // chose random δ, p8para3L4
+  uint8_t δ[crypto_core_ristretto255_SCALARBYTES] = {0};
+#ifdef UNIT_TEST
+  debian_rng_scalar(δ);
+  dump(δ,sizeof δ, "δ");
+#else
+  crypto_core_ristretto255_scalar_random(δ);
+#endif
+
+  // pre-calculate δ^j for j=0..t
+  uint8_t δ_exp[t+1][crypto_core_ristretto255_SCALARBYTES];
+  memset(δ_exp,0,sizeof δ_exp);
+  δ_exp[0][0]=1;
+  for(int exp=1;exp<=t;exp++) {
+    crypto_core_ristretto255_scalar_mul(δ_exp[exp], δ_exp[exp-1], δ);
+  }
+
+  uint8_t lhs[crypto_core_ristretto255_BYTES] = {0};
+  if(0!=vsps_check(t, A, λ, δ_exp, lhs)) return 1;
+#ifdef UNIT_TEST
+  dump(lhs, sizeof lhs, "lhs");
+#endif
+
+  // right-hand side of the equation (1)
+  // since the RHS has A_i, i:=t+1..2t+1 see p8para3L2
+  for(int i=0;i<=t;i++) indexes[i]=t+1+i;
+  invertedVDMmatrix(t+1,indexes,λ);
+#ifdef UNIT_TEST
+  fprintf(stderr,"vdm2\n");
+  for(int i=0;i<t+1;i++) {
+    for(int j=0;j<t+1;j++) {
+      fprintf(stderr,"\t");
+      dump(λ[i][j], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", i, j);
+    }
+  }
+#endif
+
+  uint8_t rhs[crypto_core_ristretto255_BYTES] = {0};
+  if(0!=vsps_check(t, &A[t+1], λ, δ_exp, rhs)) return 1;
+#ifdef UNIT_TEST
+  dump(rhs, sizeof rhs, "rhs");
+#endif
+
+  // lhs == rhs
+  if(memcmp(lhs,rhs,sizeof lhs)!=0) return 1;
+  return 0;
 }
