@@ -33,6 +33,8 @@
  */
 
 
+// calculates polynomial f(j) given the polynomials threshold coefficients in
+// array a
 static void polynom(const uint8_t j, const uint8_t threshold,
                     const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
                     TOPRF_Share *result) {
