@@ -2,6 +2,9 @@
 #include "oprf.h"
 #include "toprf.h"
 #include <arpa/inet.h>
+#ifdef UNIT_TEST
+#include "utils.h"
+#endif
 
 /*
     @copyright 2023, Stefan Marsiske toprf@ctrlc.hu
@@ -87,7 +90,12 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
   uint8_t a[threshold-1][crypto_core_ristretto255_SCALARBYTES];
   uint8_t i;
   for(i=0;i<threshold-1;i++) {
+#ifdef UNIT_TEST
+    debian_rng_scalar(a[i]);
+    dump(a[i],crypto_core_ristretto255_SCALARBYTES,"\t");
+#else
     crypto_core_ristretto255_scalar_random(a[i]);
+#endif
   }
   for(i=1;i<=n;i++) {
     //f(x) = a_0 + a_1*x + a_2*x^2 + a_3*x^3 + ⋯ + a_(k−1)*x^(k−1)
@@ -104,6 +112,9 @@ void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYT
       }
       crypto_core_ristretto255_scalar_add(shares[i-1].value, shares[i-1].value, tmp);
     }
+#ifdef UNIT_TEST
+    dump(shares[i-1].value,32,"f(%d)", i-1);
+#endif
   }
 }
 
