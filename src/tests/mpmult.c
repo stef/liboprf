@@ -101,138 +101,101 @@ int test_mpmul(void) {
   return 0;
 }
 
-static int _vsps(const uint8_t t,
-                 const uint8_t A[t][crypto_core_ristretto255_BYTES],
-                 const uint8_t delta[crypto_core_ristretto255_SCALARBYTES],
-                 const uint8_t inverted[t][t][crypto_core_ristretto255_SCALARBYTES],
-                 uint8_t v[crypto_core_ristretto255_BYTES]) {
-  // calculates Π(A_i ^ Δ_i), where i=1..t+1,  Δ_i = Σ(invertedVDM_ji * δ^j,  j= 0..t
-
-  // pre-calculate δ^j for j=0..t
-  uint8_t delta_exp[t+1][crypto_core_ristretto255_SCALARBYTES];
-  memset(delta_exp,0,sizeof delta_exp);
-  delta_exp[0][0]=1;
-  for(int exp=1;exp<=t;exp++) {
-    crypto_core_ristretto255_scalar_mul(delta_exp[exp], delta_exp[exp-1], delta);
+static void rnd_poly(const uint8_t threshold,
+                     uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES]) {
+#ifdef UNIT_TEST
+  fprintf(stderr,"coeffs\n");
+#endif
+  for(int i=0;i<threshold;i++) {
+#ifdef UNIT_TEST
+    debian_rng_scalar(a[i]);
+    dump(a[i],crypto_core_ristretto255_SCALARBYTES,"\t");
+#else
+    crypto_core_ristretto255_scalar_random(a[i]);
+#endif
   }
-
-  // v = 0
-  memset(v, 0,crypto_core_ristretto255_BYTES);
-
-  for(int i=1;i<=t+1;i++) {
-    uint8_t DELTAi[crypto_core_ristretto255_SCALARBYTES]={0};
-    for(int j=0;j<=t;j++) {
-      // calculate λ_ij * δ^j
-      uint8_t tmp[crypto_core_ristretto255_SCALARBYTES];
-      // doing i-1 since otherwise it would index
-      // past the last column if i=t+1, as we are indexing VDM from 0
-      crypto_core_ristretto255_scalar_mul(tmp, inverted[j][i-1], delta_exp[j]);
-      // Δ_i = sum_(j=0..t) (λ_ij * δ^j)
-      crypto_core_ristretto255_scalar_add(DELTAi, DELTAi, tmp);
-    }
-    //dump(DELTAi,sizeof DELTAi, "Δ_%d", i);
-    uint8_t tmp[crypto_core_ristretto255_BYTES];
-    // A_i ^ Δ_i
-    if(0!=crypto_scalarmult_ristretto255(tmp, DELTAi, A[i-1])) return 1;
-    // Π, but we are in an additive group
-    crypto_core_ristretto255_add(v, v, tmp);
-  }
-
-  return 0;
 }
 
-int vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristretto255_BYTES]) {
-  uint8_t indexes[t+1]; // p8para3L2: A0..At & At+1..A2t+1
-                        // but the lhs only indexes A from 1..t, not from 0
-  // chose random δ, p8para3L4
-  uint8_t delta[crypto_core_ristretto255_SCALARBYTES] = {0};
-  crypto_core_ristretto255_scalar_random(delta);
-
-  // left-hand side of the equation (1)
-  for(int i=1;i<=t;i++) indexes[i-1]=i; // left side of equation Π i:=1..t,
-                                        // and is used to index A,
-                                        // leaving out A_0 as mentioned in p8para3L2
-  // since λ has two indexes, J's hunch is that λ is an inv VDM matrix
-  // should this inv VDM be of t or t+1 size?
-  uint8_t inverted[t+1][t+1][crypto_core_ristretto255_SCALARBYTES];
-  invertedVDMmatrix(t+1,indexes,inverted);
-  //print_matrix(t,inverted);
-
-  uint8_t v1[crypto_core_ristretto255_BYTES] = {0};
-  // we pass the address of A_1 skipping A_0, since lhs: Π i:=1..t, A_i
-  if(0!=_vsps(t, A, delta, inverted, v1)) return 1;
-  dump(v1, sizeof v1, "v1");
-
-  // right-hand side of the equation (1)
-  // since the RHS has A_i, i:=t+1..2t+1 see p8para3L2
-  for(int i=1;i<=t+1;i++) indexes[i-1]=t+i;
-  invertedVDMmatrix(t+1,indexes,inverted);
-  //print_matrix(t,inverted);
-
-  uint8_t v2[crypto_core_ristretto255_BYTES] = {0};
-  if(0!=_vsps(t, &A[t+1], delta, inverted, v2)) return 1;
-  dump(v2, sizeof v2, "v2");
-
-  // v1 == v2
-  if(memcmp(v1,v2,sizeof v1)!=0) return 1;
-  return 0;
+static void eval_poly(const uint8_t t,
+                      const uint8_t a[t][crypto_core_ristretto255_SCALARBYTES],
+                      const uint8_t _x,
+                      uint8_t result[crypto_core_ristretto255_SCALARBYTES]) {
+  uint8_t x0[crypto_core_ristretto255_SCALARBYTES]={0};
+  x0[0]=_x;
+  uint8_t x[crypto_core_ristretto255_SCALARBYTES]={0};
+  x[0]=1;
+  memset(result,0, crypto_core_ristretto255_SCALARBYTES);
+  uint8_t tmp[crypto_core_ristretto255_SCALARBYTES]={0};
+  for(int i=0;i<t;i++) {
+    crypto_core_ristretto255_scalar_mul(tmp, a[i], x);
+    crypto_core_ristretto255_scalar_add(result, result, tmp);
+    crypto_core_ristretto255_scalar_mul(x, x, x0);
+  }
 }
 
 int test_vsps(void) {
   // page 8, paragraph 3, line 1.
   const uint8_t t = 3; // the degree of the polynomial
-  const uint8_t n = 2*t + 2;
-  // a secret we want to share
-  uint8_t a[crypto_core_ristretto255_SCALARBYTES] = {0};
-  crypto_core_ristretto255_scalar_random(a);
-  // randomness for the commitment
-  uint8_t r[crypto_core_ristretto255_SCALARBYTES] = {0};
-  crypto_core_ristretto255_scalar_random(r);
-
-  // calculate shares A_i = f(i) - i:=1..n
-  uint8_t F[n][TOPRF_Share_BYTES];
-  // t+1 shares to reconstruct since the degree of the polynomial be t
-  toprf_create_shares(a, n, t+1, F);
-
-  // calculate shares R_i = r(i) - i:=1..n
-  uint8_t R[n][TOPRF_Share_BYTES];
-  // t+1 shares to reconstruct since the degree of the polynomial should be t
-  toprf_create_shares(r, n, t+1, R);
+  const uint8_t n = 2*(t + 1);
 
   // we need a second generator h = g^z, without knowning what z is.
+  uint8_t h[crypto_scalarmult_ristretto255_BYTES] = {0};
+#ifdef UNIT_TEST
+  uint8_t z[crypto_scalarmult_ristretto255_BYTES];
+  debian_rng_scalar(z);
+  dump(z, sizeof z, "z");
+  crypto_scalarmult_ristretto255_base(h,z);
+  dump(h, sizeof h, "h");
+#else
   const uint8_t numsn[] = "nothing up my sleeve number";
   uint8_t hash[crypto_core_ristretto255_HASHBYTES] = {0};
   crypto_generichash(hash, sizeof hash, numsn, sizeof numsn, NULL, 0);
-  uint8_t h[crypto_scalarmult_ristretto255_BYTES] = {0};
   if(0!=voprf_hash_to_group(hash, sizeof hash, h)) return -1;
+#endif
+
+  uint8_t f[t+1][crypto_core_ristretto255_SCALARBYTES];
+  rnd_poly(t+1,f);
+  uint8_t r[t+1][crypto_core_ristretto255_SCALARBYTES];
+  rnd_poly(t+1,r);
 
   // calulate the commitments A_i = g^f(i) * h^r(i)
+  // A[0] contains A_1, not A_0 which is not calculated above
   uint8_t A[n][crypto_scalarmult_ristretto255_BYTES];
+  uint8_t tmp_s[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
-  for(int i=0;i<n;i++) {
+  for(uint8_t i=0;i<n;i++) {
+    eval_poly(t+1, f, i, tmp_s);
+    fprintf(stderr,"f(%d)",i);
+    dump(tmp_s, sizeof tmp_s, "");
     //dump(F[i], TOPRF_Share_BYTES, "f(%d)", i);
     // A_i = g^f(i)
-    crypto_scalarmult_ristretto255_base(A[i],F[i]+1);
+    crypto_scalarmult_ristretto255_base(A[i],tmp_s);
     //dump(h, sizeof h, "h    ");
     //dump(R[i], TOPRF_Share_BYTES, "R_i");
+    eval_poly(t+1, r, i, tmp_s);
+    fprintf(stderr,"f(%d)",i);
+    dump(tmp_s, sizeof tmp_s, "");
     // h ^ R_i
-    if(0!=crypto_scalarmult_ristretto255(tmp, R[i]+1, h)) {
+    if(0!=crypto_scalarmult_ristretto255(tmp, tmp_s, h)) {
       return -1;
     }
     //dump(tmp, sizeof tmp, "tmp  ");
     // A_i = g^f(i) * h ^ r(i)
     // the group is additive, the notation multiplicative
     crypto_core_ristretto255_add(A[i], A[i], tmp);
-    //dump(C[i], crypto_scalarmult_ristretto255_BYTES, "C_i");
+  }
+  fprintf(stderr,"commitments\n");
+  for(uint8_t i=0;i<n;i++) {
+    dump(A[i], crypto_scalarmult_ristretto255_BYTES, "A_%d\t", i);
   }
 
   // in practice each peer i receives their f(i) and their r(i) privately
-  // and C is broadcast to everyone
-  // each peer i checks if C[i] == g^f(i)*h^r(i)
+  // and A is broadcast to everyone
+  // each peer i checks if A[i] == g^f(i)*h^r(i)
   // we skip this for this test
 
   // check if A is of degree t
-  if(0!=vsps_check(t, A)) {
+  if(0!=toprf_mpc_vsps_check(t, A)) {
     fprintf(stderr,"\e[0;31mhumiliating failure /o\\\e[0m\n");
     return 1;
   }
