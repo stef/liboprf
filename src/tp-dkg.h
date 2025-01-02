@@ -594,4 +594,6 @@ int tpdkg_peer_not_done(const TP_DKG_PeerState *peer);
  */
 void tpdkg_peer_free(TP_DKG_PeerState *ctx);
 
+extern FILE* log_file;
+
 #endif //tp_dkg_h
