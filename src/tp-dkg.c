@@ -383,6 +383,9 @@ uint8_t* tpdkg_peerstate_lt_sk(TP_DKG_PeerState *ctx) {
 uint8_t* tpdkg_peerstate_share(TP_DKG_PeerState *ctx) {
   return (uint8_t*) &ctx->share;
 }
+int tpdkg_peerstate_step(TP_DKG_PeerState *ctx) {
+  return ctx->step;
+}
 
 size_t tpdkg_tpstate_size(void) {
   return sizeof(TP_DKG_TPState);

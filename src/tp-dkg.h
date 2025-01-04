@@ -179,6 +179,7 @@ uint8_t tpdkg_peerstate_t(TP_DKG_PeerState *ctx);
 uint8_t* tpdkg_peerstate_sessionid(TP_DKG_PeerState *ctx);
 uint8_t* tpdkg_peerstate_lt_sk(TP_DKG_PeerState *ctx);
 uint8_t* tpdkg_peerstate_share(TP_DKG_PeerState *ctx);
+int tpdkg_peerstate_step(TP_DKG_PeerState *ctx);
 
 /** @struct TP_DKG_Cheater
 

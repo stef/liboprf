@@ -584,6 +584,8 @@ liboprf.tpdkg_peerstate_share.restype = ctypes.POINTER(ctypes.c_uint8)
 def tpdkg_peerstate_share(ctx):
     ptr = liboprf.tpdkg_peerstate_share(ctx[0])
     return bytes(ptr[i] for i in range(TOPRF_Share_BYTES))
+def tpdkg_peerstate_step(ctx):
+    return liboprf.tpdkg_peerstate_step(ctx[0])
 
 liboprf.tpdkg_tpstate_n.restype = ctypes.c_uint8
 def tpdkg_tpstate_n(ctx):
