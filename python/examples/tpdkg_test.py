@@ -49,7 +49,7 @@ for _ in range(n):
 # initialize the TP and get the first message
 tp, msg0 = pyoprf.tpdkg_start_tp(n, t, ts_epsilon, "pyoprf tpdkg test", peer_lt_pks)
 
-print(f"n: {tp[0].n}, t: {tp[0].t}, sid: {bytes(c for c in tp[0].sessionid).hex()}")
+print(f"n: {pyoprf.tpdkg_tpstate_n(tp)}, t: {pyoprf.tpdkg_tpstate_t(tp)}, sid: {bytes(c for c in pyoprf.tpdkg_tpstate_sessionid(tp)).hex()}")
 
 # initialize all peers with the 1st message from TP
 
@@ -59,8 +59,8 @@ for i in range(n):
     peers.append(peer)
 
 for i in range(n):
-    assert(bytes(peers[i][0].sessionid) == bytes(tp[0].sessionid))
-    assert(peer_lt_sks[i] == bytes(peers[i][0].lt_sk))
+    assert(pyoprf.tpdkg_peerstate_sessionid(peers[i]) == pyoprf.tpdkg_tpstate_sessionid(tp))
+    assert(peer_lt_sks[i] == pyoprf.tpdkg_peerstate_lt_sk(peers[i]))
 
 peer_msgs = []
 while pyoprf.tpdkg_tp_not_done(tp):
@@ -68,7 +68,7 @@ while pyoprf.tpdkg_tp_not_done(tp):
     # peer_msgs = (recv(size) for size in sizes)
     msgs = b''.join(peer_msgs)
 
-    cur_step = tp[0].step
+    cur_step = pyoprf.tpdkg_tpstate_step(tp)
     try:
       tp_out = pyoprf.tpdkg_tp_next(tp, msgs)
       #print(f"tp: msg[{tp[0].step}]: {tp_out.raw.hex()}")
@@ -95,7 +95,7 @@ while pyoprf.tpdkg_tp_not_done(tp):
 
 # we are done, let's check the shares
 
-shares = [bytes(peers[i][0].share) for i in range(n)]
+shares = [pyoprf.tpdkg_peerstate_share(peers[i]) for i in range(n)]
 for i, share in enumerate(shares):
     print(f"share[{i+1}] {share.hex()}")
 

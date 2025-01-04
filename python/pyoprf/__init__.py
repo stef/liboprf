@@ -461,124 +461,6 @@ tpdkg_msg8_SIZE = 256 # (sizeof(TP_DKG_Message) /* header */                    
                       #  + crypto_auth_hmacsha256_BYTES /* key-committing mac over msg*/ )
 tpdkg_max_err_SIZE = 128
 
-if platform.machine() == 'i686':
-   class TP_DKG_PeerState(ctypes.Structure):
-      _fields_ = [('step',             ctypes.c_int),
-                  ('prev',             ctypes.c_int),
-                  ('sessionid',        ctypes.c_uint8 * tpdkg_sessionid_SIZE),
-                  ('n',                ctypes.c_uint8),
-                  ('t',                ctypes.c_uint8),
-                  ('index',            ctypes.c_uint8),
-                  ('lt_sk',            ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                  ('sig_pk',           ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                  ('sig_sk',           ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                  ('noise_pk',         ctypes.c_uint8 * pysodium.crypto_scalarmult_BYTES),
-                  ('noise_sk',         ctypes.c_uint8 * pysodium.crypto_scalarmult_SCALARBYTES),
-                  ('tp_sig_pk',        ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                  ('padding',          ctypes.c_uint8),     # padding
-                  ('tp_last_ts',       ctypes.c_uint64),
-                  ('last_ts',          ctypes.c_void_p),
-                  ('ts_epsilon',       ctypes.c_uint64),
-                  ('peer_sig_pks',     ctypes.c_char_p),
-                  ('peer_noise_pks',   ctypes.c_char_p),
-                  ('dev',              ctypes.c_void_p),
-                  ('noise_outs',       ctypes.c_void_p),
-                  ('noise_ins',        ctypes.c_void_p),
-                  ('commitments',      ctypes.c_char_p),
-                  ('shares',           ctypes.c_void_p),
-                  ('xshares',          ctypes.c_void_p),
-                  ('complaints_len',   ctypes.c_uint16),
-                  ('complaints',       ctypes.POINTER(ctypes.c_uint16)),
-                  ('my_complaints_len',ctypes.c_uint8),
-                  ('padding',          ctypes.c_uint8 * 3), # padding
-                  ('my_complaints',    ctypes.c_char_p),
-                  ('padding',          ctypes.c_byte * 16), # important padding generichash_state must be 64byte aligned
-                  ('transcript',       ctypes.c_uint8 * pysodium.crypto_generichash_STATEBYTES),
-                  ('share',            ctypes.c_uint8 * 33),
-                  ]
-
-   class TP_DKG_TPState(ctypes.Structure):
-      _fields_ = [('step',             ctypes.c_int),
-                  ('prev',             ctypes.c_int),
-                  ('sessionid',        ctypes.c_uint8 * tpdkg_sessionid_SIZE),
-                  ('n',                ctypes.c_uint8),
-                  ('t',                ctypes.c_uint8),
-                  ('sig_pk',           ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                  ('sig_sk',           ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                  ('padding',          ctypes.c_uint8 * 2), # padding
-                  ('last_ts',          ctypes.c_void_p),
-                  ('ts_epsilon',       ctypes.c_uint64),
-                  ('peer_sig_pks',     ctypes.c_char_p),
-                  ('peer_lt_pks',      ctypes.c_char_p),
-                  ('commitments',      ctypes.c_char_p),
-                  ('encrypted_shares', ctypes.c_char_p),
-                  ('complaints_len',   ctypes.c_uint16),
-                  ('padding',          ctypes.c_uint8 * 2), # padding
-                  ('complaints',       ctypes.POINTER(ctypes.c_uint16)),
-                  ('cheater_len',      ctypes.c_size_t),
-                  ('cheaters',         ctypes.c_void_p),
-                  ('cheater_max',      ctypes.c_size_t),
-                  ('padding',          ctypes.c_byte * 4), # important padding generichash_state must be 64byte aligned
-                  ('transcript',       ctypes.c_uint8 * pysodium.crypto_generichash_STATEBYTES),
-                  ]
-
-else:
-   class TP_DKG_PeerState(ctypes.Structure):
-      _fields_ = [('step',             ctypes.c_int),
-                  ('prev',             ctypes.c_int),
-                  ('sessionid',        ctypes.c_uint8 * tpdkg_sessionid_SIZE),
-                  ('n',                ctypes.c_uint8),
-                  ('t',                ctypes.c_uint8),
-                  ('index',            ctypes.c_uint8),
-                  ('lt_sk',            ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                  ('sig_pk',           ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                  ('sig_sk',           ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                  ('noise_pk',         ctypes.c_uint8 * pysodium.crypto_scalarmult_BYTES),
-                  ('noise_sk',         ctypes.c_uint8 * pysodium.crypto_scalarmult_SCALARBYTES),
-                  ('tp_sig_pk',        ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                  ('tp_last_ts',       ctypes.c_uint64),
-                  ('last_ts',          ctypes.c_void_p),
-                  ('ts_epsilon',       ctypes.c_uint64),
-                  ('peer_sig_pks',     ctypes.c_char_p),
-                  ('peer_noise_pks',   ctypes.c_char_p),
-                  ('dev',              ctypes.c_void_p),
-                  ('noise_outs',       ctypes.c_void_p),
-                  ('noise_ins',        ctypes.c_void_p),
-                  ('commitments',      ctypes.c_char_p),
-                  ('shares',           ctypes.c_void_p),
-                  ('xshares',          ctypes.c_void_p),
-                  ('complaints_len',   ctypes.c_uint16),
-                  ('complaints',       ctypes.POINTER(ctypes.c_uint16)),
-                  ('my_complaints_len',ctypes.c_uint8),
-                  ('my_complaints',    ctypes.c_char_p),
-                  ('padding',          ctypes.c_byte * 24), # important padding generichash_state must be 64byte aligned
-                  ('transcript',       ctypes.c_uint8 * pysodium.crypto_generichash_STATEBYTES),
-                  ('share',            ctypes.c_uint8 * 33),
-                  ]
-
-   class TP_DKG_TPState(ctypes.Structure):
-      _fields_ = [('step',             ctypes.c_int),
-                  ('prev',             ctypes.c_int),
-                  ('sessionid',        ctypes.c_uint8 * tpdkg_sessionid_SIZE),
-                  ('n',                ctypes.c_uint8),
-                  ('t',                ctypes.c_uint8),
-                  ('sig_pk',           ctypes.c_uint8 * pysodium.crypto_sign_PUBLICKEYBYTES),
-                  ('sig_sk',           ctypes.c_uint8 * pysodium.crypto_sign_SECRETKEYBYTES),
-                  ('last_ts',          ctypes.c_void_p),
-                  ('ts_epsilon',       ctypes.c_uint64),
-                  ('peer_sig_pks',     ctypes.c_char_p),
-                  ('peer_lt_pks',      ctypes.c_char_p),
-                  ('commitments',      ctypes.c_char_p),
-                  ('encrypted_shares', ctypes.c_char_p),
-                  ('complaints_len',   ctypes.c_uint16),
-                  ('complaints',       ctypes.POINTER(ctypes.c_uint16)),
-                  ('cheater_len',      ctypes.c_size_t),
-                  ('cheaters',         ctypes.c_void_p),
-                  ('cheater_max',      ctypes.c_size_t),
-                  ('padding',          ctypes.c_byte * 24), # important padding generichash_state must be 64byte aligned
-                  ('transcript',       ctypes.c_uint8 * pysodium.crypto_generichash_STATEBYTES),
-                  ]
-
 class TP_DKG_Cheater(ctypes.Structure):
     _fields_ = [('step',             ctypes.c_int),
                 ('error',            ctypes.c_int),
@@ -602,20 +484,15 @@ class TP_DKG_Cheater(ctypes.Structure):
 #                  uint8_t (*peer_lt_pks)[][crypto_sign_PUBLICKEYBYTES],
 #                  uint64_t (*last_ts)[]);
 def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
-    #state = TP_DKG_TPState()
-    ## force 32 byte alignment of state
-    #while ctypes.addressof(state) % 32 != 0:
-    #  state = TP_DKG_TPState()
-    b = ctypes.create_string_buffer(ctypes.sizeof(TP_DKG_TPState)+32)
+    b = ctypes.create_string_buffer(liboprf.tpdkg_tpstate_size()+32)
     b_addr = ctypes.addressof(b)
     s_addr = b_addr + (b_addr % 32)
-    s_p = ctypes.c_void_p(s_addr)
-    state = ctypes.cast(s_p, ctypes.POINTER(TP_DKG_TPState)).contents
-    if ctypes.addressof(state) % 32 != 0:
+    state = ctypes.c_void_p(s_addr)
+    if state.value % 32 != 0:
       raise ValueError("cannot align at 32bytes the TP_DKG_PeerState struct")
 
     msg = ctypes.create_string_buffer(tpdkg_msg0_SIZE)
-    __check(liboprf.tpdkg_start_tp(ctypes.byref(state), ctypes.c_uint64(ts_epsilon), ctypes.c_uint8(n), ctypes.c_uint8(t), proto_name, ctypes.c_size_t(len(proto_name)), ctypes.c_size_t(len(msg.raw)), msg))
+    __check(liboprf.tpdkg_start_tp(state, ctypes.c_uint64(ts_epsilon), ctypes.c_uint8(n), ctypes.c_uint8(t), proto_name, ctypes.c_size_t(len(proto_name)), ctypes.c_size_t(len(msg.raw)), msg))
 
     peers_sig_pks = ctypes.create_string_buffer(n*pysodium.crypto_sign_PUBLICKEYBYTES)
     commitments = ctypes.create_string_buffer(n*t*pysodium.crypto_core_ristretto255_BYTES)
@@ -625,7 +502,7 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
     peer_lt_pks = b''.join(peer_lt_pks)
     last_ts = (ctypes.c_uint64 * n)()
 
-    liboprf.tpdkg_tp_set_bufs(ctypes.byref(state),
+    liboprf.tpdkg_tp_set_bufs(state,
                               ctypes.byref(commitments),
                               ctypes.byref(complaints),
                               ctypes.byref(noisy_shares),
@@ -643,17 +520,17 @@ def tpdkg_start_tp(n, t, ts_epsilon, proto_name, peer_lt_pks):
 
 #size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx);
 def tpdkg_tp_input_size(ctx):
-   return liboprf.tpdkg_tp_input_size(ctypes.byref(ctx[0]))
+   return liboprf.tpdkg_tp_input_size(ctx[0])
 
 #int tpdkg_tp_input_sizes(const TP_DKG_TPState *ctx, size_t *sizes);
 def tpdkg_tp_input_sizes(ctx):
-   sizes = (ctypes.c_size_t * ctx[0].n)()
-   ret = liboprf.tpdkg_tp_input_sizes(ctypes.byref(ctx[0]), ctypes.byref(sizes))
+   sizes = (ctypes.c_size_t * tpdkg_tpstate_n(ctx))()
+   ret = liboprf.tpdkg_tp_input_sizes(ctx[0], ctypes.byref(sizes))
    return ret, [x for x in sizes]
 
 #size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx);
 def tpdkg_tp_output_size(ctx):
-   return liboprf.tpdkg_tp_output_size(ctypes.byref(ctx[0]))
+   return liboprf.tpdkg_tp_output_size(ctx[0])
 
 #int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len);
 def tpdkg_tp_next(ctx, msg):
@@ -661,33 +538,68 @@ def tpdkg_tp_next(ctx, msg):
     if len(msg) != input_len: raise ValueError(f"input msg is invalid size: {len(msg)}B must be: {input_len}B")
     output_len = tpdkg_tp_output_size(ctx)
     output = ctypes.create_string_buffer(output_len)
-    __check(liboprf.tpdkg_tp_next(ctypes.byref(ctx[0]), msg, ctypes.c_size_t(input_len), output, ctypes.c_size_t(output_len)))
+    __check(liboprf.tpdkg_tp_next(ctx[0], msg, ctypes.c_size_t(input_len), output, ctypes.c_size_t(output_len)))
     return output
 
 #int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len);
 def tpdkg_tp_peer_msg(ctx, base, peer):
     msg = ctypes.POINTER(ctypes.c_char)()
     size = ctypes.c_size_t()
-    __check(liboprf.tpdkg_tp_peer_msg(ctypes.byref(ctx[0]), base, len(base.raw), peer, ctypes.byref(msg), ctypes.byref(size)))
+    __check(liboprf.tpdkg_tp_peer_msg(ctx[0], base, len(base.raw), peer, ctypes.byref(msg), ctypes.byref(size)))
     msg = b''.join([msg[i] for i in range(size.value)])
     return msg
 
 #int tpdkg_tp_not_done(const TP_DKG_TPState *tp);
 def tpdkg_tp_not_done(ctx):
-    return liboprf.tpdkg_tp_not_done(ctypes.byref(ctx[0])) == 1
+    return liboprf.tpdkg_tp_not_done(ctx[0]) == 1
 
 def tpdkg_get_cheaters(ctx):
     cheats = []
     cheaters = set()
-    for i in range(ctx[0].cheater_len):
+    for i in range(tpdkg_tpstate_cheater_len(ctx)):
         err = ctypes.create_string_buffer(tpdkg_max_err_SIZE)
         p = liboprf.tpdkg_cheater_msg(ctypes.byref(ctx[1][i]), err, tpdkg_max_err_SIZE)
-        if 0 >= p > ctx[0].n:
+        if 0 >= p > tpdkg_tpstate_n(ctx):
             print(f"invalid cheater index: {p}, skipping this entry")
             continue
         cheaters.add(p)
         cheats.append((p, err.raw[:err.raw.find(b'\x00')].decode('utf8')))
     return cheaters, cheats
+
+liboprf.tpdkg_peerstate_n.restype = ctypes.c_uint8
+def tpdkg_peerstate_n(ctx):
+    return liboprf.tpdkg_peerstate_n(ctx[0])
+liboprf.tpdkg_peerstate_t.restype = ctypes.c_uint8
+def tpdkg_peerstate_t(ctx):
+    return liboprf.tpdkg_peerstate_t(ctx[0])
+liboprf.tpdkg_peerstate_sessionid.restype = ctypes.POINTER(ctypes.c_uint8)
+def tpdkg_peerstate_sessionid(ctx):
+    ptr = liboprf.tpdkg_peerstate_sessionid(ctx[0])
+    return bytes(ptr[i] for i in range(tpdkg_sessionid_SIZE))
+liboprf.tpdkg_peerstate_lt_sk.restype = ctypes.POINTER(ctypes.c_uint8)
+def tpdkg_peerstate_lt_sk(ctx):
+    ptr = liboprf.tpdkg_peerstate_lt_sk(ctx[0])
+    return bytes(ptr[i] for i in range(pysodium.crypto_sign_SECRETKEYBYTES))
+liboprf.tpdkg_peerstate_share.restype = ctypes.POINTER(ctypes.c_uint8)
+def tpdkg_peerstate_share(ctx):
+    ptr = liboprf.tpdkg_peerstate_share(ctx[0])
+    return bytes(ptr[i] for i in range(TOPRF_Share_BYTES))
+
+liboprf.tpdkg_tpstate_n.restype = ctypes.c_uint8
+def tpdkg_tpstate_n(ctx):
+    return liboprf.tpdkg_tpstate_n(ctx[0])
+liboprf.tpdkg_tpstate_t.restype = ctypes.c_uint8
+def tpdkg_tpstate_t(ctx):
+    return liboprf.tpdkg_tpstate_t(ctx[0])
+liboprf.tpdkg_tpstate_cheater_len.restype = ctypes.c_size_t
+def tpdkg_tpstate_cheater_len(ctx):
+    return liboprf.tpdkg_tpstate_cheater_len(ctx[0])
+liboprf.tpdkg_tpstate_sessionid.restype = ctypes.POINTER(ctypes.c_uint8)
+def tpdkg_tpstate_sessionid(ctx):
+    ptr = liboprf.tpdkg_tpstate_sessionid(ctx[0])
+    return bytes(ptr[i] for i in range(tpdkg_sessionid_SIZE))
+def tpdkg_tpstate_step(ctx):
+    return liboprf.tpdkg_tpstate_step(ctx[0])
 
 #int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
 #               const uint8_t peer_lt_sk[crypto_sign_SECRETKEYBYTES],
@@ -706,31 +618,29 @@ def tpdkg_get_cheaters(ctx):
 #                         uint16_t (*complaints)[],
 #                         uint8_t (*my_complaints)[]);
 def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
-    #state = TP_DKG_PeerState()
-    # force 32 byte alignment of state
-    #while ctypes.addressof(state) % 32 != 0:
-    #  state = TP_DKG_PeerState()
-    b = ctypes.create_string_buffer(ctypes.sizeof(TP_DKG_PeerState)+32)
+    b = ctypes.create_string_buffer(liboprf.tpdkg_peerstate_size()+32)
     b_addr = ctypes.addressof(b)
     s_addr = b_addr + (b_addr % 32)
-    s_p = ctypes.c_void_p(s_addr)
-    state = ctypes.cast(s_p, ctypes.POINTER(TP_DKG_PeerState)).contents
-    if ctypes.addressof(state) % 32 != 0:
+    state = ctypes.c_void_p(s_addr)
+    if state.value % 32 != 0:
       raise ValueError("cannot align at 32bytes the TP_DKG_PeerState struct")
 
-    __check(liboprf.tpdkg_start_peer(ctypes.byref(state), ctypes.c_uint64(ts_epsilon), peer_lt_sk, msg0))
+    __check(liboprf.tpdkg_start_peer(state, ctypes.c_uint64(ts_epsilon), peer_lt_sk, msg0))
 
-    peers_sig_pks = ctypes.create_string_buffer(b"peer_sig_pks", state.n * pysodium.crypto_sign_PUBLICKEYBYTES)
-    peers_noise_pks = ctypes.create_string_buffer(b"peer_noise_pks", state.n * pysodium.crypto_scalarmult_BYTES)
-    noise_outs = (ctypes.c_void_p * state.n)()
-    noise_ins = (ctypes.c_void_p * state.n)()
-    shares = ctypes.create_string_buffer(state.n * TOPRF_Share_BYTES)
-    xshares = ctypes.create_string_buffer(state.n * TOPRF_Share_BYTES)
-    commitments = ctypes.create_string_buffer(state.n * state.t * pysodium.crypto_core_ristretto255_BYTES)
-    complaints = ctypes.create_string_buffer(state.n * state.n * 2)
-    my_complaints = ctypes.create_string_buffer(state.n)
-    last_ts = (ctypes.c_uint64 * state.n)()
-    liboprf.tpdkg_peer_set_bufs(ctypes.byref(state),
+    n = tpdkg_peerstate_n([state])
+    t = tpdkg_peerstate_t([state])
+
+    peers_sig_pks = ctypes.create_string_buffer(b"peer_sig_pks", n * pysodium.crypto_sign_PUBLICKEYBYTES)
+    peers_noise_pks = ctypes.create_string_buffer(b"peer_noise_pks", n * pysodium.crypto_scalarmult_BYTES)
+    noise_outs = (ctypes.c_void_p * n)()
+    noise_ins = (ctypes.c_void_p * n)()
+    shares = ctypes.create_string_buffer(n * TOPRF_Share_BYTES)
+    xshares = ctypes.create_string_buffer(n * TOPRF_Share_BYTES)
+    commitments = ctypes.create_string_buffer(n * t * pysodium.crypto_core_ristretto255_BYTES)
+    complaints = ctypes.create_string_buffer(n * n * 2)
+    my_complaints = ctypes.create_string_buffer(n)
+    last_ts = (ctypes.c_uint64 * n)()
+    liboprf.tpdkg_peer_set_bufs(state,
                                 ctypes.byref(peers_sig_pks),
                                 ctypes.byref(peers_noise_pks),
                                 noise_outs,
@@ -748,11 +658,11 @@ def tpdkg_peer_start(ts_epsilon, peer_lt_sk, msg0):
 
 #size_t tpdkg_peer_input_size(const TP_DKG_PeerState *ctx);
 def tpdkg_peer_input_size(ctx):
-   return liboprf.tpdkg_peer_input_size(ctypes.byref(ctx[0]))
+   return liboprf.tpdkg_peer_input_size(ctx[0])
 
 #size_t tpdkg_peer_output_size(const TP_DKG_PeerState *ctx);
 def tpdkg_peer_output_size(ctx):
-   return liboprf.tpdkg_peer_output_size(ctypes.byref(ctx[0]))
+   return liboprf.tpdkg_peer_output_size(ctx[0])
 
 #int tpdkg_peer_next(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len);
 def tpdkg_peer_next(ctx, msg):
@@ -760,13 +670,13 @@ def tpdkg_peer_next(ctx, msg):
     if len(msg) != input_len: raise ValueError(f"input msg is invalid size: {len(msg)}B must be: {input_len}B")
     output_len = tpdkg_peer_output_size(ctx)
     output = ctypes.create_string_buffer(output_len)
-    __check(liboprf.tpdkg_peer_next(ctypes.byref(ctx[0]), msg, ctypes.c_size_t(input_len), output, ctypes.c_size_t(output_len)))
+    __check(liboprf.tpdkg_peer_next(ctx[0], msg, ctypes.c_size_t(input_len), output, ctypes.c_size_t(output_len)))
     return output.raw
 
 #int tpdkg_peer_not_done(const TP_DKG_PeerState *peer);
 def tpdkg_peer_not_done(ctx):
-    return liboprf.tpdkg_peer_not_done(ctypes.byref(ctx[0])) == 1
+    return liboprf.tpdkg_peer_not_done(ctx[0]) == 1
 
 #void tpdkg_peer_free(TP_DKG_PeerState *ctx);
 def tpdkg_peer_free(ctx):
-    liboprf.tpdkg_peer_free(ctypes.byref(ctx[0]))
+    liboprf.tpdkg_peer_free(ctx[0])

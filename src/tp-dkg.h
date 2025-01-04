@@ -173,6 +173,13 @@ typedef struct {
   TOPRF_Share share;
 } TP_DKG_PeerState;
 
+size_t tpdkg_peerstate_size(void);
+uint8_t tpdkg_peerstate_n(TP_DKG_PeerState *ctx);
+uint8_t tpdkg_peerstate_t(TP_DKG_PeerState *ctx);
+uint8_t* tpdkg_peerstate_sessionid(TP_DKG_PeerState *ctx);
+uint8_t* tpdkg_peerstate_lt_sk(TP_DKG_PeerState *ctx);
+uint8_t* tpdkg_peerstate_share(TP_DKG_PeerState *ctx);
+
 /** @struct TP_DKG_Cheater
 
     This struct communicates one detected violation of the protocol.
@@ -260,6 +267,13 @@ typedef struct {
   size_t cheater_max;
   crypto_generichash_state transcript;
 } TP_DKG_TPState;
+
+size_t tpdkg_tpstate_size(void);
+uint8_t tpdkg_tpstate_n(TP_DKG_TPState *ctx);
+uint8_t tpdkg_tpstate_t(TP_DKG_TPState *ctx);
+size_t tpdkg_tpstate_cheater_len(TP_DKG_TPState *ctx);
+uint8_t* tpdkg_tpstate_sessionid(TP_DKG_TPState *ctx);
+int tpdkg_tpstate_step(TP_DKG_TPState *ctx);
 
 /*
  * Trusted Party functions

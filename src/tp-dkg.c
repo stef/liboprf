@@ -353,10 +353,9 @@ static int tpdkg_noise_decrypt(uint8_t *input,
   return 0;
 }
 
-/*
+/**
   Return the session unique send key, needed for tp-dkg reveal share.
 */
-
 static uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
   Noise_XK_session_t st = sn[0U];
   if (st.tag == Noise_XK_DS_Initiator && st.val.case_DS_Initiator.state.tag == Noise_XK_IMS_Transport)
@@ -364,6 +363,44 @@ static uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
   if (st.tag == Noise_XK_DS_Responder && st.val.case_DS_Responder.state.tag == Noise_XK_IMS_Transport)
     return st.val.case_DS_Responder.state.val.case_IMS_Transport.receive_key;
   return NULL;
+}
+
+size_t tpdkg_peerstate_size(void) {
+  return sizeof(TP_DKG_PeerState);
+}
+uint8_t tpdkg_peerstate_n(TP_DKG_PeerState *ctx) {
+  return ctx->n;
+}
+uint8_t tpdkg_peerstate_t(TP_DKG_PeerState *ctx) {
+  return ctx->t;
+}
+uint8_t* tpdkg_peerstate_sessionid(TP_DKG_PeerState *ctx) {
+  return ctx->sessionid;
+}
+uint8_t* tpdkg_peerstate_lt_sk(TP_DKG_PeerState *ctx) {
+  return ctx->lt_sk;
+}
+uint8_t* tpdkg_peerstate_share(TP_DKG_PeerState *ctx) {
+  return (uint8_t*) &ctx->share;
+}
+
+size_t tpdkg_tpstate_size(void) {
+  return sizeof(TP_DKG_TPState);
+}
+uint8_t tpdkg_tpstate_n(TP_DKG_TPState *ctx) {
+  return ctx->n;
+}
+uint8_t tpdkg_tpstate_t(TP_DKG_TPState *ctx) {
+  return ctx->t;
+}
+size_t tpdkg_tpstate_cheater_len(TP_DKG_TPState *ctx) {
+  return ctx->cheater_len;
+}
+uint8_t* tpdkg_tpstate_sessionid(TP_DKG_TPState *ctx) {
+  return ctx->sessionid;
+}
+int tpdkg_tpstate_step(TP_DKG_TPState *ctx) {
+  return ctx->step;
 }
 
 static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx, const int step, const int error, const uint8_t peer, const uint8_t other_peer) {
