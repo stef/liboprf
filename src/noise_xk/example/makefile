@@ -1,7 +1,7 @@
 LDFLAGS=-lsodium -loprf-noiseXK
 SOURCES=xk-ex.c ../../utils.c
 
-CFLAGS 	+= -I../.. -I../include -I ../include/karmel -I ../include/karmel/minimal \
+CFLAGS 	?= -I../.. -I../include -I ../include/karmel -I ../include/karmel/minimal \
 				-Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fPIC \

@@ -2,7 +2,7 @@ PREFIX?=/usr/local
 LDFLAGS=-lsodium
 SOURCES=src/Noise_XK.c src/XK.c
 
-CFLAGS 	+= -Iinclude -I include/karmel -I include/karmel/minimal \
+CFLAGS 	?= -Iinclude -I include/karmel -I include/karmel/minimal \
 				-Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
