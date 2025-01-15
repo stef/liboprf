@@ -395,6 +395,7 @@ int main(const int argc, const char **argv) {
   ret = tpdkg_start_tp(&tp, tpdkg_freshness_TIMEOUT, n, t, "proto test", 10, sizeof msg0, (TP_DKG_Message*) msg0);
   if(0!=ret) return ret;
 
+  fprintf(stderr, "allocating memory for TP\n");
   // set bufs
   // we need to store these outside of the ctx, since they are
   // variable size, and the struct can only handle one variable size
@@ -423,6 +424,7 @@ int main(const int argc, const char **argv) {
     if(0!=ret) return ret;
   }
 
+  fprintf(stderr, "allocating memory for peers ..");
   // now that the peer(s) know the value of N, we can allocate buffers
   // to hold all the sig&noise keys, noise sessions, temp shares, commitments
   uint8_t peers_sig_pks[peers[1].n][crypto_sign_PUBLICKEYBYTES];
@@ -444,6 +446,7 @@ int main(const int argc, const char **argv) {
   memset(peer_my_complaints, 0, sizeof peer_my_complaints);
   uint64_t peer_last_ts[n][n];
   memset(peer_last_ts, 0, sizeof peer_last_ts);
+  fprintf(stderr, "done\n");
 
   for(uint8_t i=0;i<n;i++) {
     // in a real deployment peers do not share the same pks buffers
