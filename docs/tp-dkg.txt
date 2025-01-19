@@ -725,7 +725,7 @@ for i in 1..N
           keys = keys | send_session[i].key
 
 if len(keys) > 0
-   msg_11, sig_11 = send_msg(11, peer, 0x0, peer_sign_sk, session_id, keys)
+   msg_11, sig_11 = send_msg(11, peer, 0, peer_sign_sk, session_id, keys)
    send(msg_11, sig_11)
 ```
 
@@ -747,7 +747,7 @@ for i in 1..N
         continue
 
     msg, sig = recv(i)
-    keys = recv_msg(11, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg, sig)
+    keys = recv_msg(11, i, 0, ref_ts, peers_sign_pks[i], session_id, msg, sig)
     assert(len(keys) == len(complaints[i]))
     sij=[][]
     for j, key in keys
@@ -777,7 +777,7 @@ send(msg_20, sig_20)
 
 TP receives all transcripts, and asserts that they all match its own
 transcript, it aborts if any transcript mismatch is detected. If
-everything matches tt broadcasts the result either as OK.
+everything matches it broadcasts the result either as OK.
 
 ```
 transcript = final_ts(state)
