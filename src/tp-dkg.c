@@ -1081,7 +1081,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     // and we have a final symetric key, the key during the handshake changes, only
     // when the handshake completes does the key become static.
     // this is important, so that when there are complaints, we can disclose the key.
-    uint8_t empty[0];
+    uint8_t empty[1]={0};
     if(0!=tpdkg_noise_encrypt(empty, 0, msg8->data, noise_xk_handshake3_SIZE, &(*ctx->noise_outs)[i])) return 5;
 
 #ifdef UNITTEST_CORRUPT
