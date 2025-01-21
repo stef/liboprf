@@ -62,7 +62,7 @@
 #include "XK.h"
 #include "dkg.h"
 
-#define tpdkg_sessionid_SIZE 32
+#define tpdkg_sessionid_SIZE 32U
 #define tpdkg_msg0_SIZE ( sizeof(TP_DKG_Message)                                         \
                         + crypto_generichash_BYTES/*dst*/                                \
                         + 2 /*n,t*/                                                      \
