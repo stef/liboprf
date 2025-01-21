@@ -16,7 +16,7 @@ else
 	CFLAGS+=-fstack-clash-protection
 endif
 
-all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult
+all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
 	$(CC) -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
@@ -35,6 +35,12 @@ tp-dkg: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+
+stp-dkg: ../stp-dkg.c stp-dkg.c ../liboprf.a ../stp-dkg.c
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o stp-dkg stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+
+stp-dkg-corrupt: ../stp-dkg.c stp-dkg.c ../liboprf.a ../stp-dkg.c
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 mpmult: ../mpmult.c ../liboprf.a mpmult.c ../liboprf.a ../utils.c ../toprf.c
 	$(CC) $(CFLAGS) -Wall -g -I.. -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../liboprf.a -lsodium

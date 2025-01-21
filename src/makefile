@@ -37,7 +37,7 @@ endif
 
 CFLAGS+=$(INCLUDES)
 
-SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c mpmult.c $(EXTRA_SOURCES)
+SOURCES=oprf.c toprf.c dkg.c utils.c tp-dkg.c mpmult.c stp-dkg.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT)
@@ -82,7 +82,13 @@ clean:
 
 install: install-oprf install-noiseXK
 
-install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(DESTDIR)$(PREFIX)/include/oprf/dkg.h $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h
+install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
+	$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) \
+	$(DESTDIR)$(PREFIX)/include/oprf/oprf.h \
+	$(DESTDIR)$(PREFIX)/include/oprf/toprf.h \
+	$(DESTDIR)$(PREFIX)/include/oprf/dkg.h \
+	$(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h \
+	$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h
 
 install-noiseXK:
 	make -C noise_xk install
@@ -118,6 +124,10 @@ $(DESTDIR)$(PREFIX)/include/oprf/dkg.h: dkg.h
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
+	cp $< $@
+
+$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h: stp-dkg.h
 	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
