@@ -1,9 +1,12 @@
 #include <sodium.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h> // time
+#include <arpa/inet.h> //htons
 #include "toprf.h"
 #include "utils.h"
 #include "dkg.h"
+#include "noise_private.h"
 
 /*
     @copyright 2023-24, Stefan Marsiske toprf@ctrlc.hu
@@ -192,4 +195,278 @@ void dkg_reconstruct(const size_t response_len,
     crypto_core_ristretto255_scalar_mul(tmp, responses[i].value, lpoly);
     crypto_core_ristretto255_scalar_add(result, result, tmp);
   }
+}
+
+
+//////////////////// utility functions for [s]tp-dkg  ////////////////////
+
+int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
+  if(*last_ts == 0) {
+    uint64_t now = (uint64_t)time(NULL);
+    if(ts < now - ts_epsilon) return 3;
+    if(ts > now + ts_epsilon) return 4;
+  } else {
+    if(*last_ts > ts) return 1;
+    if(ts > *last_ts + ts_epsilon) return 2;
+  }
+  *last_ts = ts;
+  return 0;
+}
+
+int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
+  if(msg_buf==NULL) return 1;
+  DKG_Message* msg = (DKG_Message*) msg_buf;
+  msg->len = htonl((uint32_t)msg_buf_len);
+  msg->msgno = msgno;
+  msg->from = from;
+  msg->to = to;
+  msg->ts = htonll((uint64_t)time(NULL));
+  memcpy(msg->sessionid, sessionid, dkg_sessionid_SIZE);
+
+  crypto_sign_detached(msg->sig, NULL, &msg->msgno, sizeof(DKG_Message) - crypto_sign_BYTES, sig_sk);
+  return 0;
+}
+
+int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
+  if(msg_buf==NULL) return 7;
+  DKG_Message* msg = (DKG_Message*) msg_buf;
+  if(ntohl(msg->len) != msg_buf_len) return 1;
+  if(msg->msgno != msgno) return 2;
+  if(msg->from != from) return 3;
+  if(msg->to != to) return 4;
+  if(sodium_memcmp(msg->sessionid, sessionid, dkg_sessionid_SIZE)!=0) return 7;
+
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+  int ret = check_ts(ts_epsilon, last_ts, ntohll(msg->ts));
+  if(0!=ret) {
+    if(log_file!=NULL) {
+      fprintf(log_file, "checkts fail: %d, last_ts: %ld, ts: %ld, lt+e: %ld\n", ret, *last_ts, ntohll(msg->ts),*last_ts + ts_epsilon);
+    }
+    return 5;
+  }
+#endif
+
+  const size_t unsigned_buf_len = msg_buf_len - crypto_sign_BYTES;
+
+  uint8_t with_sessionid[unsigned_buf_len + dkg_sessionid_SIZE];
+  memcpy(with_sessionid, msg_buf + crypto_sign_BYTES, unsigned_buf_len);
+  memcpy(with_sessionid + unsigned_buf_len, sessionid, dkg_sessionid_SIZE);
+
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+  if(0!=crypto_sign_verify_detached(msg->sig, &msg->msgno, sizeof(DKG_Message) - crypto_sign_BYTES, sig_pk)) return 6;
+#endif
+
+  return 0;
+}
+
+int dkg_init_noise_handshake(const uint8_t index,
+                             Noise_XK_device_t *dev,
+                             uint8_t rpk[crypto_scalarmult_BYTES],
+                             uint8_t *rname,
+                             Noise_XK_session_t** session,
+                             uint8_t msg[noise_xk_handshake1_SIZE]) {
+  if(log_file != NULL) fprintf(log_file, "[%d] creating noise session -> %s\n", index, rname);
+  // fixme: damnit this allocates stuff on the heap...
+  Noise_XK_peer_t *peer = Noise_XK_device_add_peer(dev, rname, rpk);
+  if(!peer) return 1;
+
+  uint32_t peer_id = Noise_XK_peer_get_id(peer);
+  *session = Noise_XK_session_create_initiator(dev, peer_id);
+  if(!*session) return 2;
+
+  Noise_XK_encap_message_t *encap_msg = Noise_XK_pack_message_with_conf_level(NOISE_XK_CONF_ZERO, 0, NULL);
+  uint32_t cipher_msg_len;
+  uint8_t *cipher_msg;
+  Noise_XK_rcode ret = Noise_XK_session_write(encap_msg, *session, &cipher_msg_len, &cipher_msg);
+  Noise_XK_encap_message_p_free(encap_msg);
+  if(!Noise_XK_rcode_is_success(ret)) {
+    Noise_XK_session_free(*session);
+    return 3;
+  }
+
+  if(cipher_msg_len!=noise_xk_handshake1_SIZE) {
+    Noise_XK_session_free(*session);
+    free(cipher_msg);
+    return 4;
+  }
+  if(msg==NULL) return 5;
+  memcpy(msg,cipher_msg,cipher_msg_len);
+  free(cipher_msg);
+
+  return 0;
+}
+
+int dkg_respond_noise_handshake(const uint8_t index,
+                                Noise_XK_device_t *dev,
+                                uint8_t rpk[crypto_scalarmult_BYTES],
+                                uint8_t *rname,
+                                Noise_XK_session_t** session,
+                                uint8_t inmsg[noise_xk_handshake1_SIZE],
+                                uint8_t outmsg[noise_xk_handshake2_SIZE]) {
+  if(log_file != NULL) fprintf(log_file, "[%d] responding noise session -> %s\n", index, rname);
+  // fixme: damnit this allocates stuff on the heap...
+
+  *session = Noise_XK_session_create_responder(dev);
+  if(!*session) return 1;
+
+  Noise_XK_encap_message_t *encap_msg;
+  Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, noise_xk_handshake1_SIZE, inmsg);
+  if(!Noise_XK_rcode_is_success(ret)) {
+    Noise_XK_session_free(*session);
+    return 2;
+  }
+
+  uint32_t plain_msg_len;
+  uint8_t *plain_msg;
+  if(!Noise_XK_unpack_message_with_auth_level(&plain_msg_len, &plain_msg, NOISE_XK_AUTH_ZERO, encap_msg)) {
+    Noise_XK_session_free(*session);
+    return 3;
+  }
+  Noise_XK_encap_message_p_free(encap_msg);
+
+  encap_msg = Noise_XK_pack_message_with_conf_level(NOISE_XK_CONF_ZERO, 0, NULL);
+  uint32_t cipher_msg_len;
+  uint8_t *cipher_msg;
+  ret = Noise_XK_session_write(encap_msg, *session, &cipher_msg_len, &cipher_msg);
+  Noise_XK_encap_message_p_free(encap_msg);
+  if(!Noise_XK_rcode_is_success(ret)) {
+    Noise_XK_session_free(*session);
+    return 4;
+  }
+
+  if(cipher_msg_len!=noise_xk_handshake2_SIZE) {
+    Noise_XK_session_free(*session);
+    free(cipher_msg);
+    return 4;
+  }
+  if(outmsg==NULL) return 5;
+  memcpy(outmsg,cipher_msg,cipher_msg_len);
+  free(cipher_msg);
+  return 0;
+}
+
+int dkg_finish_noise_handshake(const uint8_t index,
+                               Noise_XK_device_t *dev,
+                               Noise_XK_session_t** session,
+                               uint8_t msg[noise_xk_handshake2_SIZE]) {
+  if(!*session) {
+    return 1;
+  }
+
+  if(log_file!=NULL) {
+    // get peer name
+    uint32_t peer_id = Noise_XK_session_get_peer_id(*session);
+    Noise_XK_peer_t *peer = Noise_XK_device_lookup_peer_by_id(dev, peer_id);
+    if(peer==NULL) {
+      Noise_XK_session_free(*session);
+      return 2;
+    }
+    uint8_t *pinfo;
+    Noise_XK_peer_get_info((Noise_XK_noise_string*) &pinfo, peer);
+    if(pinfo==NULL) {
+      Noise_XK_session_free(*session);
+      return 3;
+    }
+    fprintf(log_file, "[%d] finishing noise session -> %s\n", index, pinfo);
+    free(pinfo);
+  }
+
+  Noise_XK_encap_message_t *encap_msg;
+  Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, noise_xk_handshake2_SIZE, msg);
+  if(!Noise_XK_rcode_is_success(ret)) {
+    if(log_file!=NULL) fprintf(log_file, "session read fail: %d\n", ret.val.case_Error);
+    Noise_XK_session_free(*session);
+    return 4;
+  }
+
+  uint32_t plain_msg_len;
+  uint8_t *plain_msg;
+  if(!Noise_XK_unpack_message_with_auth_level(&plain_msg_len, &plain_msg, NOISE_XK_AUTH_ZERO, encap_msg)) {
+    Noise_XK_session_free(*session);
+    return 5;
+  }
+  Noise_XK_encap_message_p_free(encap_msg);
+
+  return 0;
+}
+
+int dkg_noise_encrypt(uint8_t *input,
+                      const size_t input_len,
+                      uint8_t *output,
+                      const size_t output_len,
+                      Noise_XK_session_t** session) {
+  if(!*session) {
+    return 1;
+  }
+  if(input_len > 1024) {
+    return 2;
+  }
+
+  Noise_XK_encap_message_t *encap_msg = Noise_XK_pack_message_with_conf_level(NOISE_XK_CONF_STRONG_FORWARD_SECRECY, (uint32_t) input_len, input);
+  uint32_t cipher_msg_len;
+  uint8_t *cipher_msg;
+  Noise_XK_rcode ret = Noise_XK_session_write(encap_msg, *session, &cipher_msg_len, &cipher_msg);
+  Noise_XK_encap_message_p_free(encap_msg);
+  if(!Noise_XK_rcode_is_success(ret)) {
+    return 3;
+  }
+  if(cipher_msg_len!=output_len) {
+    if(cipher_msg!=NULL) free(cipher_msg);
+    return 4;
+  }
+  if(output == NULL) return 5;
+  if(cipher_msg==NULL) return 6;
+  memcpy(output,cipher_msg,cipher_msg_len);
+  free(cipher_msg);
+  return 0;
+}
+
+int dkg_noise_decrypt(uint8_t *input,
+                      const size_t input_len,
+                      uint8_t *output,
+                      const size_t output_len,
+                      Noise_XK_session_t** session) {
+  if(*session==NULL) {
+    return 1;
+  }
+  if(input_len > 1024) {
+    return 2;
+  }
+  Noise_XK_encap_message_t *encap_msg;
+  Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, (uint32_t) input_len, input);
+  if(!Noise_XK_rcode_is_success(ret)) {
+    if(log_file!=NULL) fprintf(log_file, "session read fail: %d\n", ret.val.case_Error);
+    return 3;
+  }
+
+  uint32_t plain_msg_len;
+  uint8_t *plain_msg=NULL;
+  if(!Noise_XK_unpack_message_with_auth_level(&plain_msg_len, &plain_msg, NOISE_XK_AUTH_KNOWN_SENDER_NO_KCI, encap_msg)) {
+    return 4;
+  }
+  Noise_XK_encap_message_p_free(encap_msg);
+
+  if(plain_msg_len!=output_len) {
+    if(plain_msg!=NULL) free(plain_msg);
+    return 5;
+  }
+  if(plain_msg!=NULL) {
+    if(output == NULL) return 6;
+    memcpy(output,plain_msg,plain_msg_len);
+    free(plain_msg);
+  }
+
+  return 0;
+}
+
+/**
+  Return the session unique send key, needed for tp-dkg reveal share.
+*/
+uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
+  Noise_XK_session_t st = sn[0U];
+  if (st.tag == Noise_XK_DS_Initiator && st.val.case_DS_Initiator.state.tag == Noise_XK_IMS_Transport)
+    return st.val.case_DS_Initiator.state.val.case_IMS_Transport.send_key;
+  if (st.tag == Noise_XK_DS_Responder && st.val.case_DS_Responder.state.tag == Noise_XK_IMS_Transport)
+    return st.val.case_DS_Responder.state.val.case_IMS_Transport.receive_key;
+  return NULL;
 }

@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 extern int debug;
+extern FILE* log_file;
 
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar);
@@ -12,5 +13,13 @@ void debian_rng_scalar(uint8_t *scalar);
 
 void dump(const uint8_t *p, const size_t len, const char* msg, ...);
 void fail(char* msg, ...);
+
+#ifndef htonll
+uint64_t htonll(uint64_t n);
+#endif
+
+#ifndef ntohll
+uint64_t ntohll(uint64_t n);
+#endif
 
 #endif // TOPRF_UTILS_H

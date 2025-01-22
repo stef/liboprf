@@ -4,14 +4,10 @@
 #include "utils.h"
 #include "toprf.h"
 #include "stp-dkg.h"
+#include "dkg.h"
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 #include <unistd.h>
 #endif
-
-#define stpdkg_freshness_TIMEOUT 120000
-
-extern FILE* log_file;
-extern int debug;
 
 #ifdef __AFL_FUZZ_INIT
 __AFL_FUZZ_INIT();
@@ -137,7 +133,7 @@ static int fuzz_loop(const uint8_t step, STP_DKG_STPState *stp, STP_DKG_PeerStat
   while (__AFL_LOOP(10000)) {
 
     int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
-    if (len < sizeof(STP_DKG_Message)) continue;  // check for a required/useful minimum input length
+    if (len < sizeof(DKG_Message)) continue;  // check for a required/useful minimum input length
 
     // doing vla - but avoiding 0 sized ones is ugly
     const size_t stp_out_size = stpdkg_stp_output_size(stp);
@@ -242,7 +238,7 @@ static int fuzz_loop(const uint8_t step, STP_DKG_STPState *stp, STP_DKG_PeerStat
   while (__AFL_LOOP(10000)) {
 
     int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
-    if (len < sizeof(STP_DKG_Message)) continue;  // check for a required/useful minimum input length
+    if (len < sizeof(DKG_Message)) continue;  // check for a required/useful minimum input length
 
     // doing vla - but avoiding 0 sized ones is ugly
     const size_t peer_out_size = stpdkg_peer_output_size(&peers[0]);
@@ -392,11 +388,11 @@ int main(const int argc, const char **argv) {
 
   STP_DKG_STPState stp;
   uint8_t msg0[stpdkg_msg0_SIZE];
-  ret = stpdkg_start_stp(&stp, stpdkg_freshness_TIMEOUT,
+  ret = stpdkg_start_stp(&stp, dkg_freshness_TIMEOUT,
                          n, t,
                          "proto test", 10,
                          &lt_pks, lt_sks[0],
-                         sizeof msg0, (STP_DKG_Message*) msg0);
+                         sizeof msg0, (DKG_Message*) msg0);
   if(0!=ret) return ret;
 
   fprintf(stderr, "allocating memory for STP\n");
@@ -424,7 +420,7 @@ int main(const int argc, const char **argv) {
 
   STP_DKG_PeerState peers[n];
   for(uint8_t i=0;i<n;i++) {
-    ret = stpdkg_start_peer(&peers[i], stpdkg_freshness_TIMEOUT, &lt_pks, lt_sks[i+1], (STP_DKG_Message*) msg0);
+    ret = stpdkg_start_peer(&peers[i], dkg_freshness_TIMEOUT, &lt_pks, lt_sks[i+1], (DKG_Message*) msg0);
     if(0!=ret) return ret;
   }
 
@@ -567,7 +563,7 @@ int main(const int argc, const char **argv) {
     uint8_t tmp[n+1];
     memset(tmp,0,n+1);
     for(int i=0;i<stp.cheater_len;i++) {
-      char err[stpdkg_max_err_SIZE];
+      char err[dkg_max_err_SIZE];
       uint8_t p = stpdkg_cheater_msg(&(*stp.cheaters)[i], err, sizeof(err));
       fprintf(stderr,"\e[0;31m%s\e[0m\n", err);
       if(p > n) return 1;

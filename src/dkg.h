@@ -12,6 +12,7 @@
 
 #include <sodium.h>
 #include <stdint.h>
+#include "XK.h"
 
 #define dkg_hash_BYTES crypto_generichash_BYTES
 #define dkg_commitment_BYTES(threshold) (threshold*crypto_core_ristretto255_BYTES)
@@ -70,5 +71,90 @@ void dkg_finish(const uint8_t n,
 void dkg_reconstruct(const size_t response_len,
                      const TOPRF_Share responses[response_len],
                      uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+
+#define dkg_freshness_TIMEOUT 120000
+
+#define noise_xk_handshake1_SIZE 48UL
+#define noise_xk_handshake2_SIZE 48UL
+#define noise_xk_handshake3_SIZE 64UL
+#define dkg_noise_key_SIZE (32UL)
+#define dkg_sessionid_SIZE 32U
+#define dkg_max_err_SIZE 128
+
+/** @struct DKG_Message
+    This is the header for each message sent in this protocol.
+
+    @var DKG_Message::sig This field contains a signature over the
+         message header, the message body and the sessionid which is
+         normally not included in the message
+
+    @var DKG_Message::msgno This field contains the "type" of this
+         message, which is strictly tied to the current step of the
+         protocol
+
+    @var DKG_Message::len This field contains the length of the
+         complete message including the header.
+
+    @var DKG_Message::from This field contains the id of the
+         sender, the STP is 0, otherwise its the index of the peer.
+
+    @var DKG_Message::to This field contains the recipient of the
+         message, value 0 represents the STP, value 0xff represents a
+         broadcast message, all other values (<=N) are the indexes of
+         the peers.
+
+    @var DKG_Message::ts This field contains a timestamp proving
+         the freshness of the message, the timestamp is a 64 bit value
+         counting seconds since 1970-01-01.
+
+    @var STP_DKG_Message::data This field contains the payload of the
+         message.
+
+ */
+typedef struct {
+  uint8_t sig[crypto_sign_BYTES];
+  uint8_t msgno;
+  uint32_t len;
+  uint8_t from;
+  uint8_t to;
+  uint64_t ts;
+  uint8_t sessionid[dkg_sessionid_SIZE];
+  uint8_t data[];
+} __attribute((packed)) DKG_Message;
+
+int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts);
+
+int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]);
+
+int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts );
+
+int dkg_init_noise_handshake(const uint8_t index,
+                             Noise_XK_device_t *dev,
+                             uint8_t rpk[crypto_scalarmult_BYTES],
+                             uint8_t *rname,
+                             Noise_XK_session_t** session,
+                             uint8_t msg[noise_xk_handshake1_SIZE]);
+int dkg_respond_noise_handshake(const uint8_t index,
+                                Noise_XK_device_t *dev,
+                                uint8_t rpk[crypto_scalarmult_BYTES],
+                                uint8_t *rname,
+                                Noise_XK_session_t** session,
+                                uint8_t inmsg[noise_xk_handshake1_SIZE],
+                                uint8_t outmsg[noise_xk_handshake2_SIZE]);
+int dkg_finish_noise_handshake(const uint8_t index,
+                               Noise_XK_device_t *dev,
+                               Noise_XK_session_t** session,
+                               uint8_t msg[noise_xk_handshake2_SIZE]);
+int dkg_noise_encrypt(uint8_t *input,
+                      const size_t input_len,
+                      uint8_t *output,
+                      const size_t output_len,
+                      Noise_XK_session_t** session);
+int dkg_noise_decrypt(uint8_t *input,
+                      const size_t input_len,
+                      uint8_t *output,
+                      const size_t output_len,
+                      Noise_XK_session_t** session);
+uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn);
 
 #endif // DKG_H

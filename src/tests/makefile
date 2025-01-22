@@ -5,6 +5,7 @@ CFLAGS?= -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		   -Wl,-z,noexecstack -Wl,-z,now -fsanitize=signed-integer-overflow \
 		   -fsanitize-undefined-trap-on-error
 CC?=gcc
+INCLUDES=-I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/
 
 ARCH := $(shell uname -m)
 ifeq ($(ARCH),x86_64)
@@ -28,22 +29,22 @@ toprf: toprf.c ../liboprf.a
 	$(CC) -g -o toprf toprf.c ../liboprf.a $(EXTRA_SOURCES) -lsodium
 
 dkg: ../dkg.c ../utils.c dkg.c ../dkg.c ../liboprf.a ../utils.c
-	$(CC) $(CFLAGS) -g -I.. -DUNIT_TEST -o dkg dkg.c ../dkg.c ../utils.c ../liboprf.a -lsodium
+	$(CC) $(CFLAGS) -g $(INCLUDES) -DUNIT_TEST -o dkg dkg.c ../dkg.c ../utils.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 tp-dkg: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 stp-dkg: ../stp-dkg.c stp-dkg.c ../liboprf.a ../stp-dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -o stp-dkg stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -o stp-dkg stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 stp-dkg-corrupt: ../stp-dkg.c stp-dkg.c ../liboprf.a ../stp-dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal/ -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 mpmult: ../mpmult.c ../liboprf.a mpmult.c ../liboprf.a ../utils.c ../toprf.c
-	$(CC) $(CFLAGS) -Wall -g -I.. -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../liboprf.a -lsodium
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 ../liboprf.a:
 	make -C .. liboprf.a
@@ -61,6 +62,8 @@ tests: all
 	./toprf
 	(ulimit -s 66000; ./tp-dkg 3 2)
 	(ulimit -s 66000; ./tp-dkg-corrupt 3 2 || exit 0)
+	(ulimit -s 66000; ./stp-dkg 3 2)
+	(ulimit -s 66000; ./stp-dkg-corrupt 3 2 || exit 0)
 	./mpmult
 
 clean:

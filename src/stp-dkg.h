@@ -63,58 +63,14 @@
 #include "dkg.h"
 
 #define stpdkg_commitment_HASHBYTES 32U
-#define stpdkg_sessionid_SIZE 32U
-#define stpdkg_msg0_SIZE ( sizeof(STP_DKG_Message)                                       \
+#define stpdkg_msg0_SIZE ( sizeof(DKG_Message)                                           \
                         + crypto_generichash_BYTES/*dst*/                                \
                         + 2 /*n,t*/                                                      )
-#define noise_xk_handshake3_SIZE 64UL
-#define stpdkg_msg10_SIZE (sizeof(STP_DKG_Message) /* header */                           \
+#define stpdkg_msg10_SIZE (sizeof(DKG_Message) /* header */                               \
                           + noise_xk_handshake3_SIZE /* 4th&final noise handshake */      \
                           + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped share */     \
                           + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */  \
                           + crypto_auth_hmacsha256_BYTES /* key-committing mac over msg*/ )
-#define stpdkg_max_err_SIZE 128
-
-/** @struct STP_DKG_Message
-    This is the header for each message sent in this protocol.
-
-    @var STP_DKG_Message::sig This field contains a signature over the
-         message header, the message body and the sessionid which is
-         normally not included in the message
-
-    @var STP_DKG_Message::msgno This field contains the "type" of this
-         message, which is strictly tied to the current step of the
-         protocol
-
-    @var STP_DKG_Message::len This field contains the length of the
-         complete message including the header.
-
-    @var STP_DKG_Message::from This field contains the id of the
-         sender, the STP is 0, otherwise its the index of the peer.
-
-    @var STP_DKG_Message::to This field contains the recipient of the
-         message, value 0 represents the STP, value 0xff represents a
-         broadcast message, all other values (<=N) are the indexes of
-         the peers.
-
-    @var STP_DKG_Message::ts This field contains a timestamp proving
-         the freshness of the message, the timestamp is a 64 bit value
-         counting seconds since 1970-01-01.
-
-    @var STP_DKG_Message::data This field contains the payload of the
-         message.
-
- */
-typedef struct {
-  uint8_t sig[crypto_sign_BYTES];
-  uint8_t msgno;
-  uint32_t len;
-  uint8_t from;
-  uint8_t to;
-  uint64_t ts;
-  uint8_t sessionid[stpdkg_sessionid_SIZE];
-  uint8_t data[];
-} __attribute((packed)) STP_DKG_Message;
 
 /** @struct STP_DKG_PeerState
 
@@ -144,7 +100,7 @@ typedef struct {
 typedef struct {
   int step;
   int prev;
-  uint8_t sessionid[stpdkg_sessionid_SIZE];
+  uint8_t sessionid[dkg_sessionid_SIZE];
   uint8_t n;
   uint8_t t;
   uint8_t index;
@@ -247,7 +203,7 @@ typedef struct {
 typedef struct {
   int step;
   int prev;
-  uint8_t sessionid[stpdkg_sessionid_SIZE];
+  uint8_t sessionid[dkg_sessionid_SIZE];
   uint8_t n;
   uint8_t t;
   uint8_t sig_pk[crypto_sign_PUBLICKEYBYTES]; // todo?
@@ -319,7 +275,7 @@ int stpdkg_start_stp(STP_DKG_STPState *ctx, const uint64_t ts_epsilon,
                      const char *proto_name, const size_t proto_name_len,
                      const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                      const uint8_t ltssk[crypto_sign_SECRETKEYBYTES],
-                     const size_t msg0_len, STP_DKG_Message *msg0);
+                     const size_t msg0_len, DKG_Message *msg0);
 
 /**
    This function sets all the variable sized buffers in the STP_DKG_PeerState structure.
@@ -505,7 +461,7 @@ uint8_t stpdkg_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t out
 int stpdkg_start_peer(STP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
                       const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                       const uint8_t peer_lt_sk[crypto_sign_SECRETKEYBYTES],
-                      const STP_DKG_Message *msg0);
+                      const DKG_Message *msg0);
 
 /** This function sets all the variable sized buffers in the STP_DKG_PeerState structure.
 

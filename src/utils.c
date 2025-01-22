@@ -4,6 +4,7 @@
 #include <sodium.h>
 
 int debug = 0;
+FILE* log_file=NULL;
 
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar) {
@@ -25,15 +26,18 @@ void debian_rng_scalar(uint8_t *scalar) {
 #endif
 
 void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
+  FILE* lf = stderr;
   if(!debug) return;
+  if(log_file!=NULL) lf = log_file;
   va_list args;
   va_start(args, msg);
-  vfprintf(stderr,msg, args);
+  vfprintf(lf, msg, args);
   va_end(args);
-  fprintf(stderr," ");
+  fprintf(lf," ");
   for(size_t i=0;i<len;i++)
-    fprintf(stderr,"%02x", p[i]);
-  fprintf(stderr,"\n");
+    fprintf(lf,"%02x", p[i]);
+  fprintf(lf,"\n");
+  fflush(lf);
 }
 
 void fail(char* msg, ...) {
@@ -44,3 +48,24 @@ void fail(char* msg, ...) {
   va_end(args);
   fprintf(stderr, "\e[0m\n");
 }
+
+#ifndef htonll
+#include <arpa/inet.h>
+uint64_t htonll(uint64_t n) {
+#if __BYTE_ORDER == __BIG_ENDIAN
+    return n;
+#else
+    return (((uint64_t)htonl((uint32_t)n)) << 32) + htonl((uint32_t) (n >> 32));
+#endif
+}
+#endif // htonll
+
+#ifndef ntohll
+uint64_t ntohll(uint64_t n) {
+#if __BYTE_ORDER == __BIG_ENDIAN
+    return n;
+#else
+    return (((uint64_t)ntohl((uint32_t)n)) << 32) + ntohl((uint32_t)(n >> 32));
+#endif
+}
+#endif // ntohll
