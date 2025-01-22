@@ -7,7 +7,6 @@
 #include <stdarg.h> // va_{start|end}
 #include <stdlib.h> // free, rand
 
-#include "XK.h"
 #include "dkg.h"
 #include "stp-dkg.h"
 #include "utils.h"
@@ -50,7 +49,6 @@
 #define stpdkg_msg5_SIZE (sizeof(DKG_Message) + noise_xk_handshake2_SIZE)
 #define stpdkg_msg6_SIZE (sizeof(DKG_Message) + stpdkg_commitment_HASHBYTES)
 #define stpdkg_msg8_SIZE(ctx) (sizeof(DKG_Message) + (size_t)(crypto_core_ristretto255_BYTES * ctx->t))
-
 #define stpdkg_msg9_SIZE(ctx) (sizeof(DKG_Message) + (size_t)(ctx->n + 1) )
 #define stpdkg_msg10x_SIZE(ctx) (sizeof(DKG_Message) + (size_t)(ctx->n * stpdkg_msg9_SIZE(ctx)) )
 #define stpdkg_msg19_SIZE (sizeof(DKG_Message) + crypto_generichash_BYTES)
