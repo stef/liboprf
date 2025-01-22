@@ -470,3 +470,23 @@ uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
     return st.val.case_DS_Responder.state.val.case_IMS_Transport.receive_key;
   return NULL;
 }
+
+void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
+  uint32_t msg_size_32b = htonl((uint32_t)msg_len);
+  crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
+  crypto_generichash_update(transcript, (uint8_t*) msg, msg_len);
+}
+
+char* dkg_recv_err(const int code) {
+  switch(code) {
+  case 0: return "no error";
+  case 1: return "invalid message len";
+  case 2: return "invalid message number";
+  case 3: return "invalid sender";
+  case 4: return "invalid recipient";
+  case 5: return "expired message";
+  case 6: return "invalid signature";
+  case 7: return "invalid sessionid";
+  }
+  return "invalid recv_msg error code";
+}

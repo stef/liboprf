@@ -105,12 +105,6 @@ static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx, const int step, const in
   return cheater;
 }
 
-static void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
-  uint32_t msg_size_32b = htonl((uint32_t)msg_len);
-  crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
-  crypto_generichash_update(transcript, (uint8_t*) msg, msg_len);
-}
-
 size_t tpdkg_tp_input_size(const TP_DKG_TPState *ctx) {
   size_t sizes[ctx->n];
   //memset(sizes,0,sizeof sizes);
@@ -472,7 +466,6 @@ static int tp_step1_handler(TP_DKG_TPState *ctx, const uint8_t *input, const siz
 
   return 0;
 }
-
 
 static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   if(log_file!=NULL) fprintf(log_file, "\e[0;33m[?] step 2. receive peers index\e[0m\n");
@@ -1397,24 +1390,10 @@ int tpdkg_peer_next(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t in
   return ret;
 }
 
-char* tpdkg_recv_err(const int code) {
-  switch(code) {
-  case 0: return "no error";
-  case 1: return "invalid message len";
-  case 2: return "invalid message number";
-  case 3: return "invalid sender";
-  case 4: return "invalid recipient";
-  case 5: return "expired message";
-  case 6: return "invalid signature";
-  case 7: return "invalid sessionid";
-  }
-  return "invalid recv_msg error code";
-}
-
 uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outlen) {
   if(c->error>65 && c->error<=70) {
       snprintf(out, outlen, "step %d message from peer %d for peer %d could not be validated: %s",
-               c->step, c->peer, c->other_peer, tpdkg_recv_err(c->error & 0x3f));
+               c->step, c->peer, c->other_peer, dkg_recv_err(c->error & 0x3f));
       return c->peer;
   }
   if(c->step==16) {
@@ -1433,11 +1412,11 @@ uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outle
   } else if(c->step==18) {
     if(c->error & 16) {
       snprintf(out, outlen, "message containing encrypted share from peer %d for peer %d could not be validated: %s",
-               c->peer, c->other_peer, tpdkg_recv_err(c->error & 0xf));
+               c->peer, c->other_peer, dkg_recv_err(c->error & 0xf));
       return c->peer;
     } else if (c->error & 32) {
       snprintf(out, outlen, "message revealing key encrypting share from peer %d for peer %d could not be validated: %s",
-               c->peer, c->other_peer, tpdkg_recv_err(c->error & 0x1f));
+               c->peer, c->other_peer, dkg_recv_err(c->error & 0x1f));
       return c->peer;
     }
     switch(c->error) {

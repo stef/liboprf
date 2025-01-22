@@ -157,4 +157,8 @@ int dkg_noise_decrypt(uint8_t *input,
                       Noise_XK_session_t** session);
 uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn);
 
+void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len);
+
+char* dkg_recv_err(const int code);
+
 #endif // DKG_H

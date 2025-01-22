@@ -106,12 +106,6 @@ static STP_DKG_Cheater* add_cheater(STP_DKG_STPState *ctx, const int step, const
   return cheater;
 }
 
-static void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
-  uint32_t msg_size_32b = htonl((uint32_t)msg_len);
-  crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
-  crypto_generichash_update(transcript, (uint8_t*) msg, msg_len);
-}
-
 size_t stpdkg_stp_input_size(const STP_DKG_STPState *ctx) {
   size_t sizes[ctx->n];
   //memset(sizes,0,sizeof sizes);
@@ -487,7 +481,6 @@ static int stp_step1_handler(STP_DKG_STPState *ctx, const uint8_t *input, const 
 
   return 0;
 }
-
 
 static int peer_step2_3_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   if(log_file!=NULL) fprintf(log_file, "\e[0;33m[?] step 2. receive peers index\e[0m\n");
@@ -1009,7 +1002,6 @@ static int peer_step17_handler(STP_DKG_PeerState *ctx, const uint8_t *input, con
   uint8_t *fails_len = msg9->data;
   uint8_t *fails = msg9->data+1;
   memset(fails, 0, ctx->n);
-  // todo BUG? why does this succeed? it shouldn't
   dkg_verify_commitments(ctx->n, ctx->t, ctx->index, ctx->commitments, *ctx->xshares, fails, fails_len);
 
 #ifdef UNITTEST_CORRUPT
@@ -1060,7 +1052,7 @@ static int stp_step18_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
     }
     int ret = recv_msg(ptr, stpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->sig_pks)[i+1], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
-      if(add_cheater(ctx, 16, 64+ret, i+1, 0xff) == NULL) return 6;
+      if(add_cheater(ctx, 18, 64+ret, i+1, 0xff) == NULL) return 6;
       continue;
     }
     if(msg->len - sizeof(DKG_Message) < msg->data[0]) return 4;
@@ -1068,14 +1060,14 @@ static int stp_step18_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
     // keep a copy all complaint pairs (complainer, complained)
     for(int k=0;k<msg->data[0] && (k+1)<msg->len-sizeof(DKG_Message);k++) {
       if(msg->data[k+1] > ctx->n || msg->data[k+1] < 1) {
-        if(add_cheater(ctx, 16, 7, i+1, msg->data[k+1]) == NULL) return 6;
+        if(add_cheater(ctx, 18, 7, i+1, msg->data[k+1]) == NULL) return 6;
         continue;
       }
       uint16_t pair=(uint16_t) (((i+1)<<8) | msg->data[k+1]);
       int j=0;
       for(j=0;j<ctx->complaints_len;j++) if((*ctx->complaints)[j]==pair) break;
       if(j<ctx->complaints_len) {
-        if(add_cheater(ctx, 16, 8, i+1, msg->data[k+1]) == NULL) return 6;
+        if(add_cheater(ctx, 18, 8, i+1, msg->data[k+1]) == NULL) return 6;
         continue;
       }
       (*ctx->complaints)[ctx->complaints_len++] = pair;
@@ -1091,7 +1083,7 @@ static int stp_step18_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
 
   // if more than t^2 complaints are received the protocol also fails
   if(ctx->complaints_len >= ctx->t * ctx->t) {
-    if(add_cheater(ctx, 16, 6, 0xfe, 0xfe) == NULL) return 6;
+    if(add_cheater(ctx, 18, 6, 0xfe, 0xfe) == NULL) return 6;
     return 5;
   }
 
@@ -1230,7 +1222,7 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
     }
     int ret = recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->sig_pks)[i+1], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
-      if(add_cheater(ctx, 18, 32+ret, i+1, 0xfe) == NULL) return 4;
+      if(add_cheater(ctx, 20, 32+ret, i+1, 0xfe) == NULL) return 4;
       continue;
     }
 
@@ -1251,7 +1243,7 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
       }
       if(j==ctx->complaints_len) {
         // accused revealed a key that was not complained about
-        if(add_cheater(ctx, 18, 6, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 6, accused, complainer) == NULL) return 4;
         continue;
       }
 
@@ -1268,7 +1260,7 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
                      ctx->ts_epsilon, &last_ts);
       if(0!=ret) {
         // key reveal msg_recv failure
-        if(add_cheater(ctx, 18, 16+ret, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 16+ret, accused, complainer) == NULL) return 4;
         continue;
       }
 #ifdef UNITTEST
@@ -1282,7 +1274,7 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
                                sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                                keyptr)) {
         // failed to verify KC MAC on message
-        if(add_cheater(ctx, 18, 3, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 3, accused, complainer) == NULL) return 4;
         continue;
       }
 #endif
@@ -1291,13 +1283,13 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
         res0 = Noise_XK_aead_decrypt((uint8_t*)keyptr, 0, (uint32_t)0U, NULL, sizeof(share), (uint8_t*) &share, (uint8_t*) msg10->data + noise_xk_handshake3_SIZE);
       if (!(res0 == Noise_XK_CSuccess)) {
         // share decryption failure
-        if(add_cheater(ctx, 18, 4, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 4, accused, complainer) == NULL) return 4;
         continue;
       }
 
       if(share.index != complainer) {
         // invalid share index
-        STP_DKG_Cheater *cheater = add_cheater(ctx, 18, 5, accused, complainer);
+        STP_DKG_Cheater *cheater = add_cheater(ctx, 20, 5, accused, complainer);
         if(cheater == NULL) return 4;
         cheater->invalid_index = share.index;
         continue;
@@ -1318,20 +1310,20 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
         // verified correctly
         if(log_file!=NULL) fprintf(log_file, "\e[0;32m[!] complaint against %d by %d invalid, proof correct\e[0m\n", msg->from, share.index);
 
-        if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       case 1: {
         // confirmed corrupt
         if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d valid, proof incorrect\e[0m\n", msg->from, share.index);
-        if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       case -1: {
         // invalid input
         if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d, cannot be verified, invalid input\e[0m\n", msg->from, share.index);
 
-        if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
+        if(add_cheater(ctx, 20, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       }
@@ -1340,7 +1332,7 @@ static int stp_step20_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
 
   for(int i=0;i<ctx->complaints_len;i++) {
     if(complaints[i] != 0xffff) {
-      if(add_cheater(ctx, 18, 7, (uint8_t) (complaints[i] >> 8), (uint8_t) (complaints[i] & 0xff)) == NULL) return 4;
+      if(add_cheater(ctx, 20, 7, (uint8_t) (complaints[i] >> 8), (uint8_t) (complaints[i] & 0xff)) == NULL) return 4;
     }
   }
 
@@ -1385,7 +1377,7 @@ static int stp_step22_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
     }
     int ret = recv_msg(ptr, stpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->sig_pks)[i+1], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
-      if(add_cheater(ctx, 20, 1+ret, i+1, 0) == NULL) return 4;
+      if(add_cheater(ctx, 22, 1+ret, i+1, 0) == NULL) return 4;
 
       memcpy(wptr,"NO",2);
       continue;
@@ -1395,7 +1387,7 @@ static int stp_step22_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
       if(log_file!=NULL) {
         fprintf(log_file,"\e[0;31m[!] failed to verify transcript from %d!\e[0m\n", i);
       }
-      if(add_cheater(ctx, 20, 1, i+1, 0) == NULL) return 4;
+      if(add_cheater(ctx, 22, 1, i+1, 0) == NULL) return 4;
       memcpy(wptr,"NO",2);
     }
   }
@@ -1458,7 +1450,7 @@ static int stp_step24_handler(STP_DKG_STPState *ctx, const uint8_t *input, const
     }
     int ret = recv_msg(ptr, stpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->sig_pks)[i+1], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
-      if(add_cheater(ctx, 22, 64+ret, i+1, 0) == NULL) return 6;
+      if(add_cheater(ctx, 24, 64+ret, i+1, 0) == NULL) return 6;
       continue;
     }
 
@@ -1535,27 +1527,13 @@ int stpdkg_peer_next(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t 
   return ret;
 }
 
-char* stpdkg_recv_err(const int code) {
-  switch(code) {
-  case 0: return "no error";
-  case 1: return "invalid message len";
-  case 2: return "invalid message number";
-  case 3: return "invalid sender";
-  case 4: return "invalid recipient";
-  case 5: return "expired message";
-  case 6: return "invalid signature";
-  case 7: return "invalid sessionid";
-  }
-  return "invalid recv_msg error code";
-}
-
 uint8_t stpdkg_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t outlen) {
   if(c->error>65 && c->error<=70) {
       snprintf(out, outlen, "step %d message from peer %d for peer %d could not be validated: %s",
-               c->step, c->peer, c->other_peer, stpdkg_recv_err(c->error & 0x3f));
+               c->step, c->peer, c->other_peer, dkg_recv_err(c->error & 0x3f));
       return c->peer;
   }
-  if(c->step==16) {
+  if(c->step==18) {
     if(c->error == 6) {
       snprintf(out, outlen, "more than t^2 complaints, most peers are cheating.");
       return 0;
@@ -1568,14 +1546,14 @@ uint8_t stpdkg_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t out
     }
     snprintf(out,outlen, "invalid error code for step 16: %d", c->error);
     return 0;
-  } else if(c->step==18) {
+  } else if(c->step==20) {
     if(c->error & 16) {
       snprintf(out, outlen, "message containing encrypted share from peer %d for peer %d could not be validated: %s",
-               c->peer, c->other_peer, stpdkg_recv_err(c->error & 0xf));
+               c->peer, c->other_peer, dkg_recv_err(c->error & 0xf));
       return c->peer;
     } else if (c->error & 32) {
       snprintf(out, outlen, "message revealing key encrypting share from peer %d for peer %d could not be validated: %s",
-               c->peer, c->other_peer, stpdkg_recv_err(c->error & 0x1f));
+               c->peer, c->other_peer, dkg_recv_err(c->error & 0x1f));
       return c->peer;
     }
     switch(c->error) {
@@ -1616,7 +1594,7 @@ uint8_t stpdkg_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t out
       return 0;
     }
     }
-  } else if(c->step==20) {
+  } else if(c->step==22) {
     if(c->error == 1) {
       snprintf(out,outlen, "transcript mismatch peer %d", c->peer);
       return c->peer;
