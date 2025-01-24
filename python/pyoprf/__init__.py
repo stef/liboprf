@@ -198,7 +198,7 @@ TOPRF_Part_BYTES=pysodium.crypto_core_ristretto255_BYTES+1
 #void coeff(const int index, const int peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
 def coeff(index: int, peers: list) -> bytes:
     if index < 1: raise ValueError("index must be positive integer")
-    if len(peers) < 2: ValueError("peers must be a list of at least 2 integers")
+    if len(peers) < 2: raise ValueError("peers must be a list of at least 2 integers")
     peers_len=ctypes.c_size_t(len(peers))
     c = ctypes.create_string_buffer(pysodium.crypto_core_ristretto255_SCALARBYTES)
     liboprf.coeff(index, peers_len, peers, c)
@@ -255,7 +255,7 @@ def create_shares(secret: bytes, n: int, t: int) -> bytes_list_t:
 #                        const uint8_t responses[response_len][TOPRF_Part_BYTES],
 #                        uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 def thresholdmult(responses: bytes_list_t) -> bytes:
-    if len(responses) < 2: ValueError("responses must be a list of at least 2 integers")
+    if len(responses) < 2: raise ValueError("responses must be a list of at least 2 integers")
     if not all(isinstance(r,bytes) for r in responses):
         raise ValueError("at least one of the responses is not of type bytes")
     if not all(len(r)==TOPRF_Part_BYTES for r in responses):
@@ -330,7 +330,7 @@ def threshold_evaluate(k: bytes, blinded: bytes, self: int, indexes: list) -> by
 #                            const uint8_t _responses[response_len][TOPRF_Part_BYTES],
 #                            uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 def threshold_combine(responses: bytes_list_t) -> bytes:
-    if len(responses) < 2: ValueError("responses must be a list of at least 2 integers")
+    if len(responses) < 2: raise ValueError("responses must be a list of at least 2 integers")
     if not all(isinstance(r,bytes) for r in responses):
         raise ValueError("at least one of the responses is not of type bytes")
     if not all(len(r)==TOPRF_Part_BYTES for r in responses):

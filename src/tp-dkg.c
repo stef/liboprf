@@ -351,7 +351,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
              const uint8_t n, const uint8_t t,
              const char *proto_name, const size_t proto_name_len,
              const size_t msg0_len, DKG_Message *msg0) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 0. start protocol\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 0. start protocol\x1b[0m\n");
   if(2>n || t>=n || n>128) return 1;
   if(proto_name_len<1) return 2;
   if(proto_name_len>1024) return 3;
@@ -408,7 +408,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
 int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
                const uint8_t peer_lt_sk[crypto_sign_SECRETKEYBYTES],
                const DKG_Message *msg0) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[?] step 0.5 start peer\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] step 0.5 start peer\x1b[0m\n");
 
   if(log_file!=NULL) {
     fprintf(log_file,"[?] msgno: %d, from: %d to: 0x%x ", msg0->msgno, msg0->from, msg0->to);
@@ -450,7 +450,7 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
 }
 
 static int tp_step1_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 1. assign peer indices\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 1. assign peer indices\x1b[0m\n");
   if(input_len!=0) return 1;
   if(output_len!=ctx->n * tpdkg_msg1_SIZE) return 2;
 
@@ -468,7 +468,7 @@ static int tp_step1_handler(TP_DKG_TPState *ctx, const uint8_t *input, const siz
 }
 
 static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[?] step 2. receive peers index\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] step 2. receive peers index\x1b[0m\n");
   if(input_len != tpdkg_msg1_SIZE) return 1;
   if(output_len != tpdkg_msg2_SIZE+crypto_sign_BYTES) return 2;
 
@@ -482,7 +482,7 @@ static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   if(msg1->to > 128 || msg1->to < 1) return 3;
   ctx->index=msg1->to;
 
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 3. send msg2 containing ephemeral pubkey\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 3. send msg2 containing ephemeral pubkey\x1b[0m\n", ctx->index);
 
   crypto_sign_keypair(ctx->sig_pk, ctx->sig_sk);
 
@@ -508,7 +508,7 @@ static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 }
 
 static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const size_t msg2s_len, uint8_t *msg3_buf, const size_t msg3_buf_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 4. broadcast msg2 containing ephemeral pubkeys of peers\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 4. broadcast msg2 containing ephemeral pubkeys of peers\x1b[0m\n");
   if(((tpdkg_msg2_SIZE + crypto_sign_BYTES) * ctx->n) != msg2s_len) return 1;
   if(msg3_buf_len != (tpdkg_msg2_SIZE * ctx->n) + sizeof(DKG_Message)) return 2;
 
@@ -545,7 +545,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
 }
 
 static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 5. receive peers ephemeral pubkeys, start noise sessions\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 5. receive peers ephemeral pubkeys, start noise sessions\x1b[0m\n", ctx->index);
   if(input_len != tpdkg_msg2_SIZE * ctx->n + sizeof(DKG_Message)) return 1;
   if(output_len != tpdkg_msg4_SIZE * ctx->n) return 2;
 
@@ -593,7 +593,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
 }
 
 static int tp_step68_handler(TP_DKG_TPState *ctx, const uint8_t *msg4s, const size_t msg4s_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step %d. route p2p noise handshakes to peers\e[0m\n", 6 + (ctx->step - 1) * 2);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step %d. route p2p noise handshakes to peers\x1b[0m\n", 6 + (ctx->step - 1) * 2);
   if(msg4s_len != tpdkg_msg4_SIZE * ctx->n * ctx->n) return 1;
   if(msg4s_len != output_len) return 2;
 
@@ -623,7 +623,7 @@ static int tp_step68_handler(TP_DKG_TPState *ctx, const uint8_t *msg4s, const si
 }
 
 static int peer_step7_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 7. receive session requests\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 7. receive session requests\x1b[0m\n", ctx->index);
   if(input_len != tpdkg_msg4_SIZE * ctx->n) return 1;
   if(output_len != tpdkg_msg5_SIZE * ctx->n) return 2;
 
@@ -656,7 +656,7 @@ static int peer_step7_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
 }
 
 static int peer_step911_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 9-11 finish session handshake, broadcast commitments\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 9-11 finish session handshake, broadcast commitments\x1b[0m\n", ctx->index);
   if(input_len != tpdkg_msg5_SIZE * ctx->n) return 1;
   if(output_len != tpdkg_msg6_SIZE(ctx)) return 2;
 
@@ -687,7 +687,7 @@ static int peer_step911_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
 }
 
 static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const size_t msg6s_len, uint8_t *msg7_buf, const size_t msg7_buf_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 12. broadcast commitments of peers\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 12. broadcast commitments of peers\x1b[0m\n");
 
   if((tpdkg_msg6_SIZE(ctx) * ctx->n) != msg6s_len) return 1;
   if(msg7_buf_len != sizeof(DKG_Message) + msg6s_len) return 2;
@@ -729,7 +729,7 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
 }
 
 static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 13. receive commitments, distribute shares via noise chans\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 13. receive commitments, distribute shares via noise chans\x1b[0m\n", ctx->index);
   if(input_len != sizeof(DKG_Message) + (tpdkg_msg6_SIZE(ctx) * ctx->n)) return 1;
   if(output_len != ctx->n * tpdkg_msg8_SIZE) return 2;
 
@@ -800,7 +800,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 }
 
 static int tp_step14_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 14. route shares from all peers to all peers\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 14. route shares from all peers to all peers\x1b[0m\n");
   if(input_len != tpdkg_msg8_SIZE * ctx->n * ctx->n) return 1;
   if(input_len != output_len) return 2;
 
@@ -832,7 +832,7 @@ static int tp_step14_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 }
 
 static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 15. DKG step 2 - receive shares, verify commitments\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 15. DKG step 2 - receive shares, verify commitments\x1b[0m\n", ctx->index);
   if(input_len != ctx->n * tpdkg_msg8_SIZE) return 1;
   if(output_len != tpdkg_msg9_SIZE(ctx)) return 2;
 
@@ -886,7 +886,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
   if(log_file!=NULL) {
     for(int j=0;j<*fails_len;j++) {
-      fprintf(log_file,"\e[0;31m[%d] failed to verify commitments from %d!\e[0m\n", ctx->index, fails[j]);
+      fprintf(log_file,"\x1b[0;31m[%d] failed to verify commitments from %d!\x1b[0m\n", ctx->index, fails[j]);
     }
   }
 
@@ -900,7 +900,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 }
 
 static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 16. broadcast complaints of peers\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 16. broadcast complaints of peers\x1b[0m\n");
 
   if((tpdkg_msg9_SIZE(ctx) * ctx->n) != input_len) return 1;
   if(output_len != tpdkg_msg10_SIZE(ctx)) return 2;
@@ -937,7 +937,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       }
       (*ctx->complaints)[ctx->complaints_len++] = pair;
       if(log_file!=NULL) {
-        fprintf(log_file,"\e[0;31m[!] peer %d failed to verify commitments from peer %d!\e[0m\n", i+1, msg->data[1+k]);
+        fprintf(log_file,"\x1b[0;31m[!] peer %d failed to verify commitments from peer %d!\x1b[0m\n", i+1, msg->data[1+k]);
       }
     }
 
@@ -968,7 +968,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 }
 
 static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 17. receive complaints broadcast\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 17. receive complaints broadcast\x1b[0m\n", ctx->index);
   if(input_len != tpdkg_msg10_SIZE(ctx)) return 1;
   if(output_len !=0) return 2;
 
@@ -1006,7 +1006,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
       if(msg9->data[k+1] == ctx->index) {
         ctx->my_complaints[ctx->my_complaints_len++] = i+1;
-        if(log_file!=NULL) fprintf(log_file,"\e[0;31m[%d] peer %d failed to verify commitments from peer %d!\e[0m\n", ctx->index, i+1, msg9->data[1+k]);
+        if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] peer %d failed to verify commitments from peer %d!\x1b[0m\n", ctx->index, i+1, msg9->data[1+k]);
       }
     }
 
@@ -1022,7 +1022,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 }
 
 static int peer_step17a_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 17a. potentially broadcast contested shares\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 17a. potentially broadcast contested shares\x1b[0m\n", ctx->index);
   if(input_len != 0) return 1;
   if(output_len != tpdkg_peer_output_size(ctx)) return 2;
   if(output_len == 0) {
@@ -1036,7 +1036,7 @@ static int peer_step17a_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
   DKG_Message* msg11 = (DKG_Message*) output;
   uint8_t *wptr = msg11->data;
   for(int i=0;i<ctx->my_complaints_len;i++) {
-    if(log_file!=NULL) fprintf(log_file, "\e[0;36m[%d] defending against complaint from %d\e[0m\n", ctx->index, ctx->my_complaints[i]);
+    if(log_file!=NULL) fprintf(log_file, "\x1b[0;36m[%d] defending against complaint from %d\x1b[0m\n", ctx->index, ctx->my_complaints[i]);
 
     *wptr++ = ctx->my_complaints[i];
     // reveal key for noise wrapped share sent previously
@@ -1057,7 +1057,7 @@ static int peer_step17a_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
 }
 
 static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 18. collect keys of contested shares and verify the commitments\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 18. collect keys of contested shares and verify the commitments\x1b[0m\n");
   if(input_len != tpdkg_tp_input_size(ctx)) return 1;
   if(output_len != 0) return 2;
 
@@ -1173,20 +1173,20 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       switch(ret) {
       case 0: {
         // verified correctly
-        if(log_file!=NULL) fprintf(log_file, "\e[0;32m[!] complaint against %d by %d invalid, proof correct\e[0m\n", msg->from, share.index);
+        if(log_file!=NULL) fprintf(log_file, "\x1b[0;32m[!] complaint against %d by %d invalid, proof correct\x1b[0m\n", msg->from, share.index);
 
         if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       case 1: {
         // confirmed corrupt
-        if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d valid, proof incorrect\e[0m\n", msg->from, share.index);
+        if(log_file!=NULL) fprintf(log_file, "\x1b[0;31m[!] complaint against %d by %d valid, proof incorrect\x1b[0m\n", msg->from, share.index);
         if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
         break;
       }
       case -1: {
         // invalid input
-        if(log_file!=NULL) fprintf(log_file, "\e[0;31m[!] complaint against %d by %d, cannot be verified, invalid input\e[0m\n", msg->from, share.index);
+        if(log_file!=NULL) fprintf(log_file, "\x1b[0;31m[!] complaint against %d by %d, cannot be verified, invalid input\x1b[0m\n", msg->from, share.index);
 
         if(add_cheater(ctx, 18, 128+ret, accused, complainer) == NULL) return 4;
         break;
@@ -1207,7 +1207,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 }
 
 static int peer_step19_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 19. send final transcript\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 19. send final transcript\x1b[0m\n", ctx->index);
   if(input_len != 0) return 1;
   if(output_len != tpdkg_msg19_SIZE) return 2;
 
@@ -1223,7 +1223,7 @@ static int peer_step19_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 }
 
 static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 20. collect and verify transcripts\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 20. collect and verify transcripts\x1b[0m\n");
 
   if((tpdkg_msg19_SIZE * ctx->n) != input_len) return 1;
   if(output_len != tpdkg_msg20_SIZE) return 2;
@@ -1250,7 +1250,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
     if(sodium_memcmp(transcript_hash, msg->data, sizeof(transcript_hash))!=0) {
       if(log_file!=NULL) {
-        fprintf(log_file,"\e[0;31m[!] failed to verify transcript from %d!\e[0m\n", i);
+        fprintf(log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
       }
       if(add_cheater(ctx, 20, 1, i+1, 0) == NULL) return 4;
       memcpy(wptr,"NO",2);
@@ -1270,7 +1270,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 }
 
 static int peer_step21_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[%d] step 21. get final approval\e[0m\n", ctx->index);
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] step 21. get final approval\x1b[0m\n", ctx->index);
   if(input_len != tpdkg_msg20_SIZE) return 1;
   if(output_len != tpdkg_msg21_SIZE) return 2;
 
@@ -1301,7 +1301,7 @@ static int peer_step21_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 }
 
 static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\e[0;33m[!] step 22. collect acks from peers\e[0m\n");
+  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 22. collect acks from peers\x1b[0m\n");
 
   if((tpdkg_msg21_SIZE * ctx->n) != input_len) return 1;
   if(output_len != 0) return 2;
@@ -1321,7 +1321,7 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
     if(memcmp("OK", msg->data, 2)!=0) {
       if(log_file!=NULL) {
-        fprintf(log_file,"\e[0;31m[!] failed to get ack from %d!\e[0m\n", i);
+        fprintf(log_file,"\x1b[0;31m[!] failed to get ack from %d!\x1b[0m\n", i);
       }
     }
   }

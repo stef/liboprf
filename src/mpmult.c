@@ -17,7 +17,7 @@ typedef struct {
   uint8_t value[crypto_core_ristretto255_SCALARBYTES];
 } __attribute((packed)) TOPRF_Share;
 
-static int cmp(uint8_t a[crypto_core_ristretto255_SCALARBYTES], uint8_t b[crypto_core_ristretto255_SCALARBYTES]) {
+static int cmp(const uint8_t a[crypto_core_ristretto255_SCALARBYTES], const uint8_t b[crypto_core_ristretto255_SCALARBYTES]) {
   // non-const time! but its ok, this operates on the vandermonde matrix, no secrets involved
   for(int i=crypto_core_ristretto255_SCALARBYTES-1;i>=0;i--) {
     if(a[i]>b[i]) return 1;
