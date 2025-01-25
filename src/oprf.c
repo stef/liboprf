@@ -114,7 +114,7 @@ static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i,
   crypto_hash_sha512_state state;
   crypto_hash_sha512_init(&state);
   crypto_hash_sha512_update(&state, xored, sizeof xored);
-  crypto_hash_sha512_update(&state,(uint8_t*) &i, 1);
+  crypto_hash_sha512_update(&state,(const uint8_t*) &i, 1);
   crypto_hash_sha512_update(&state, dst_prime, dst_prime_len);
   crypto_hash_sha512_final(&state, b_ii);
   sodium_memzero(&state,sizeof state);
@@ -181,10 +181,10 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
 #endif
   // 5.  l_i_b_str = I2OSP(len_in_bytes, 2)
   const uint16_t l_i_b = htons(len_in_bytes);
-  const uint8_t *l_i_b_str = (uint8_t*) &l_i_b;
+  const uint8_t *l_i_b_str = (const uint8_t*) &l_i_b;
   // 6.  msg_prime = Z_pad || msg || l_i_b_str || I2OSP(0, 1) || DST_prime
-  uint8_t msg_prime[sizeof z_pad + msg_len + sizeof l_i_b + 1 + sizeof dst_prime],
-    *ptr = msg_prime;
+  uint8_t msg_prime[sizeof z_pad + msg_len + sizeof l_i_b + 1 + sizeof dst_prime];
+  uint8_t *ptr = msg_prime;
   memcpy(ptr, z_pad, sizeof z_pad);
   ptr += sizeof z_pad;
   memcpy(ptr, msg, msg_len);
@@ -208,7 +208,7 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
   crypto_hash_sha512_state state;
   crypto_hash_sha512_init(&state);
   crypto_hash_sha512_update(&state, b_0, sizeof b_0);
-  crypto_hash_sha512_update(&state,(uint8_t*) &"\x01", 1);
+  crypto_hash_sha512_update(&state,(const uint8_t*) &"\x01", 1);
   crypto_hash_sha512_update(&state, dst_prime, (long long unsigned int) sizeof dst_prime);
   crypto_hash_sha512_final(&state, b_i);
 #ifdef TRACE
@@ -221,9 +221,8 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
   memcpy(out, b_i, clen);
   out+=clen;
   left-=clen;
-  uint8_t i;
   uint8_t b_ii[crypto_hash_sha512_BYTES];
-  for(i=2;i<=ell;i+=2) {
+  for(uint8_t i=2;i<=ell;i+=2) {
     // 11. uniform_bytes = b_1 || ... || b_ell
     // 12. return substr(uniform_bytes, 0, len_in_bytes)
     // 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
@@ -364,8 +363,8 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                         const uint8_t Z[crypto_core_ristretto255_BYTES],
                         uint8_t N[crypto_core_ristretto255_BYTES]) {
 #ifdef TRACE
-  dump((uint8_t*) r, crypto_core_ristretto255_SCALARBYTES, "r ");
-  dump((uint8_t*) Z, crypto_core_ristretto255_BYTES, "Z ");
+  dump(r, crypto_core_ristretto255_SCALARBYTES, "r ");
+  dump(Z, crypto_core_ristretto255_BYTES, "Z ");
 #endif
 
   // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
@@ -390,7 +389,7 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
     return -1;
   }
 #ifdef TRACE
-  dump((uint8_t*) N, crypto_core_ristretto255_BYTES, "N ");
+  dump(N, crypto_core_ristretto255_BYTES, "N ");
 #endif
 
   sodium_munlock(ir, sizeof ir);

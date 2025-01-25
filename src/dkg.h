@@ -63,7 +63,7 @@ int dkg_verify_commitments(const uint8_t n,
                            uint8_t fails[n],
                            uint8_t *fails_len);
 
-void dkg_finish(const uint8_t n,
+int dkg_finish(const uint8_t n,
                 const TOPRF_Share shares[n],
                 const uint8_t self,
                 TOPRF_Share *xi);

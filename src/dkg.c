@@ -137,7 +137,7 @@ int dkg_verify_commitment(const uint8_t n,
   // v0 == v1
   if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
     // complain about P_i
-    if(debug) fprintf(stderr, "\e[0;31mfailed to verify proof of P_%d in stage 2\e[0m\n", i);
+    if(debug) fprintf(stderr, "\x1b[0;31mfailed to verify proof of P_%d in stage 2\x1b[0m\n", i);
     return 1;
   }
 
@@ -157,26 +157,28 @@ int dkg_verify_commitments(const uint8_t n,
     int ret = dkg_verify_commitment(n, threshold, self, i, commitments[i-1], shares[i-1]);
     if(-1 == ret) return ret;
     if(0 == ret) continue;
-    fails[(*fails_len)++] = (uint8_t) i;
+    fails[(*fails_len)++] = i;
   }
   if(*fails_len!=0) return 1;
 
   return 0;
 }
 
-void dkg_finish(const uint8_t n,
+int dkg_finish(const uint8_t n,
                 const TOPRF_Share shares[n],
                 const uint8_t self,
                 TOPRF_Share *xi) {
   memset(xi->value, 0, crypto_core_ristretto255_SCALARBYTES);
   for(int i=0;i<n;i++) {
     if(self!=shares[i].index) {
-      if(debug) fprintf(stderr, "\e[0;31mbad share i=%d index=%d\e[0m\n", i, shares[i].index);
+      if(debug) fprintf(stderr, "\x1b[0;31mbad share i=%d index=%d\x1b[0m\n", i, shares[i].index);
+      return 1;
     }
     crypto_core_ristretto255_scalar_add(xi->value, xi->value, shares[i].value);
     //dump((uint8_t*)&shares[i][0], sizeof(TOPRF_Share), "s[%d,%d] ", qual[i], self);
   }
   //dump(xi->value, crypto_core_ristretto255_SCALARBYTES, "x[%d]     ", self);
+  return 0;
 }
 
 void dkg_reconstruct(const size_t response_len,
@@ -229,7 +231,7 @@ int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, co
 
 int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
   if(msg_buf==NULL) return 7;
-  DKG_Message* msg = (DKG_Message*) msg_buf;
+  const DKG_Message* msg = (const DKG_Message*) msg_buf;
   if(ntohl(msg->len) != msg_buf_len) return 1;
   if(msg->msgno != msgno) return 2;
   if(msg->from != from) return 3;
@@ -473,7 +475,7 @@ uint8_t* Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
 void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
   uint32_t msg_size_32b = htonl((uint32_t)msg_len);
   crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
-  crypto_generichash_update(transcript, (const uint8_t*) msg, msg_len);
+  crypto_generichash_update(transcript, msg, msg_len);
 }
 
 char* dkg_recv_err(const int code) {

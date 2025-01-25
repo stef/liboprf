@@ -1313,7 +1313,7 @@ static int peer_step23_handler(STP_DKG_PeerState *ctx, const uint8_t *input, con
   int fail = (memcmp(msg21->data, "OK", 2) != 0);
   if(!fail) {
     ctx->share.index=ctx->index;
-    dkg_finish(ctx->n,*ctx->xshares,ctx->index,&ctx->share);
+    if(0!=dkg_finish(ctx->n,*ctx->xshares,ctx->index,&ctx->share)) return 5;
 
     DKG_Message* msg22 = (DKG_Message*) output;
     memcpy(msg22->data, msg21->data, 2);
