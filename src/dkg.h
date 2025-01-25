@@ -150,7 +150,7 @@ int dkg_noise_encrypt(uint8_t *input,
                       uint8_t *output,
                       const size_t output_len,
                       Noise_XK_session_t** session);
-int dkg_noise_decrypt(uint8_t *input,
+int dkg_noise_decrypt(const uint8_t *input,
                       const size_t input_len,
                       uint8_t *output,
                       const size_t output_len,
@@ -160,5 +160,7 @@ uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn);
 void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len);
 
 char* dkg_recv_err(const int code);
+
+void dkg_dump_msg(const uint8_t* ptr, const size_t msglen, const uint8_t type);
 
 #endif // DKG_H

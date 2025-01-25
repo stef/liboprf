@@ -421,7 +421,7 @@ int dkg_noise_encrypt(uint8_t *input,
   return 0;
 }
 
-int dkg_noise_decrypt(uint8_t *input,
+int dkg_noise_decrypt(const uint8_t *input,
                       const size_t input_len,
                       uint8_t *output,
                       const size_t output_len,
@@ -433,7 +433,7 @@ int dkg_noise_decrypt(uint8_t *input,
     return 2;
   }
   Noise_XK_encap_message_t *encap_msg;
-  Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, (uint32_t) input_len, input);
+  Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, (uint32_t) input_len, (uint8_t*) input);
   if(!Noise_XK_rcode_is_success(ret)) {
     if(log_file!=NULL) fprintf(log_file, "session read fail: %d\n", ret.val.case_Error);
     return 3;
@@ -489,4 +489,16 @@ char* dkg_recv_err(const int code) {
   case 7: return "invalid sessionid";
   }
   return "invalid recv_msg error code";
+}
+
+void dkg_dump_msg(const uint8_t* ptr, const size_t msglen, const uint8_t type) {
+  if(log_file!=NULL) {
+     const DKG_Message *msg = (const DKG_Message*) ptr;
+     if(type==0) {
+        fprintf(log_file,"[!] msgno: %d, len: %d, from: %d to: %x ", msg->msgno, htonl(msg->len), msg->from, msg->to);
+     } else {
+        fprintf(log_file,"[%d] msgno: %d, len: %d, from: %d to: %x ", type, msg->msgno, htonl(msg->len), msg->from, msg->to);
+     }
+     dump(ptr, msglen, "msg");
+  }
 }

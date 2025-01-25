@@ -130,12 +130,12 @@ typedef struct {
 } TP_DKG_PeerState;
 
 size_t tpdkg_peerstate_size(void);
-uint8_t tpdkg_peerstate_n(TP_DKG_PeerState *ctx);
-uint8_t tpdkg_peerstate_t(TP_DKG_PeerState *ctx);
-uint8_t* tpdkg_peerstate_sessionid(TP_DKG_PeerState *ctx);
-uint8_t* tpdkg_peerstate_lt_sk(TP_DKG_PeerState *ctx);
-uint8_t* tpdkg_peerstate_share(TP_DKG_PeerState *ctx);
-int tpdkg_peerstate_step(TP_DKG_PeerState *ctx);
+uint8_t tpdkg_peerstate_n(const TP_DKG_PeerState *ctx);
+uint8_t tpdkg_peerstate_t(const TP_DKG_PeerState *ctx);
+const uint8_t* tpdkg_peerstate_sessionid(const TP_DKG_PeerState *ctx);
+const uint8_t* tpdkg_peerstate_lt_sk(const TP_DKG_PeerState *ctx);
+const uint8_t* tpdkg_peerstate_share(const TP_DKG_PeerState *ctx);
+int tpdkg_peerstate_step(const TP_DKG_PeerState *ctx);
 
 /** @struct TP_DKG_Cheater
 
@@ -226,11 +226,11 @@ typedef struct {
 } TP_DKG_TPState;
 
 size_t tpdkg_tpstate_size(void);
-uint8_t tpdkg_tpstate_n(TP_DKG_TPState *ctx);
-uint8_t tpdkg_tpstate_t(TP_DKG_TPState *ctx);
-size_t tpdkg_tpstate_cheater_len(TP_DKG_TPState *ctx);
-uint8_t* tpdkg_tpstate_sessionid(TP_DKG_TPState *ctx);
-int tpdkg_tpstate_step(TP_DKG_TPState *ctx);
+uint8_t tpdkg_tpstate_n(const TP_DKG_TPState *ctx);
+uint8_t tpdkg_tpstate_t(const TP_DKG_TPState *ctx);
+size_t tpdkg_tpstate_cheater_len(const TP_DKG_TPState *ctx);
+const uint8_t* tpdkg_tpstate_sessionid(const TP_DKG_TPState *ctx);
+int tpdkg_tpstate_step(const TP_DKG_TPState *ctx);
 
 /*
  * Trusted Party functions
