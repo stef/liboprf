@@ -619,7 +619,7 @@ static int peer_step7_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
     DKG_Message *msg5 = (DKG_Message *) wptr;
     uint8_t rname[13];
     snprintf((char*) rname, sizeof rname, "dkg peer %02x", i+1);
-    dkg_respond_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_ins)[i], msg4->data, msg5->data);
+    dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg4->data, msg5->data);
     if(0!=send_msg(wptr, tpdkg_msg5_SIZE, 5, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 4;
     dkg_dump_msg(wptr, tpdkg_msg5_SIZE, ctx->index);
     wptr+=tpdkg_msg5_SIZE;

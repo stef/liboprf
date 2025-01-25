@@ -298,7 +298,6 @@ int dkg_init_noise_handshake(const uint8_t index,
 
 int dkg_respond_noise_handshake(const uint8_t index,
                                 Noise_XK_device_t *dev,
-                                uint8_t rpk[crypto_scalarmult_BYTES],
                                 uint8_t *rname,
                                 Noise_XK_session_t** session,
                                 uint8_t inmsg[noise_xk_handshake1_SIZE],
@@ -362,7 +361,7 @@ int dkg_finish_noise_handshake(const uint8_t index,
       return 2;
     }
     uint8_t *pinfo;
-    Noise_XK_peer_get_info((Noise_XK_noise_string*) &pinfo, peer);
+    Noise_XK_peer_get_info(&pinfo, peer);
     if(pinfo==NULL) {
       Noise_XK_session_free(*session);
       return 3;
@@ -462,7 +461,7 @@ int dkg_noise_decrypt(const uint8_t *input,
 /**
   Return the session unique send key, needed for tp-dkg reveal share.
 */
-uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
+uint8_t* Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
   Noise_XK_session_t st = sn[0U];
   if (st.tag == Noise_XK_DS_Initiator && st.val.case_DS_Initiator.state.tag == Noise_XK_IMS_Transport)
     return st.val.case_DS_Initiator.state.val.case_IMS_Transport.send_key;
@@ -474,7 +473,7 @@ uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn) {
 void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
   uint32_t msg_size_32b = htonl((uint32_t)msg_len);
   crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
-  crypto_generichash_update(transcript, (uint8_t*) msg, msg_len);
+  crypto_generichash_update(transcript, (const uint8_t*) msg, msg_len);
 }
 
 char* dkg_recv_err(const int code) {

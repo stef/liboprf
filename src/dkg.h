@@ -136,7 +136,6 @@ int dkg_init_noise_handshake(const uint8_t index,
                              uint8_t msg[noise_xk_handshake1_SIZE]);
 int dkg_respond_noise_handshake(const uint8_t index,
                                 Noise_XK_device_t *dev,
-                                uint8_t rpk[crypto_scalarmult_BYTES],
                                 uint8_t *rname,
                                 Noise_XK_session_t** session,
                                 uint8_t inmsg[noise_xk_handshake1_SIZE],
@@ -155,7 +154,7 @@ int dkg_noise_decrypt(const uint8_t *input,
                       uint8_t *output,
                       const size_t output_len,
                       Noise_XK_session_t** session);
-uint8_t* Noise_XK_session_get_key(Noise_XK_session_t *sn);
+uint8_t* Noise_XK_session_get_key(const Noise_XK_session_t *sn);
 
 void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len);
 

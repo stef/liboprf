@@ -11,7 +11,7 @@ void debian_rng_scalar(uint8_t *scalar) {
   static int warned=0;
   static uint8_t rng_i=2;
   if(!warned) {
-     fprintf(stderr, "\e[0;31mWARNING! This version of liboprf DKG is compiled with a *NON* random generator for UNIT_TESTS\e[0m\n");
+     fprintf(stderr, "\x1b[0;31mWARNING! This version of liboprf DKG is compiled with a *NON* random generator for UNIT_TESTS\x1b[0m\n");
      warned=1;
   }
   memset(scalar,0,crypto_core_ristretto255_SCALARBYTES);
@@ -40,13 +40,13 @@ void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   fflush(lf);
 }
 
-void fail(char* msg, ...) {
+void fail(const char* msg, ...) {
   va_list args;
   va_start(args, msg);
-  fprintf(stderr, "\e[0;31m");
+  fprintf(stderr, "\x1b[0;31m");
   vfprintf(stderr, msg, args);
   va_end(args);
-  fprintf(stderr, "\e[0m\n");
+  fprintf(stderr, "\x1b[0m\n");
 }
 
 #ifndef htonll
