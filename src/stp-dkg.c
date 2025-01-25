@@ -71,7 +71,7 @@ const uint8_t* stpdkg_peerstate_lt_sk(const STP_DKG_PeerState *ctx) {
   return ctx->sig_sk;
 }
 const uint8_t* stpdkg_peerstate_share(const STP_DKG_PeerState *ctx) {
-  return (uint8_t*) &ctx->share;
+  return (const uint8_t*) &ctx->share;
 }
 int stpdkg_peerstate_step(const STP_DKG_PeerState *ctx) {
   return ctx->step;
@@ -420,7 +420,10 @@ int stpdkg_start_peer(STP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
                       const DKG_Message *msg0) {
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] step 0.5 start peer\x1b[0m\n");
 
-  dkg_dump_msg((uint8_t*) msg0, stpdkg_msg0_SIZE, ctx->index);
+  if(log_file!=NULL) {
+    fprintf(log_file,"[?] msgno: %d, from: %d to: 0x%x ", msg0->msgno, msg0->from, msg0->to);
+    dump((const uint8_t*) msg0, stpdkg_msg0_SIZE, "msg");
+  }
 
   ctx->ts_epsilon = ts_epsilon;
   ctx->stp_last_ts = 0;

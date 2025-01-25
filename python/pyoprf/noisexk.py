@@ -184,7 +184,7 @@ def initiator_session(initiator_privkey, responder_pubkey, iname=None,
         iname = b"initiator"
     if rname is None:
         rname = b"responder"
-    initiator_pubkey = pubkey(initiator_privkey)
+    #initiator_pubkey = pubkey(initiator_privkey)
     dev = create_device(dst, iname, initiator_privkey)
     peer = add_peer(dev, rname, responder_pubkey)
     peerid = get_peerid(peer)
@@ -199,7 +199,7 @@ def responder_session(responder_privkey, auth_keys, msg, dst=None, name=None):
         dst = b"liboprf-noiseXK"
     if name is None:
         name = b"responder"
-    responder_pubkey = pubkey(responder_privkey)
+    #responder_pubkey = pubkey(responder_privkey)
     dev = create_device(dst, name, responder_privkey)
     for key, peer in auth_keys:
         add_peer(dev,peer,key)

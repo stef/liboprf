@@ -70,7 +70,7 @@ const uint8_t* tpdkg_peerstate_lt_sk(const TP_DKG_PeerState *ctx) {
   return ctx->lt_sk;
 }
 const uint8_t* tpdkg_peerstate_share(const TP_DKG_PeerState *ctx) {
-  return (uint8_t*) &ctx->share;
+  return (const uint8_t*) &ctx->share;
 }
 int tpdkg_peerstate_step(const TP_DKG_PeerState *ctx) {
   return ctx->step;
