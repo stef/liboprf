@@ -97,11 +97,11 @@ int stpdkg_stpstate_step(const STP_DKG_STPState *ctx) {
 }
 
 static int stp_send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
-  return send_msg(msg_buf, msg_buf_len, MSG_TYPE_SEMI_TRUSTED | MSG_TYPE_DKG, msgno, from, to, sig_sk, sessionid);
+  return send_msg(msg_buf, msg_buf_len, MSG_TYPE_SEMI_TRUSTED | MSG_TYPE_DKG, 0, msgno, from, to, sig_sk, sessionid);
 }
 
 static int stp_recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts) {
-  return recv_msg(msg_buf, msg_buf_len, MSG_TYPE_SEMI_TRUSTED | MSG_TYPE_DKG, msgno, from, to, sig_pk, sessionid, ts_epsilon, last_ts);
+  return recv_msg(msg_buf, msg_buf_len, MSG_TYPE_SEMI_TRUSTED | MSG_TYPE_DKG, 0, msgno, from, to, sig_pk, sessionid, ts_epsilon, last_ts);
 }
 
 static STP_DKG_Cheater* add_cheater(STP_DKG_STPState *ctx, const int step, const int error, const uint8_t peer, const uint8_t other_peer) {

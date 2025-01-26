@@ -1,4 +1,4 @@
-Trusted-party (TP) Distributed Key Generation (DKG)
+Trusted-party (TP) Distributed Key Generation (DKG) v1.0
 
 This document specifies a proposal for a non-robust DKG that can work
 for small deployments with a small number of parties and infrequent
@@ -157,6 +157,7 @@ cryptographic quality.
 All messages have a message header:
 
   uint8  type
+  uint8  version = 0
   uint8  messageno
   uint32 len
   uint8  from
@@ -211,6 +212,7 @@ fields:
 
 ```
    assert(msg.type == 0)
+   assert(msg.version == 0)
    assert(msg.messageno == expected_messageno)
    assert(msg.from == expected_sender_id)
    assert(msg.to == (own_peer_id or 0xff))
@@ -245,6 +247,7 @@ And for validating incoming messages:
 data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
     assert(verify(sign_pk, msg, sig)
     assert(msg.type == 0)
+    assert(msg.version == 0)
     assert(msg.messageno == msgno)
     assert(msg.len == len(msg|sig))
     assert(msg.from == from)

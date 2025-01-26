@@ -215,10 +215,11 @@ int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
   return 0;
 }
 
-int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
+int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t version, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
   if(msg_buf==NULL) return 1;
   DKG_Message* msg = (DKG_Message*) msg_buf;
-  msg->type = type,
+  msg->type = type;
+  msg->version = version;
   msg->len = htonl((uint32_t)msg_buf_len);
   msg->msgno = msgno;
   msg->from = from;
@@ -230,10 +231,11 @@ int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, con
   return 0;
 }
 
-int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
+int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t version, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
   if(msg_buf==NULL) return 8;
   const DKG_Message* msg = (const DKG_Message*) msg_buf;
   if(msg->type != type) return 9;
+  if(msg->version != version) return 10;
   if(ntohl(msg->len) != msg_buf_len) return 1;
   if(msg->msgno != msgno) return 2;
   if(msg->from != from) return 3;
