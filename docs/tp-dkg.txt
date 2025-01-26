@@ -156,6 +156,7 @@ cryptographic quality.
 
 All messages have a message header:
 
+  uint8  type
   uint8  messageno
   uint32 len
   uint8  from
@@ -163,7 +164,10 @@ All messages have a message header:
   uint64 timestamp
   uint8  sessionid[32]
 
-The first field in the header is really a state identifier. A
+The first field is the protocol type identifier. TP-DKG has an
+identifier value of zero (0).
+
+The second field in the header is really a state identifier. A
 recipient MUST verify that the messageno is matching with the expected
 number related to the state of the protocol.
 
@@ -206,6 +210,7 @@ The recipient MUST also assert the correctness of all the other header
 fields:
 
 ```
+   assert(msg.type == 0)
    assert(msg.messageno == expected_messageno)
    assert(msg.from == expected_sender_id)
    assert(msg.to == (own_peer_id or 0xff))
@@ -239,6 +244,7 @@ And for validating incoming messages:
 
 data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
     assert(verify(sign_pk, msg, sig)
+    assert(msg.type == 0)
     assert(msg.messageno == msgno)
     assert(msg.len == len(msg|sig))
     assert(msg.from == from)

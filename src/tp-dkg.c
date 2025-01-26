@@ -95,6 +95,14 @@ int tpdkg_tpstate_step(const TP_DKG_TPState *ctx) {
   return ctx->step;
 }
 
+static int tp_send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
+  return send_msg(msg_buf, msg_buf_len, MSG_TYPE_TRUSTED | MSG_TYPE_DKG, msgno, from, to, sig_sk, sessionid);
+}
+
+static int tp_recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts) {
+  return recv_msg(msg_buf, msg_buf_len, MSG_TYPE_TRUSTED | MSG_TYPE_DKG, msgno, from, to, sig_pk, sessionid, ts_epsilon, last_ts);
+}
+
 static TP_DKG_Cheater* add_cheater(TP_DKG_TPState *ctx, const int step, const int error, const uint8_t peer, const uint8_t other_peer) {
   if(ctx->cheater_len >= ctx->cheater_max) return NULL;
   TP_DKG_Cheater *cheater = &(*ctx->cheaters)[ctx->cheater_len++];
@@ -389,7 +397,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
   *ptr++ = n;
   *ptr++ = t;
 
-  if(0!=send_msg((uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
+  if(0!=tp_send_msg((uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
 
   // init transcript
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
@@ -418,7 +426,7 @@ int tpdkg_start_peer(TP_DKG_PeerState *ctx, const uint64_t ts_epsilon,
   ctx->ts_epsilon = ts_epsilon;
   ctx->tp_last_ts = 0;
 
-  int ret = recv_msg((const uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, msg0->data, msg0->sessionid, ts_epsilon, &ctx->tp_last_ts);
+  int ret = tp_recv_msg((const uint8_t*) msg0, tpdkg_msg0_SIZE, 0, 0, 0xff, msg0->data, msg0->sessionid, ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 64 + ret;
 
   // extract data from message
@@ -455,7 +463,7 @@ static int tp_step1_handler(const TP_DKG_TPState *ctx, uint8_t *output, const si
 
   uint8_t* ptr = output;
   for(uint8_t i=1;i<=ctx->n;i++,ptr+=tpdkg_msg1_SIZE) {
-    if(0!=send_msg(ptr, sizeof(DKG_Message), 1, 0, i, ctx->sig_sk, ctx->sessionid)) return 3;
+    if(0!=tp_send_msg(ptr, sizeof(DKG_Message), 1, 0, i, ctx->sig_sk, ctx->sessionid)) return 3;
     dkg_dump_msg(ptr, tpdkg_msg1_SIZE, 0);
   }
 
@@ -469,7 +477,7 @@ static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
   dkg_dump_msg(input, input_len, ctx->index);
   const DKG_Message *msg1=(const DKG_Message*) input;
-  int ret = recv_msg(input, tpdkg_msg1_SIZE, 1, 0, msg1->to, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
+  int ret = tp_recv_msg(input, tpdkg_msg1_SIZE, 1, 0, msg1->to, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 4 + ret;
   if(msg1->to > 128 || msg1->to < 1) return 3;
   ctx->index=msg1->to;
@@ -485,7 +493,7 @@ static int peer_step23_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   memcpy(wptr, ctx->sig_pk, sizeof ctx->sig_pk);
   wptr+=sizeof ctx->sig_pk;
   memcpy(wptr, ctx->noise_pk, sizeof ctx->noise_pk);
-  if(0!=send_msg(output, tpdkg_msg2_SIZE, 2, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
+  if(0!=tp_send_msg(output, tpdkg_msg2_SIZE, 2, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
   // sign message with long-term key
   crypto_sign_detached(output+tpdkg_msg2_SIZE,NULL,output,tpdkg_msg2_SIZE,ctx->lt_sk);
   sodium_memzero(ctx->lt_sk,crypto_sign_SECRETKEYBYTES);
@@ -509,7 +517,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_sign_verify_detached(ptr+tpdkg_msg2_SIZE,ptr,tpdkg_msg2_SIZE,(*ctx->peer_lt_pks)[i])) return 3;
 #endif
-    int ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 4, 64+ret, i+1,0xff) == NULL) return 7;
       continue;
@@ -523,7 +531,7 @@ static int tp_step4_handler(TP_DKG_TPState *ctx, const uint8_t *msg2s, const siz
   }
   if(ctx->cheater_len>0) return 6;
 
-  if(0!=send_msg(msg3_buf, msg3_buf_len, 3, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
+  if(0!=tp_send_msg(msg3_buf, msg3_buf_len, 3, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
   update_transcript(&ctx->transcript, msg3_buf, msg3_buf_len);
 
   return 0;
@@ -534,7 +542,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
   if(input_len != tpdkg_msg2_SIZE * ctx->n + sizeof(DKG_Message)) return 1;
   if(output_len != tpdkg_msg4_SIZE * ctx->n) return 2;
 
-  int ret = recv_msg(input, input_len, 3, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
+  int ret = tp_recv_msg(input, input_len, 3, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 32+ret;
 
   update_transcript(&ctx->transcript, input, input_len);
@@ -552,7 +560,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
   for(uint8_t i=0;i<ctx->n;i++) {
     const DKG_Message* msg2 = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg2_SIZE, ctx->index);
-    ret = recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg2->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    ret = tp_recv_msg(ptr, tpdkg_msg2_SIZE, 2, i+1, 0xff, msg2->data, ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
     // extract peer sig and noise pk
     memcpy((*ctx->peer_sig_pks)[i], msg2->data, crypto_sign_PUBLICKEYBYTES);
@@ -563,7 +571,7 @@ static int peer_step5_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
     uint8_t rname[13];
     snprintf((char*) rname, sizeof rname, "dkg peer %02x", i+1);
     dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg4->data);
-    if(0!=send_msg(wptr, tpdkg_msg4_SIZE, 4, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 5;
+    if(0!=tp_send_msg(wptr, tpdkg_msg4_SIZE, 4, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 5;
     dkg_dump_msg(wptr, tpdkg_msg4_SIZE, ctx->index);
     wptr+=tpdkg_msg4_SIZE;
   }
@@ -584,7 +592,7 @@ static int tp_step68_handler(TP_DKG_TPState *ctx, const uint8_t *msg4s, const si
         if(log_file!=NULL) fprintf(log_file, "tpdkg_msg4_SIZE must be equal tpdkg_msg5_SIZE for the check to be correct in tp_step68_handler\n");
         return 3;
       }
-      int ret = recv_msg((*inputs)[j][i], tpdkg_msg4_SIZE, (uint8_t) (2+ctx->step), j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[j]);
+      int ret = tp_recv_msg((*inputs)[j][i], tpdkg_msg4_SIZE, (uint8_t) (2+ctx->step), j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[j]);
       if(0!=ret) {
         if(add_cheater(ctx, 6 + (ctx->step - 1) * 2, 64+ret, j+1, i+1) == NULL) return 7;
         const DKG_Message *msg = (const DKG_Message*) (*inputs)[j][i];
@@ -611,7 +619,7 @@ static int peer_step7_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
   for(uint8_t i=0;i<ctx->n;i++) {
     DKG_Message* msg4 = (DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg4_SIZE, ctx->index);
-    int ret = recv_msg(ptr, tpdkg_msg4_SIZE, 4, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg4_SIZE, 4, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
     ptr+=tpdkg_msg4_SIZE;
 
@@ -620,7 +628,7 @@ static int peer_step7_handler(TP_DKG_PeerState *ctx, const uint8_t *input, const
     uint8_t rname[13];
     snprintf((char*) rname, sizeof rname, "dkg peer %02x", i+1);
     dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg4->data, msg5->data);
-    if(0!=send_msg(wptr, tpdkg_msg5_SIZE, 5, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 4;
+    if(0!=tp_send_msg(wptr, tpdkg_msg5_SIZE, 5, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 4;
     dkg_dump_msg(wptr, tpdkg_msg5_SIZE, ctx->index);
     wptr+=tpdkg_msg5_SIZE;
   }
@@ -637,7 +645,7 @@ static int peer_step911_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
   for(uint8_t i=0;i<ctx->n;i++) {
     DKG_Message* msg5 = (DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg5_SIZE, ctx->index);
-    int ret = recv_msg(ptr, tpdkg_msg5_SIZE, 5, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg5_SIZE, 5, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
     ptr+=tpdkg_msg5_SIZE;
     // process final step of noise handshake
@@ -646,7 +654,7 @@ static int peer_step911_handler(TP_DKG_PeerState *ctx, const uint8_t *input, con
 
   DKG_Message* msg6 = (DKG_Message*) output;
   if(0!=dkg_start(ctx->n, ctx->t, (uint8_t (*)[32]) msg6->data, *ctx->shares)) return 4;
-  if(0!=send_msg(output, tpdkg_msg6_SIZE(ctx), 6, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
+  if(0!=tp_send_msg(output, tpdkg_msg6_SIZE(ctx), 6, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
   dkg_dump_msg(output, tpdkg_msg6_SIZE(ctx), ctx->index);
   if(log_file!=NULL) {
     dump(msg6->data, ctx->t*crypto_core_ristretto255_BYTES, "[%d] commitments", ctx->index);
@@ -665,7 +673,7 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
   for(uint8_t i=0;i<ctx->n;i++,ptr+=tpdkg_msg6_SIZE(ctx)) {
     const DKG_Message* msg = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg6_SIZE(ctx), 0);
-    int ret = recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 12, 64+ret, i+1,0xff) == NULL) return 7;
       continue;
@@ -681,7 +689,7 @@ static int tp_step12_handler(TP_DKG_TPState *ctx, const uint8_t *msg6s, const si
   }
   if(ctx->cheater_len>0) return 6;
 
-  if(0!=send_msg(msg7_buf, msg7_buf_len, 7, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
+  if(0!=tp_send_msg(msg7_buf, msg7_buf_len, 7, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 4;
   dkg_dump_msg(msg7_buf, msg7_buf_len, 0);
 
   // add broadcast msg to transcript
@@ -698,7 +706,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   // verify TP message envelope
   const DKG_Message* msg7 = (const DKG_Message*) input;
   dkg_dump_msg(input, input_len, ctx->index);
-  int ret = recv_msg(input, input_len, 7, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
+  int ret = tp_recv_msg(input, input_len, 7, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 32+ret;
 
   // add broadcast msg to transcript
@@ -709,7 +717,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   for(uint8_t i=0;i<ctx->n;i++, wptr+=tpdkg_msg8_SIZE,ptr+=tpdkg_msg6_SIZE(ctx)) {
     const DKG_Message* msg6 = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg6_SIZE(ctx), ctx->index);
-    if(0!=recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i])) return 64+ret;
+    if(0!=tp_recv_msg(ptr, tpdkg_msg6_SIZE(ctx), 6, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i])) return 64+ret;
     // extract peer commitments
     memcpy((*ctx->commitments)[i*ctx->t], msg6->data, crypto_core_ristretto255_BYTES * ctx->t);
 
@@ -745,7 +753,7 @@ static int peer_step13_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
                 sizeof(TOPRF_Share) + crypto_secretbox_xchacha20poly1305_MACBYTES,
                 Noise_XK_session_get_key((*ctx->noise_outs)[i]));
 
-    if(0!=send_msg(wptr, tpdkg_msg8_SIZE, 8, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 7;
+    if(0!=tp_send_msg(wptr, tpdkg_msg8_SIZE, 8, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return 7;
     dkg_dump_msg(wptr, tpdkg_msg8_SIZE, ctx->index);
   }
 
@@ -762,7 +770,7 @@ static int tp_step14_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   for(uint8_t i=0;i<ctx->n;i++) {
     for(uint8_t j=0;j<ctx->n;j++) {
       dkg_dump_msg((*inputs)[j][i], tpdkg_msg8_SIZE, 0);
-      int ret = recv_msg((*inputs)[j][i], tpdkg_msg8_SIZE, 8, j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[j]);
+      int ret = tp_recv_msg((*inputs)[j][i], tpdkg_msg8_SIZE, 8, j+1, i+1, (*ctx->peer_sig_pks)[j], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[j]);
       if(0!=ret) {
         if(add_cheater(ctx, 14, 64+ret, j+1, i+1) == NULL) return 7;
         continue;
@@ -789,7 +797,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   for(uint8_t i=0;i<ctx->n;i++) {
     const DKG_Message* msg8 = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg8_SIZE, ctx->index);
-    int ret = recv_msg(ptr, tpdkg_msg8_SIZE, 8, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg8_SIZE, 8, i+1, ctx->index, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 64+ret;
 
     // decrypt final empty handshake packet
@@ -836,7 +844,7 @@ static int peer_step15_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
     }
   }
 
-  if(0!=send_msg(output, tpdkg_msg9_SIZE(ctx), 9, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return 7;
+  if(0!=tp_send_msg(output, tpdkg_msg9_SIZE(ctx), 9, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return 7;
   dkg_dump_msg(output, tpdkg_msg9_SIZE(ctx), ctx->index);
 
   return 0;
@@ -855,7 +863,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   for(uint8_t i=0;i<ctx->n;i++, ptr+=tpdkg_msg9_SIZE(ctx)) {
     const DKG_Message* msg = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg9_SIZE(ctx), 0);
-    int ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 16, 64+ret, i+1, 0xff) == NULL) return 6;
       continue;
@@ -894,7 +902,7 @@ static int tp_step16_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
   if(ctx->cheater_len>0) return 5;
 
-  if(0!=send_msg(output, output_len, 10, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 7;
+  if(0!=tp_send_msg(output, output_len, 10, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 7;
   dkg_dump_msg(output, output_len, 0);
 
   // add broadcast msg to transcript
@@ -911,7 +919,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   const DKG_Message* msg10 = (const DKG_Message*) input;
   dkg_dump_msg(input, input_len, ctx->index);
 
-  int ret = recv_msg(input, input_len, 10, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
+  int ret = tp_recv_msg(input, input_len, 10, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 16+ret;
 
   // add broadcast msg to transcript
@@ -921,7 +929,7 @@ static int peer_step17_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   for(uint8_t i=0;i<ctx->n;i++) {
     const DKG_Message* msg9 = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg9_SIZE(ctx), ctx->index);
-    ret = recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    ret = tp_recv_msg(ptr, tpdkg_msg9_SIZE(ctx), 9, i+1, 0xff, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) return 32+ret;
     if(msg9->len - sizeof(DKG_Message) < msg9->data[0]) return 5;
 
@@ -972,7 +980,7 @@ static int peer_step17a_handler(TP_DKG_PeerState *ctx, uint8_t *output, const si
     wptr+=dkg_noise_key_SIZE;
   }
 
-  if(0!=send_msg(output, tpdkg_peer_output_size(ctx), 11, ctx->index, 0x0, ctx->sig_sk, ctx->sessionid)) return 3;
+  if(0!=tp_send_msg(output, tpdkg_peer_output_size(ctx), 11, ctx->index, 0x0, ctx->sig_sk, ctx->sessionid)) return 3;
   dkg_dump_msg(output, tpdkg_peer_output_size(ctx), ctx->index);
 
   // we skip to the end...
@@ -1006,7 +1014,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
     const DKG_Message* msg = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, msg_len, 0);
-    int ret = recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, msg_len, 11, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 18, 32+ret, i+1, 0xfe) == NULL) return 4;
       continue;
@@ -1037,7 +1045,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
       dkg_dump_msg(msg8_ptr, tpdkg_msg8_SIZE, 0);
       const DKG_Message *msg8 = (const DKG_Message *) msg8_ptr;
       uint64_t last_ts = ntohll(msg8->ts);
-      ret = recv_msg(msg8_ptr, tpdkg_msg8_SIZE, 8,
+      ret = tp_recv_msg(msg8_ptr, tpdkg_msg8_SIZE, 8,
                      accused, complainer,
                      (*ctx->peer_sig_pks)[accused-1], ctx->sessionid,
                      ctx->ts_epsilon, &last_ts);
@@ -1130,7 +1138,7 @@ static int tp_step18_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
 
   DKG_Message* msg20 = (DKG_Message*) output;
   crypto_generichash_final(&ctx->transcript, msg20->data, crypto_generichash_BYTES);
-  if(0!=send_msg(output, tpdkg_msg19_SIZE, 20, ctx->index, 0, ctx->sig_sk, ctx->sessionid)) return 3;
+  if(0!=tp_send_msg(output, tpdkg_msg19_SIZE, 20, ctx->index, 0, ctx->sig_sk, ctx->sessionid)) return 3;
   dkg_dump_msg(output, tpdkg_msg19_SIZE, ctx->index);
 
   return 0;
@@ -1151,7 +1159,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   for(uint8_t i=0;i<ctx->n;i++, ptr+=tpdkg_msg19_SIZE) {
     const DKG_Message* msg = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg19_SIZE, 0);
-    int ret = recv_msg(ptr, tpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg19_SIZE, 20, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 20, 1+ret, i+1, 0) == NULL) return 4;
 
@@ -1168,7 +1176,7 @@ static int tp_step20_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
     }
   }
 
-  if(0!=send_msg(output, output_len, 21, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
+  if(0!=tp_send_msg(output, output_len, 21, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return 5;
   dkg_dump_msg(output, output_len, 0);
   if(ctx->cheater_len == 0) return 0;
 
@@ -1184,7 +1192,7 @@ static int peer_step21_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
   // verify TP message envelope
   const DKG_Message* msg21 = (const DKG_Message*) input;
   dkg_dump_msg(input, input_len, ctx->index);
-  int ret = recv_msg(input, input_len, 21, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
+  int ret = tp_recv_msg(input, input_len, 21, 0, 0xff, ctx->tp_sig_pk, ctx->sessionid, ctx->ts_epsilon, &ctx->tp_last_ts);
   if(0!=ret) return 4+ret;
 
   int fail = (memcmp(msg21->data, "OK", 2) != 0);
@@ -1194,7 +1202,7 @@ static int peer_step21_handler(TP_DKG_PeerState *ctx, const uint8_t *input, cons
 
     DKG_Message* msg22 = (DKG_Message*) output;
     memcpy(msg22->data, msg21->data, 2);
-    if(0!=send_msg(output, tpdkg_msg21_SIZE, 22, ctx->index, 0, ctx->sig_sk, ctx->sessionid)) return 3;
+    if(0!=tp_send_msg(output, tpdkg_msg21_SIZE, 22, ctx->index, 0, ctx->sig_sk, ctx->sessionid)) return 3;
     dkg_dump_msg(output, tpdkg_msg21_SIZE, ctx->index);
     return 0;
   }
@@ -1210,7 +1218,7 @@ static int tp_step22_handler(TP_DKG_TPState *ctx, const uint8_t *input, const si
   for(uint8_t i=0;i<ctx->n;i++, ptr+=tpdkg_msg21_SIZE) {
     const DKG_Message* msg = (const DKG_Message*) ptr;
     dkg_dump_msg(ptr, tpdkg_msg21_SIZE, 0);
-    int ret = recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
+    int ret = tp_recv_msg(ptr, tpdkg_msg21_SIZE, 22, i+1, 0, (*ctx->peer_sig_pks)[i], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
     if(0!=ret) {
       if(add_cheater(ctx, 22, 64+ret, i+1, 0) == NULL) return 6;
       continue;

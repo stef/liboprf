@@ -206,6 +206,7 @@ sessionid = h(acc)
 
 All messages have a message header:
 
+  uint8  type = 0x80
   uint8  messageno
   uint32 len
   uint8  from
@@ -213,7 +214,10 @@ All messages have a message header:
   uint64 timestamp
   uint8  sessionid[32]
 
-The first field in the header is really a state identifier. A
+The first field is the protocol type identifier. STP-DKG has an
+identifier value of 128 (0x80).
+
+The second field in the header is really a state identifier. A
 recipient MUST verify that the messageno is matching with the expected
 number related to the state of the protocol.
 
@@ -238,8 +242,7 @@ as a reference for synchronizing during the protocol.
 ------<=[ Message signatures                            ]=>-----------
 
 Every message MUST be signed using the sender peers ephemeral signing
-key. The signature is made over the message and the appended session
-id. The session id is established in the first phase of the protocol.
+key. The signature is made over the complete message.
 
 ------<=[ Verifying messages                            ]=>-----------
 
@@ -256,6 +259,7 @@ The recipient MUST also assert the correctness of all the other header
 fields:
 
 ```
+   assert(msg.type == 0x80)
    assert(msg.messageno == expected_messageno)
    assert(msg.from == expected_sender_id)
    assert(msg.to == (own_peer_id or 0xff))
@@ -278,7 +282,7 @@ sending:
 ```
 msg, sig = send_msg(msgno, from, to, sign_sk, session_id, data)
     ts = timestamp()
-    msg = messageno: msgno, len: len(header) + len(data) + len(sig), from: from, to: to, ts: ts, data
+    msg = type: 0x80, messageno: msgno, len: len(header) + len(data) + len(sig), from: from, to: to, ts: ts, data
     sig = sign(sign_sk, msg)
     return msg, sig
 ```
@@ -289,6 +293,7 @@ And for validating incoming messages:
 
 data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
     assert(verify(sign_pk, msg, sig)
+    assert(msg.type == 0x80)
     assert(msg.messageno == msgno)
     assert(msg.len == len(msg|sig))
     assert(msg.from == from)

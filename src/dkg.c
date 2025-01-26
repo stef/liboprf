@@ -215,9 +215,10 @@ int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
   return 0;
 }
 
-int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
+int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
   if(msg_buf==NULL) return 1;
   DKG_Message* msg = (DKG_Message*) msg_buf;
+  msg->type = type,
   msg->len = htonl((uint32_t)msg_buf_len);
   msg->msgno = msgno;
   msg->from = from;
@@ -225,13 +226,14 @@ int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, co
   msg->ts = htonll((uint64_t)time(NULL));
   memcpy(msg->sessionid, sessionid, dkg_sessionid_SIZE);
 
-  crypto_sign_detached(msg->sig, NULL, &msg->msgno, sizeof(DKG_Message) - crypto_sign_BYTES, sig_sk);
+  crypto_sign_detached(msg->sig, NULL, &msg->type, sizeof(DKG_Message) - crypto_sign_BYTES, sig_sk);
   return 0;
 }
 
-int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
-  if(msg_buf==NULL) return 7;
+int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
+  if(msg_buf==NULL) return 8;
   const DKG_Message* msg = (const DKG_Message*) msg_buf;
+  if(msg->type != type) return 9;
   if(ntohl(msg->len) != msg_buf_len) return 1;
   if(msg->msgno != msgno) return 2;
   if(msg->from != from) return 3;
@@ -255,7 +257,7 @@ int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msg
   memcpy(with_sessionid + unsigned_buf_len, sessionid, dkg_sessionid_SIZE);
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-  if(0!=crypto_sign_verify_detached(msg->sig, &msg->msgno, sizeof(DKG_Message) - crypto_sign_BYTES, sig_pk)) return 6;
+  if(0!=crypto_sign_verify_detached(msg->sig, &msg->type, sizeof(DKG_Message) - crypto_sign_BYTES, sig_pk)) return 6;
 #endif
 
   return 0;

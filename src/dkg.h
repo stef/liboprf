@@ -113,6 +113,7 @@ void dkg_reconstruct(const size_t response_len,
  */
 typedef struct {
   uint8_t sig[crypto_sign_BYTES];
+  uint8_t type;
   uint8_t msgno;
   uint32_t len;
   uint8_t from;
@@ -122,11 +123,15 @@ typedef struct {
   uint8_t data[];
 } __attribute((packed)) DKG_Message;
 
+#define MSG_TYPE_DKG          0
+#define MSG_TYPE_SEMI_TRUSTED (1 << 7)
+#define MSG_TYPE_TRUSTED      (0 << 7)
+
 int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts);
 
-int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]);
+int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]);
 
-int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts );
+int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts );
 
 int dkg_init_noise_handshake(const uint8_t index,
                              Noise_XK_device_t *dev,
