@@ -21,12 +21,17 @@ the paper "Secure Distributed Key Generation for Discrete-Log
 Based Cryptosystems" by R. Gennaro, S. Jarecki, H. Krawczyk,
 and T. Rabin.
 
-In order to update a threshold OPRF instantiation this library contains
-the multi-party multiplication is based on Fig. 2 from R. Gennaro,
-M. O. Rabin, and T. Rabin. "Simplified VSS and fact-track multiparty
-computations with applications to threshold cryptography" In
-B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages 101–111. ACM,
-June / July 1998.
+The semi-trusted version of the DKG implements FT-Joint-DL-VSS from fig. 7 in
+R. Gennaro, M. O. Rabin, and T. Rabin. "Simplified VSS and fact-track
+multiparty computations with applications to threshold cryptography" In B. A.
+Coan and Y. Afek, editors, 17th ACM PODC, pages 101–111. ACM, June / July 1998
+
+
+In order to update a threshold OPRF instantiation this library contains the
+multi-party multiplication is based on Fig. 2 from R. Gennaro, M. O. Rabin, and
+T. Rabin. "Simplified VSS and fact-track multiparty computations with
+applications to threshold cryptography" In B. A. Coan and Y. Afek, editors,
+17th ACM PODC, pages 101–111. ACM, June / July 1998.
 
 Additionally a python wrapper is provided, which can be installed
 using `pip install pyoprf`
