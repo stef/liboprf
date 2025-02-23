@@ -450,11 +450,11 @@ def dkg_reconstruct(responses) -> bytes_list_t:
     return result.raw
 
 tpdkg_sessionid_SIZE=32
-tpdkg_msg0_SIZE = 177 # ( sizeof(TP_DKG_Message)                       \
+tpdkg_msg0_SIZE = 179 # ( sizeof(TP_DKG_Message)                       \
                       # + crypto_generichash_BYTES/*dst*/              \
                       # + 2 /*n,t*/                                    \
                       # + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */)
-tpdkg_msg8_SIZE = 256 # (sizeof(TP_DKG_Message) /* header */                             \
+tpdkg_msg8_SIZE = 258 # (sizeof(TP_DKG_Message) /* header */                             \
                       #  + noise_xk_handshake3_SIZE /* 4th&final noise handshake */      \
                       #  + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped share */     \
                       #  + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */  \
