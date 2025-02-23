@@ -51,7 +51,7 @@ static int dkg_vss(const uint8_t n, const uint8_t t,
 
     uint8_t complaints[n];
     memset(complaints, 0, sizeof complaints);
-    uint8_t complaints_len=dkg_vss_verify_commitments(n,t,i+1,dealer_commitments,sent_shares,complaints);
+    uint8_t complaints_len=dkg_vss_verify_commitments(n,i+1,dealer_commitments,sent_shares,complaints);
     if(complaints_len>0) {
       // todo accused dealer P_i publishes α_i, ρ_i such that A_i = 𝓗(α_i,ρ_i)
       // if dealer P_i fails, disqualify them.

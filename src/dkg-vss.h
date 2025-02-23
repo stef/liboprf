@@ -18,7 +18,6 @@ int dkg_vss_verify_commitment(const uint8_t commitment[crypto_core_ristretto255_
                               const TOPRF_Share shares[2]);
 
 uint8_t dkg_vss_verify_commitments(const uint8_t n,
-                                   const uint8_t threshold,
                                    const uint8_t self,
                                    const uint8_t commitments[n][n+1][crypto_core_ristretto255_BYTES],
                                    const TOPRF_Share shares[n][2],

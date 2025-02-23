@@ -13,33 +13,6 @@ const uint8_t H[crypto_core_ristretto255_BYTES]= {
   0xf9, 0x73, 0xda, 0xe5, 0xc0, 0xef, 0xc1, 0x68,
   0xf4, 0x4d, 0x1b, 0x60, 0x28, 0x97, 0x8f, 0x07};
 
-
-static void polynom(const uint8_t j, const uint8_t threshold,
-                    const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
-                    TOPRF_Share *result) {
-  //f(z) = a_0 + a_1*z + a_2*z^2 + a_3*z^3 + ⋯ + (a_t)*(z^t)
-  result->index=j;
-  // f(z) = result = a[0] +.....
-  memcpy(result->value, a[0], crypto_core_ristretto255_SCALARBYTES);
-
-  // z = j
-  uint8_t z[crypto_core_ristretto255_SCALARBYTES]={j};
-  // z^t ->
-  for(int t=1;t<threshold;t++) {
-    // tmp = 1
-    uint8_t tmp[crypto_core_ristretto255_SCALARBYTES]={1};
-    for(int exp=1;exp<=t;exp++) {
-      // tmp *= z
-      crypto_core_ristretto255_scalar_mul(tmp, tmp, z);
-    }
-    // a[t] * z^t
-    crypto_core_ristretto255_scalar_mul(tmp, a[t], tmp);
-    // add into result
-    crypto_core_ristretto255_scalar_add(result->value, result->value, tmp);
-  }
-}
-
-
 int dkg_vss_commit(const uint8_t a[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                    uint8_t C[crypto_core_ristretto255_BYTES]) {
@@ -106,7 +79,6 @@ int dkg_vss_verify_commitment(const uint8_t commitment[crypto_core_ristretto255_
 }
 
 uint8_t dkg_vss_verify_commitments(const uint8_t n,
-                                   const uint8_t threshold,
                                    const uint8_t self,
                                    const uint8_t commitments[n][n][crypto_core_ristretto255_BYTES],
                                    const TOPRF_Share shares[n][2],

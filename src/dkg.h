@@ -30,6 +30,9 @@ typedef struct {
   uint8_t index;
 } __attribute((packed)) DKG_Fail;
 
+void polynom(const uint8_t j, const uint8_t threshold,
+                    const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
+                    TOPRF_Share *result);
 /**
  * 1st step in the DKG protocol to be executed by all peers participating.
  *

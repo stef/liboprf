@@ -299,7 +299,7 @@ static STP_DKG_Err ft_or_full_vsps(const uint8_t n, const uint8_t t, const uint8
   debug=0;
   if(0!=toprf_mpc_vsps_check(t-1, C_i)) {
     if(log_file!=NULL) fprintf(stderr, RED"[%d] %s\n"NORMAL, self, ft_msg);
-    for(unsigned i=0;i<dealers;i++) {
+    for(uint8_t i=0;i<dealers;i++) {
       if(0!=toprf_mpc_vsps_check(t-1, (*C_ij)[i])) {
         if(log_file!=NULL) fprintf(stderr, RED"[%d] %s [%d]\n"NORMAL, self, sub_msg, i+1);
         fails[(*fails_len)++]=i+1;
@@ -520,7 +520,7 @@ static STP_DKG_Err peer_init1_handler(STP_DKG_PeerState *ctx, const uint8_t *inp
   // todo remove peerids
   memcpy((*ctx->peerids), msg1->data, ctx->n * crypto_generichash_BYTES);
   if(ctx->keyloader_cb!=NULL) {
-    uint8_t (*peerids)[crypto_generichash_BYTES]=(uint8_t (*)[crypto_generichash_BYTES]) msg1->data;
+    const uint8_t (*peerids)[crypto_generichash_BYTES]=(const uint8_t (*)[crypto_generichash_BYTES]) msg1->data;
     for(unsigned i=0;i<ctx->n;i++) {
         if(0!=ctx->keyloader_cb(peerids[i],ctx->keyloader_cb_arg,(*ctx->sig_pks)[i+1],(*ctx->peer_noise_pks)[i])) {
           return 23; // todo
@@ -966,7 +966,7 @@ static STP_DKG_Err peer_verify_shares_handler(STP_DKG_PeerState *ctx, const uint
 
   uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) ctx->ki_commitments;
   // verify that the shares match the commitment
-  for(unsigned i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++) {
     if(0!=dkg_vss_verify_commitment((*c)[i][ctx->index-1],(*ctx->k_shares)[i])) {
       if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] failed to verify k commitments from %d!\x1b[0m\n", ctx->index, i+1);
       fails[(*fails_len)++]=i+1;
@@ -1176,8 +1176,7 @@ static STP_DKG_Err stp_broadcast_defenses(STP_DKG_STPState *ctx, const uint8_t *
         continue;
       }
       TOPRF_Share share[2];
-      Noise_XK_error_code
-        res0 = Noise_XK_aead_decrypt((uint8_t*)key, 0, 0U, NULL, TOPRF_Share_BYTES*2, (uint8_t*) &share, (uint8_t*) shares);
+      Noise_XK_error_code res0 = Noise_XK_aead_decrypt((uint8_t*)key, 0, 0U, NULL, TOPRF_Share_BYTES*2, (uint8_t*) &share, (uint8_t*) shares);
       if (!(res0 == Noise_XK_CSuccess)) {
         if(log_file!=NULL) fprintf(log_file,RED"[!] failed to decrypt shares of accused: %d, by %d\n"NORMAL, accused, accuser);
         // share decryption failure
@@ -1347,7 +1346,7 @@ static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, con
 
   uint8_t qual[ctx->n+1];
   uint8_t qual_len=0;
-  for(unsigned i=0;i<ctx->n;i++) {
+  for(uint8_t i=0;i<ctx->n;i++) {
     unsigned j,k;
     for(j=0;j<fails_len;j++) {
       if(fails[j]==i+1) break;
