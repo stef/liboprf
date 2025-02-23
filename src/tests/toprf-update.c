@@ -321,7 +321,7 @@ int main(const int argc, const char **argv) {
     dump(deltakc,sizeof deltakc, "deltakc");
   } else {
     dump(stp.delta, sizeof deltakc, "delta");
-    fprintf(stderr, "\e[0;32mewige blumenkraft!!5!\x1b[0m\n");
+    fprintf(stderr, "\x1b[0;32mewige blumenkraft!!5!\x1b[0m\n");
   }
 
   return ret;
