@@ -1990,7 +1990,7 @@ static TOPRF_Update_Err peer_step46_handler(TOPRF_Update_PeerState *ctx, const u
       if(log_file!=NULL) fprintf(stderr, RED"[%d] STP indicated failure at final step discarding all results, keeping old key"NORMAL, ctx->index);
       return Err_Proto;
   } else {
-      if(log_file!=NULL) fprintf(stderr, "\e[0;32m[%d] STP indicated full success updating old key to new key"NORMAL, ctx->index);
+      if(log_file!=NULL) fprintf(stderr, "\x1b[0;32m[%d] STP indicated full success updating old key to new key"NORMAL, ctx->index);
   }
 
   ctx->step = TOPRF_Update_Peer_Done;
