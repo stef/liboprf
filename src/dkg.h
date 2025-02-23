@@ -30,6 +30,24 @@ typedef struct {
   uint8_t index;
 } __attribute((packed)) DKG_Fail;
 
+/** @struct DKG_Cheater
+
+    This struct communicates one detected violation of the protocol.
+
+    @var DKG_Cheater::step This is the step in which the violation occured.
+    @var DKG_Cheater::error This is the error code specifying the violation.
+    @var DKG_Cheater::peer This specifies which peer caused the violation.
+    @var DKG_Cheater::other_peer This optionally specifies which
+         peer reported the violation, set to 0xfe if unused.
+ */
+typedef struct {
+  int step;
+  int error;
+  uint8_t peer;
+  uint8_t other_peer;
+  int invalid_index;
+} DKG_Cheater;
+
 void polynom(const uint8_t j, const uint8_t threshold,
                     const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
                     TOPRF_Share *result);

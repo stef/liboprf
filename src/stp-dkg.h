@@ -15,24 +15,7 @@
 #define stp_dkg_encrypted_share_SIZE (TOPRF_Share_BYTES * 2 + crypto_secretbox_xchacha20poly1305_MACBYTES)
 
 typedef DKG_Message STP_DKG_Message;
-
-// todo refactor this, it's the same in stp-dkg and stp-dkg
-/** @struct STP_DKG_Cheater
-    This struct communicates one detected violation of the protocol.
-
-    @var STP_DKG_Cheater::step This is the step in which the violation occured.
-    @var STP_DKG_Cheater::error This is the error code specifying the violation.
-    @var STP_DKG_Cheater::peer This specifies which peer caused the violation.
-    @var STP_DKG_Cheater::other_peer This optionally specifies which
-         peer reported the violation, set to 0xfe if unused.
- */
-typedef struct {
-  int step;
-  int error;
-  uint8_t peer;
-  uint8_t other_peer;
-  int invalid_index;
-} STP_DKG_Cheater;
+typedef DKG_Cheater STP_DKG_Cheater;
 
 typedef enum {
   Err_OK = 0,

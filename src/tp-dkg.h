@@ -62,6 +62,8 @@
 #include "XK.h"
 #include "dkg.h"
 
+typedef DKG_Cheater TP_DKG_Cheater;
+
 #define tpdkg_msg0_SIZE ( sizeof(DKG_Message)                                         \
                         + crypto_generichash_BYTES/*dst*/                                \
                         + 2 /*n,t*/                                                      \
@@ -136,27 +138,6 @@ const uint8_t* tpdkg_peerstate_sessionid(const TP_DKG_PeerState *ctx);
 const uint8_t* tpdkg_peerstate_lt_sk(const TP_DKG_PeerState *ctx);
 const uint8_t* tpdkg_peerstate_share(const TP_DKG_PeerState *ctx);
 int tpdkg_peerstate_step(const TP_DKG_PeerState *ctx);
-
-/** @struct TP_DKG_Cheater
-
-    This struct communicates one detected violation of the protocol.
-
-    @var TP_DKG_Cheater::step This is the step in which the violation occured.
-
-    @var TP_DKG_Cheater::error This is the error code specifying the violation.
-
-    @var TP_DKG_Cheater::peer This specifies which peer caused the violation.
-
-    @var TP_DKG_Cheater::other_peer This optionally specifies which
-         peer reported the violation, set to 0xfe if unused.
- */
-typedef struct {
-  int step;
-  int error;
-  uint8_t peer;
-  uint8_t other_peer;
-  int invalid_index;
-} TP_DKG_Cheater;
 
 // error codes:
 // step 18
