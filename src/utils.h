@@ -7,6 +7,10 @@
 extern int debug;
 extern FILE* log_file;
 
+#define RED "\x1b[0;31m"
+#define NORMAL "\x1b[0m"
+#define GREEN "\x1b[0;32m"
+
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar);
 #endif //UNIT_TEST
