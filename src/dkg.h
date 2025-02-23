@@ -70,7 +70,7 @@ int dkg_finish(const uint8_t n,
 
 void dkg_reconstruct(const size_t response_len,
                      const TOPRF_Share responses[response_len],
-                     uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+                     uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 #define dkg_freshness_TIMEOUT 120000
 
@@ -125,6 +125,7 @@ typedef struct {
 } __attribute((packed)) DKG_Message;
 
 #define MSG_TYPE_DKG          0
+#define MSG_TYPE_UPDATE       1
 #define MSG_TYPE_SEMI_TRUSTED (1 << 7)
 #define MSG_TYPE_TRUSTED      (0 << 7)
 
