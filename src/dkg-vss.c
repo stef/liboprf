@@ -117,12 +117,12 @@ uint8_t dkg_vss_verify_commitments(const uint8_t n,
 
     if(0!=dkg_vss_verify_commitment(commitments[i-1][self-1], shares[i-1])) {
       // complain about P_i
-      fprintf(stderr, "\e[0;31mfailed to verify contribs of P_%d in stage 1\e[0m\n", i);
+      fprintf(stderr, "\x1b[0;31mfailed to verify contribs of P_%d in stage 1\x1b[0m\n", i);
       complaints[complaints_len++]=i;
       //return 1;
     } else {
 #ifdef UNIT_TEST
-      if(debug) fprintf(stderr, "\e[0;32mP_%d stage 1 correct!\e[0m\n", i);
+      if(debug) fprintf(stderr, "\x1b[0;32mP_%d stage 1 correct!\x1b[0m\n", i);
 #endif // UNIT_TEST
     }
   }
@@ -139,7 +139,7 @@ int dkg_vss_finish(const uint8_t n,
   memset(share[1].value, 0, crypto_core_ristretto255_SCALARBYTES);
   for(int i=0;qual[i] && i<n;i++) {
     if(self!=shares[qual[i]-1][0].index) {
-      fprintf(stderr, "\e[0;31mbad share i=%d qual[i]=%d, index=%d\e[0m\n", i, qual[i], shares[qual[i]-1][0].index);
+      fprintf(stderr, "\x1b[0;31mbad share i=%d qual[i]=%d, index=%d\x1b[0m\n", i, qual[i], shares[qual[i]-1][0].index);
     }
     crypto_core_ristretto255_scalar_add(share[0].value, share[0].value, shares[qual[i]-1][0].value);
     //dump((uint8_t*)&shares[qual[i]-1][0], sizeof(TOPRF_Share), "s[%d,%d] ", qual[i], self);
