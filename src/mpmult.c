@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <string.h>
 #include "toprf.h"
+#include "dkg-vss.h"
+#include "dkg.h"
 #ifdef UNIT_TEST
 #include "utils.h"
 #endif
@@ -11,11 +13,6 @@
     Applications to Threshold Cryptography" by Gennaro, Rabin, Rabin,
     1998.
  */
-
-typedef struct {
-  uint8_t index;
-  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
-} __attribute((packed)) TOPRF_Share;
 
 static int cmp(const uint8_t a[crypto_core_ristretto255_SCALARBYTES], const uint8_t b[crypto_core_ristretto255_SCALARBYTES]) {
   // non-const time! but its ok, this operates on the vandermonde matrix, no secrets involved
@@ -248,10 +245,10 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
   uint8_t λ[t+1][t+1][crypto_core_ristretto255_SCALARBYTES];
   invertedVDMmatrix(t+1,indexes,λ);
 #ifdef UNIT_TEST
-  fprintf(stderr,"vdm1\n");
+  if(log_file!=NULL && debug) fprintf(log_file,"vdm1\n");
   for(int i=0;i<t+1;i++) {
     for(int j=0;j<t+1;j++) {
-      fprintf(stderr,"\t");
+      if(log_file!=NULL && debug) fprintf(log_file,"\t");
       dump(λ[i][j], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", i, j);
     }
   }
@@ -285,10 +282,10 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
   for(int i=0;i<=t;i++) indexes[i]=t+1+i;
   invertedVDMmatrix(t+1,indexes,λ);
 #ifdef UNIT_TEST
-  fprintf(stderr,"vdm2\n");
+  if(log_file!=NULL && debug) fprintf(log_file,"vdm2\n");
   for(int i=0;i<t+1;i++) {
     for(int j=0;j<t+1;j++) {
-      fprintf(stderr,"\t");
+      if(log_file!=NULL && debug) fprintf(log_file,"\t");
       dump(λ[i][j], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", i, j);
     }
   }
@@ -302,5 +299,83 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
 
   // lhs == rhs
   if(memcmp(lhs,rhs,sizeof lhs)!=0) return 1;
+  return 0;
+}
+
+int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t t, const uint8_t self,
+                           const TOPRF_Share alpha[2], const TOPRF_Share beta[2],
+                           const uint8_t lambdas[dealers][crypto_core_ristretto255_SCALARBYTES],
+                           TOPRF_Share ci_shares[n][2],
+                           uint8_t ci_commitments[n][crypto_core_ristretto255_BYTES],
+                           uint8_t ci_commitment0[crypto_core_ristretto255_BYTES],
+                           uint8_t ci_tau[crypto_core_ristretto255_SCALARBYTES]) {
+  // step 1. Each player P_i shares λ_iα_iβ_i, using VSS
+  if(lambdas==NULL) {
+     uint8_t indexes[dealers];
+     for(unsigned i=0;i<dealers;i++) indexes[i]=i+1;
+
+     // λ_i is row 1 of inv VDM matrix
+     uint8_t vdm[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
+     invertedVDMmatrix(dealers, indexes, vdm);
+     lambdas = vdm[0];
+  }
+
+  //dump((uint8_t*) alpha, sizeof(TOPRF_Share)*2, "alpha[%d]", self);
+  //dump((uint8_t*) beta, sizeof(TOPRF_Share)*2, "beta[%d]", self);
+
+  // c_ij = 𝑓_αβ,i(j), where 𝑓_αβ,i is a random polynomials of degree t, such that 𝑓_αβ,i(0) = λ_iα_iβ_i
+  // τ_ij = u_i(j), where u_i(j) is a random polynomials of degree t
+
+  uint8_t lambda_ai_bi[crypto_scalarmult_ristretto255_SCALARBYTES];
+  crypto_core_ristretto255_scalar_mul(lambda_ai_bi, alpha[0].value, beta[0].value);
+  crypto_core_ristretto255_scalar_mul(lambda_ai_bi, lambda_ai_bi, lambdas[self]);
+  if(0!=dkg_vss_share(n,t,lambda_ai_bi, ci_commitments, ci_shares, ci_tau)) return 1;
+  // c_i0 for the sake of the ZK proof is g^λab * h^t
+  if(0!=dkg_vss_commit(lambda_ai_bi, ci_tau, ci_commitment0)) return 1;
+
+  //fprintf(stderr, "ftmult s1: %d\n", self);
+  //dump(ci_commitment0, crypto_core_ristretto255_BYTES, "c_%d0", self);
+  //for(unsigned i=0;i<n;i++) dump(ci_commitments[i], crypto_core_ristretto255_BYTES, "c_%d%d", self, i+1);
+  //for(unsigned i=0;i<n;i++) dump((uint8_t*) ci_shares[i], sizeof(TOPRF_Share)*2, "s_%d%d", self, i+1);
+
+  // send ci_shares[j] to P_j
+  // broadcast ci_commitments
+  return 0;
+}
+
+int toprf_mpc_ftmult_zk_commitments(const uint8_t B_i[crypto_core_ristretto255_BYTES],
+                                    uint8_t d[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t s[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t x[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t s_1[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t s_2[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t zk_commitments[3][crypto_scalarmult_ristretto255_BYTES]) {
+  // step 2.2 P_i chooses d, s, x, s_1, s_2 ∈ Z_q. Sends to the verifier the messages:
+  //  M   = g^d * h^s,
+  //  M_1 = g^x * h^s_1,
+  //  M_2 = B^x * h^s_2
+  crypto_core_ristretto255_scalar_random(d);
+  crypto_core_ristretto255_scalar_random(s);
+  crypto_core_ristretto255_scalar_random(x);
+  crypto_core_ristretto255_scalar_random(s_1);
+  crypto_core_ristretto255_scalar_random(s_2);
+
+  //dump(d, crypto_scalarmult_ristretto255_SCALARBYTES, "    d");
+  //dump(s, crypto_scalarmult_ristretto255_SCALARBYTES, "    s");
+  //dump(x, crypto_scalarmult_ristretto255_SCALARBYTES, "    x");
+  //dump(s_1, crypto_scalarmult_ristretto255_SCALARBYTES, "    s_1");
+  //dump(s_2, crypto_scalarmult_ristretto255_SCALARBYTES, "    s_2");
+  //  M   = g^d * h^s,
+  if(0!=dkg_vss_commit(d,s, zk_commitments[0])) return 1;
+  //dump(zk_commitments[0], crypto_scalarmult_ristretto255_BYTES, "    M");
+  //  M_1 = g^x * h^s_1,
+  if(0!=dkg_vss_commit(x,s_1, zk_commitments[1])) return 1;
+  //dump(zk_commitments[1], crypto_scalarmult_ristretto255_BYTES, "   M1");
+  //  M_2 = B^x * h^s_2
+  uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
+  if(crypto_scalarmult_ristretto255(tmp, x, B_i)) return 1;
+  if(crypto_scalarmult_ristretto255(zk_commitments[2], s_2, H)) return 1;
+  crypto_core_ristretto255_add(zk_commitments[2], zk_commitments[2], tmp);
+  //dump(zk_commitments[2], crypto_scalarmult_ristretto255_BYTES, "   M2");
   return 0;
 }

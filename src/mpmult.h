@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <sodium.h>
 #include "toprf.h"
+#include "dkg.h"
 
 /** generates an inverted Van der Monde matrix
  */
@@ -92,5 +93,21 @@ void toprf_mpc_mul_finish(const uint8_t dealers,
 // todo document API
 int toprf_mpc_vsps_check(const uint8_t t,
                          const uint8_t A[t*2][crypto_core_ristretto255_BYTES]);
+
+int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t t, const uint8_t self,
+                           const TOPRF_Share alpha[2], const TOPRF_Share beta[2],
+                           const uint8_t lambdas[dealers][crypto_core_ristretto255_SCALARBYTES],
+                           TOPRF_Share ci_shares[n][2],
+                           uint8_t ci_commitments[n][crypto_core_ristretto255_BYTES],
+                           uint8_t ci_commitment0[crypto_core_ristretto255_BYTES],
+                           uint8_t ci_tau[crypto_core_ristretto255_SCALARBYTES]);
+
+int toprf_mpc_ftmult_zk_commitments(const uint8_t B_i[crypto_core_ristretto255_BYTES],
+                                    uint8_t d[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t s[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t x[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t s_1[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t s_2[crypto_scalarmult_ristretto255_SCALARBYTES],
+                                    uint8_t zk_commitments[3][crypto_scalarmult_ristretto255_BYTES]);
 
 #endif // THMULT_H

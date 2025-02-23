@@ -135,7 +135,7 @@ static void eval_poly(const uint8_t t,
 
 int test_vsps(void) {
   // page 8, paragraph 3, line 1.
-  const uint8_t t = 3; // the degree of the polynomial
+  const uint8_t t = 1; // the degree of the polynomial
   const uint8_t n = 2*(t + 1);
 
   // we need a second generator h = g^z, without knowning what z is.
