@@ -195,9 +195,9 @@ static TOPRF_Update_Err unwrap_envelope(TOPRF_Update_PeerState *ctx, const uint8
 static void handle_complaints(const uint8_t n,
                               const uint8_t accuser,
                               const uint8_t fails_len, const uint8_t fails[],
-                              const uint16_t *ctx_complaints_len, uint16_t *ctx_complaints,
+                              uint16_t *ctx_complaints_len, uint16_t *ctx_complaints,
                               const uint8_t self,
-                              const uint8_t *ctx_my_complaints_len, uint8_t *ctx_my_complaints) {
+                              uint8_t *ctx_my_complaints_len, uint8_t *ctx_my_complaints) {
   // keep a copy all complaint pairs (complainer, complained)
   for(unsigned k=0;k<fails_len && k<n;k++) {
     if(fails[k] > n || fails[k] < 1) {
