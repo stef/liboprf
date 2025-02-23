@@ -213,10 +213,10 @@ static void handle_complaints(const uint8_t n,
       //if(stp_add_cheater(ctx, 18, 8, i+1, msg->data[k+1]) == NULL) return 6;
       continue;
     }
-    ctx_complaints[*ctx_complaints_len++] = pair;
+    ctx_complaints[(*ctx_complaints_len)++] = pair;
 
     if(self!=0 && fails[k] == self && ctx_my_complaints_len != NULL && ctx_my_complaints != NULL) {
-        ctx_my_complaints[*ctx_my_complaints_len++] = accuser;
+        ctx_my_complaints[(*ctx_my_complaints_len)++] = accuser;
     }
     if(log_file!=NULL) {
       fprintf(log_file,"\x1b[0;31m[!] peer %d failed to verify commitments from peer %d!\x1b[0m\n", accuser, fails[k]);
