@@ -186,7 +186,7 @@ void dkg_reconstruct(const size_t response_len,
                      uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
   uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
-  memset(result,0,crypto_scalarmult_ristretto255_BYTES);
+  memset(result,0,crypto_scalarmult_ristretto255_SCALARBYTES);
 
   uint8_t indexes[response_len];
   for(size_t i=0;i<response_len;i++) {
