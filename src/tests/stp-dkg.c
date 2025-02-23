@@ -1,78 +1,11 @@
 #include <stdio.h>
+#include <sodium.h>
 #include <string.h>
-#include <stdlib.h>
-#include "utils.h"
-#include "toprf.h"
-#include "stp-dkg.h"
-#include "dkg.h"
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-#include <unistd.h>
-#endif
-
-#ifdef __AFL_FUZZ_INIT
-__AFL_FUZZ_INIT();
-#endif
-
-typedef struct {
-  uint8_t index;
-  uint8_t value[crypto_core_ristretto255_BYTES];
-} __attribute((packed)) TOPRF_Part;
-
-static void topart(TOPRF_Part *r, const TOPRF_Share *s) {
-  r->index=s->index;
-  crypto_scalarmult_ristretto255_base(r->value, s->value);
-}
-
-static void shuffle(uint8_t *array, const size_t n) {
-  if (n < 2) return;
-  srand(time(NULL));
-  for(int i=0; i<n-1; i++) {
-    size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-    int t = array[j];
-    array[j] = array[i];
-    array[i] = t;
-  }
-}
-
-static int verify_shares(const uint8_t n, const TOPRF_Share shares[n], const uint8_t t) {
-  uint8_t responses[t][sizeof(TOPRF_Part)];
-  uint8_t v0[crypto_scalarmult_ristretto255_BYTES]={0};
-
-  uint8_t indexes[n];
-  for(int i=0;i<n;i++) indexes[i]=i;
-  if(log_file!=NULL) {
-    fprintf(stderr, "order: ");
-    for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
-  }
-
-  for(int i=0;i<t;i++) {
-    topart((TOPRF_Part *) responses[i], &shares[indexes[i]]);
-  }
-  if(toprf_thresholdmult(t, responses, v0)) return 1;
-  dump(v0,sizeof v0, "v0\t");
-
-  for(int k=0;k<t-1;k++) {
-    uint8_t v1[crypto_scalarmult_ristretto255_BYTES]={0};
-    shuffle(indexes,n);
-    if(log_file!=NULL) {
-      fprintf(stderr, "order: ");
-      for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
-    }
-
-    for(int i=0;i<t;i++) {
-        topart((TOPRF_Part *) responses[i], &shares[indexes[i]]);
-    }
-
-    if(toprf_thresholdmult(t, responses, v1)) return 1;
-    dump(v1,sizeof v1, "v%d\t", k+1);
-
-    if(memcmp(v0,v1,sizeof v1)!=0) {
-        fprintf(stderr,"\e[0;31mfailed to verify shares from dkg_finish!\e[0m\n");
-        return 1;
-    }
-  }
-  return 0;
-}
+#include "../utils.h"
+#include "../toprf.h"
+#include "../dkg-vss.h"
+#include "../mpmult.h"
+#include "../stp-dkg.h"
 
 // simulate network
 #define NETWORK_BUF_SIZE (1024*1024*16)
@@ -95,263 +28,60 @@ static void _recv(const uint8_t *net, size_t *pkt_len, uint8_t *buf, const size_
   //return msg_len;
 }
 
-#ifdef FUZZ_DUMP
-#if !defined(FUZZ_PEER)
-static void fuzz_dump(const uint8_t step, STP_DKG_STPState *ctx, const uint8_t *buf_in, const size_t buf_in_size, const char **argv, const int argc) {
-#else
-static void fuzz_dump(const uint8_t step, STP_DKG_PeerState *ctx, const uint8_t *buf_in, const size_t buf_in_size, const char **argv, const int argc) {
-#endif //!defined(FUZZ_PEER)
-  if(argc<5) {
-    fprintf(stderr, "error incorrect number of params, run as: %% %s <n> <t> <step> <output-file>\n", argv[0]);
-    exit(1);
-  }
-  if(ctx->step==step) {
-    FILE *tc = fopen(argv[4], "wb");
-    fwrite(buf_in, 1, buf_in_size, tc);
-    fclose(tc);
-    exit(0);
-  }
+void corrupt_vsps_p1t1(STP_DKG_PeerState *ctx) { // deals shares with polynomial t+1 instead of 1
+  if(ctx->index!=1) return;
+  (void)dkg_vss_share(ctx->n, ctx->t+1, NULL, (*ctx->k_commitments), (*ctx->k_shares), NULL);
 }
-#endif
 
-#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-#if !defined(FUZZ_PEER)
-static int fuzz_loop(const uint8_t step, STP_DKG_STPState *stp, STP_DKG_PeerState *peers, uint8_t network_buf[][NETWORK_BUF_SIZE],size_t pkt_len[]) {
-  if(stp->step!=step) return 0;
-
-  STP_DKG_STPState checkpoint;
-  memcpy(&checkpoint, stp, sizeof(checkpoint));
-  STP_DKG_PeerState pcheckpoints[stp->n];
-  memcpy(&pcheckpoints, peers, sizeof(pcheckpoints));
-
-#ifdef __AFL_HAVE_MANUAL_CONTROL
-  __AFL_INIT();
-#endif
-  unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
-                                             // and before __AFL_LOOP!
-
-  while (__AFL_LOOP(10000)) {
-
-    int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
-    if (len < sizeof(DKG_Message)) continue;  // check for a required/useful minimum input length
-
-    // doing vla - but avoiding 0 sized ones is ugly
-    const size_t stp_out_size = stpdkg_stp_output_size(stp);
-    uint8_t stp_out_buf[stp_out_size==0?1:stp_out_size], *stp_out;
-    if(stp_out_size==0) stp_out = NULL;
-    else stp_out = stp_out_buf;
-
-    /* Setup function call, e.g. struct target *tmp = libtarget_init() */
-    /* Call function to be fuzzed, e.g.: */
-    int ret = stpdkg_stp_next(stp, buf, len, stp_out, stp_out_size);
-    if(0!=ret) {
-      // clean up peers
-      for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-      if(stp->cheater_len > 0) return 125;
-      return ret;
-    }
-
-    while(stpdkg_stp_not_done(stp)) {
-      for(uint8_t i=0;i<stp->n;i++) {
-        const uint8_t *msg;
-        size_t len;
-        if(0!=stpdkg_stp_peer_msg(stp, stp_out, stp_out_size, i, &msg, &len)) {
-          return 1;
-        }
-        _send(network_buf[i+1], &pkt_len[i+1], msg, len);
-      }
-
-      while(pkt_len[0]==0 && stpdkg_peer_not_done(&peers[1])) {
-        for(uint8_t i=0;i<stp->n;i++) {
-          // 0sized vla meh
-          const size_t peer_out_size = stpdkg_peer_output_size(&peers[i]);
-          uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
-          if(peer_out_size==0) peers_out = NULL;
-          else peers_out = peers_out_buf;
-
-          // 0sized vla meh for the last time..
-          const size_t peer_in_size = stpdkg_peer_input_size(&peers[i]);
-          uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
-          if(peer_in_size==0) peer_in = NULL;
-          else peer_in = peer_in_buf;
-
-          _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
-          ret = stpdkg_peer_next(&peers[i],
-                                peer_in, peer_in_size,
-                                peers_out, peer_out_size);
-
-          if(0!=ret) {
-            // clean up peers
-            for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-            return ret;
-          }
-
-          _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
-        }
-      }
-
-      // doing vla - but avoiding 0 sized ones is ugly
-      const size_t stp_out_size = stpdkg_stp_output_size(stp);
-      uint8_t stp_out_buf[stp_out_size==0?1:stp_out_size], *stp_out;
-      if(stp_out_size==0) stp_out = NULL;
-      else stp_out = stp_out_buf;
-
-      // avoiding zero-sized vla is still ugly
-      const size_t stp_in_size = stpdkg_stp_input_size(stp);
-      uint8_t stp_in_buf[stp_in_size==0?1:stp_in_size], *stp_in;
-      if(stp_in_size==0) stp_in = NULL;
-      else stp_in = stp_in_buf;
-
-      _recv(network_buf[0], &pkt_len[0], stp_in, stp_in_size);
-
-      ret = stpdkg_stp_next(stp, stp_in, stp_in_size, stp_out, stp_out_size);
-      if(0!=ret) {
-        // clean up peers
-        for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-        if(stp->cheater_len > 0) return 55;
-        return ret;
-      }
-    }
-
-    /* Reset state. e.g. libtarget_free(tmp) */
-    memcpy(stp, &checkpoint, sizeof(STP_DKG_STPState));
-    memcpy(peers, &pcheckpoints, sizeof(pcheckpoints));
-  }
-  return 0;
+void corrupt_commitment_p2(STP_DKG_PeerState *ctx) { // corrupts the 1st commitment with the 2nd
+  if(ctx->index!=2) return;
+  memcpy((*ctx->k_commitments)[0], (*ctx->k_commitments)[1], crypto_core_ristretto255_BYTES);
 }
-#else // !defined(FUZZ_PEER)
-static int fuzz_loop(const uint8_t step, STP_DKG_STPState *stp, STP_DKG_PeerState *peers, uint8_t network_buf[][NETWORK_BUF_SIZE],size_t pkt_len[]) {
-  if(peers[0].step!=step) return 0;
 
-  STP_DKG_STPState checkpoint;
-  memcpy(&checkpoint, stp, sizeof(checkpoint));
-  STP_DKG_PeerState pcheckpoints[stp->n];
-  memcpy(&pcheckpoints, peers, sizeof(pcheckpoints));
-
-#ifdef __AFL_HAVE_MANUAL_CONTROL
-  __AFL_INIT();
-#endif
-  unsigned char *buf = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
-                                             // and before __AFL_LOOP!
-
-  int ret;
-  while (__AFL_LOOP(10000)) {
-
-    int len = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
-    if (len < sizeof(DKG_Message)) continue;  // check for a required/useful minimum input length
-
-    // doing vla - but avoiding 0 sized ones is ugly
-    const size_t peer_out_size = stpdkg_peer_output_size(&peers[0]);
-    uint8_t peer_out_buf[peer_out_size==0?1:peer_out_size], *peer_out;
-    if(peer_out_size==0) peer_out = NULL;
-    else peer_out = peer_out_buf;
-
-    ret = stpdkg_peer_next(&peers[0], buf, len, peer_out, peer_out_size);
-    if(ret!=0) {
-      //for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-      return ret;
-    }
-    _send(network_buf[0], &pkt_len[0], peer_out, peer_out_size);
-
-    for(uint8_t i=1;i<stp->n;i++) {
-      // 0sized vla meh
-      const size_t peer_out_size = stpdkg_peer_output_size(&peers[i]);
-      uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
-      if(peer_out_size==0) peers_out = NULL;
-      else peers_out = peers_out_buf;
-
-      // 0sized vla meh for the last time..
-      const size_t peer_in_size = stpdkg_peer_input_size(&peers[i]);
-      uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
-      if(peer_in_size==0) peer_in = NULL;
-      else peer_in = peer_in_buf;
-
-      _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
-      ret = stpdkg_peer_next(&peers[i],
-                            peer_in, peer_in_size,
-                            peers_out, peer_out_size);
-
-      if(0!=ret) {
-        // clean up peers
-        //for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-        return ret;
-      }
-      _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
-    }
-
-    while(stpdkg_stp_not_done(stp)) {
-      while(pkt_len[0]==0 && stpdkg_peer_not_done(&peers[1])) {
-        for(uint8_t i=0;i<stp->n;i++) {
-          // 0sized vla meh
-          const size_t peer_out_size = stpdkg_peer_output_size(&peers[i]);
-          uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
-          if(peer_out_size==0) peers_out = NULL;
-          else peers_out = peers_out_buf;
-
-          // 0sized vla meh for the last time..
-          const size_t peer_in_size = stpdkg_peer_input_size(&peers[i]);
-          uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
-          if(peer_in_size==0) peer_in = NULL;
-          else peer_in = peer_in_buf;
-
-          _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
-          ret = stpdkg_peer_next(&peers[i],
-                                peer_in, peer_in_size,
-                                peers_out, peer_out_size);
-
-          if(0!=ret) {
-            // clean up peers
-            //for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-            return ret;
-          }
-
-          _send(network_buf[0], &pkt_len[0], peers_out, peer_out_size);
-        }
-      }
-
-      // doing vla - but avoiding 0 sized ones is ugly
-      const size_t stp_out_size = stpdkg_stp_output_size(stp);
-      uint8_t stp_out_buf[stp_out_size==0?1:stp_out_size], *stp_out;
-      if(stp_out_size==0) stp_out = NULL;
-      else stp_out = stp_out_buf;
-
-      // avoiding zero-sized vla is still ugly
-      const size_t stp_in_size = stpdkg_stp_input_size(stp);
-      uint8_t stp_in_buf[stp_in_size==0?1:stp_in_size], *stp_in;
-      if(stp_in_size==0) stp_in = NULL;
-      else stp_in = stp_in_buf;
-
-      _recv(network_buf[0], &pkt_len[0], stp_in, stp_in_size);
-
-      ret = stpdkg_stp_next(stp, stp_in, stp_in_size, stp_out, stp_out_size);
-      if(0!=ret) {
-        // clean up peers
-        for(uint8_t i=0;i<stp->n;i++) stpdkg_peer_free(&peers[i]);
-        if(stp->cheater_len > 0) return 55;
-        return ret;
-      }
-
-      for(uint8_t i=0;i<stp->n;i++) {
-        const uint8_t *msg;
-        size_t len;
-        if(0!=stpdkg_stp_peer_msg(stp, stp_out, stp_out_size, i, &msg, &len)) {
-          return 1;
-        }
-        _send(network_buf[i+1], &pkt_len[i+1], msg, len);
-      }
-    }
-
-    /* Reset state. e.g. libtarget_free(tmp) */
-    memcpy(stp, &checkpoint, sizeof(STP_DKG_STPState));
-    memcpy(peers, &pcheckpoints, sizeof(pcheckpoints));
-  }
-  return 0;
+void corrupt_wrongshare_correct_commitment_p3(STP_DKG_PeerState *ctx) { // swaps the share and it's blinder,
+                                                                           // recalculates commitment
+  if(ctx->index!=3) return;
+  TOPRF_Share tmp;
+  // swap shares for p1
+  memcpy(&tmp, &(*ctx->k_shares)[0][0], sizeof tmp);
+  memcpy(&(*ctx->k_shares)[0][0], &(*ctx->k_shares)[0][1], sizeof tmp);
+  memcpy(&(*ctx->k_shares)[0][1], &tmp, sizeof tmp);
+  dkg_vss_commit((*ctx->k_shares)[0][0].value,(*ctx->k_shares)[0][1].value,(*ctx->k_commitments)[0]);
 }
-#endif
-#endif
+
+void corrupt_share_p4(STP_DKG_PeerState *ctx) {
+  if(ctx->index!=4) return;
+  (*ctx->k_shares)[0][0].value[2]^=0xff; // flip some bits
+}
+
+void corrupt_false_accuse_p2p3(STP_DKG_PeerState *ctx, uint8_t *fails_len, uint8_t *fails) {
+  if(ctx->index!=2) return;
+  fails[(*fails_len)++]=3;
+}
+
+typedef struct {
+  size_t len;
+  uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES];
+  uint8_t (*noise_pks)[][crypto_scalarmult_BYTES];
+} Keyloader_CB_Arg;
+
+int keyloader_cb(const uint8_t id[crypto_generichash_BYTES], void *arg, uint8_t sigpk[crypto_sign_PUBLICKEYBYTES], uint8_t noise_pk[crypto_scalarmult_BYTES]) {
+  Keyloader_CB_Arg *args = (Keyloader_CB_Arg *) arg;
+  uint8_t pkhash[crypto_generichash_BYTES];
+  dump(id, crypto_generichash_BYTES, "loading keys for keyid");
+  for(unsigned i=0;i<args->len;i++) {
+    crypto_generichash(pkhash,sizeof pkhash,(*args->sig_pks)[i+1],crypto_sign_PUBLICKEYBYTES,NULL,0);
+    if(memcmp(pkhash, id, sizeof pkhash) == 0) {
+      memcpy(sigpk, (*args->sig_pks)[i+1], crypto_sign_PUBLICKEYBYTES);
+      memcpy(noise_pk, (*args->noise_pks)[i], crypto_scalarmult_BYTES);
+      return 0;
+    }
+  }
+  return 1;
+}
 
 int main(const int argc, const char **argv) {
-  int ret;
+  int ret=0;
   // enable logging
   log_file = stderr;
   debug = 1;
@@ -364,21 +94,11 @@ int main(const int argc, const char **argv) {
 #endif // defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
     exit(1);
   }
-  uint8_t n=atoi(argv[1]),t=atoi(argv[2]);
-#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
-  uint8_t step=atoi(argv[3]);
-#ifdef FUZZ_PEER
-  if(step<1 || step > 9 || step==7 || step==8) {
-#else
-  if(step<1 || step > 9) {
-#endif
-    fprintf(stderr, "error incorrect value for step must be 1-9 (but not 7 or 8), run as: %% %s <1-7> <output-file>\n", argv[0]);
-    exit(1);
-  }
-#endif
+  const uint8_t n=atoi(argv[1]);
+  const uint8_t t=atoi(argv[2]);
 
   // mock long-term peer keys
-  // known by everyone
+  // all known by STP
   uint8_t lt_pks[n+1][crypto_sign_PUBLICKEYBYTES];
   // only known by corresponding peer
   uint8_t lt_sks[n+1][crypto_sign_SECRETKEYBYTES];
@@ -387,77 +107,109 @@ int main(const int argc, const char **argv) {
   }
 
   STP_DKG_STPState stp;
-  uint8_t msg0[stpdkg_msg0_SIZE];
-  ret = stpdkg_start_stp(&stp, dkg_freshness_TIMEOUT,
-                         n, t,
-                         "proto test", 10,
-                         &lt_pks, lt_sks[0],
-                         sizeof msg0, (DKG_Message*) msg0);
+  uint8_t msg0[stpvssdkg_start_msg_SIZE];
+  ret = stp_dkg_start_stp(&stp, dkg_freshness_TIMEOUT, n, t,
+                               "stp update proto test", 21,
+                               &lt_pks, lt_sks[0],
+                               sizeof msg0, (STP_DKG_Message*) msg0);
   if(0!=ret) return ret;
 
-  fprintf(stderr, "allocating memory for STP\n");
+  fprintf(stderr, "[T] allocating memory for STP State\n");
   // set bufs
   // we need to store these outside of the ctx, since they are
   // variable size, and the struct can only handle one variable size
   // entry...
-  // stp needs to store the commitments
-  uint8_t stp_commitments[n*t][crypto_core_ristretto255_BYTES];
-  memset(stp_commitments,0,sizeof(stp_commitments));
-  // stp needs to store the complaints, with max n==128 this takes max 16KB of ram.
-  uint16_t stp_complaints[n*n];
-  memset(stp_complaints,0,sizeof(stp_complaints));
-  uint8_t noisy_shares[n*n][stpdkg_msg10_SIZE];
-  memset(noisy_shares,0,sizeof(noisy_shares));
-  STP_DKG_Cheater cheaters[t*t - 1];
-  memset(cheaters,0,sizeof(cheaters));
+  // stp needs to store the complaints, with max n==128 this takes max 32KB of ram.
+  uint16_t stp_share_complaints[n*n];
+  memset(stp_share_complaints,0,sizeof(stp_share_complaints));
   uint64_t last_ts[n];
-  stpdkg_stp_set_bufs(&stp, &stp_commitments,
-                      &stp_complaints, &noisy_shares,
-                      &cheaters, sizeof(cheaters) / sizeof(STP_DKG_Cheater), last_ts);
-
-  // only stp_out can survive for the peers in local scope of the "main protocol loop"
-  // and thus we simulate a network with this buffer
+  STP_DKG_Cheater stp_cheaters[t*t - 1];
+  memset(stp_cheaters,0,sizeof(stp_cheaters));
+  uint8_t tp_commitments_hashes[n][stp_dkg_commitment_HASHBYTES];
+  memset(tp_commitments_hashes, 0, sizeof tp_commitments_hashes);
+  uint8_t tp_share_macs[n*n][crypto_auth_hmacsha256_BYTES];
+  memset(tp_share_macs, 0, sizeof tp_share_macs);
+  uint8_t tp_commitments[n*n][crypto_core_ristretto255_BYTES];
+  memset(tp_commitments, 0, sizeof tp_commitments);
+  stp_dkg_stp_set_bufs(&stp,
+                           &tp_commitments_hashes,
+                           &tp_share_macs,
+                           &tp_commitments,
+                           &stp_share_complaints,
+                           &stp_cheaters,
+                           sizeof(stp_cheaters) / sizeof(STP_DKG_Cheater),
+                           last_ts);
 
   STP_DKG_PeerState peers[n];
+  uint8_t peers_noise_pks[n][crypto_scalarmult_BYTES];
   for(uint8_t i=0;i<n;i++) {
-    ret = stpdkg_start_peer(&peers[i], dkg_freshness_TIMEOUT, &lt_pks, lt_sks[i+1], (DKG_Message*) msg0);
-    if(0!=ret) return ret;
+    randombytes_buf(peers[i].noise_sk, sizeof peers[i].noise_sk);
+    crypto_scalarmult_base(peers_noise_pks[i], peers[i].noise_sk);
   }
 
-  fprintf(stderr, "allocating memory for peers ..");
+  for(uint8_t i=0;i<n;i++) {
+    uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES];
+    ret = stp_dkg_start_peer(&peers[i], dkg_freshness_TIMEOUT,
+                                  lt_sks[i+1],
+                                  (DKG_Message*) msg0,
+                                  stp_ltpk);
+    if(0!=ret) return ret;
+    if(memcmp(stp_ltpk, lt_pks[0], crypto_sign_PUBLICKEYBYTES)!=0) {
+      return 1;
+    }
+  }
+
+  fprintf(stderr, "[T] allocating memory for peers state..");
   // now that the peer(s) know the value of N, we can allocate buffers
   // to hold all the sig&noise keys, noise sessions, temp shares, commitments
-  uint8_t peers_noise_pks[peers[1].n][crypto_scalarmult_BYTES];
+  uint8_t peerids[n][crypto_generichash_BYTES];
   Noise_XK_session_t *noise_outs[n][n];
   memset(noise_outs, 0, sizeof noise_outs);
   Noise_XK_session_t *noise_ins[n][n];
   memset(noise_ins, 0, sizeof noise_ins);
-  TOPRF_Share ishares[peers[1].n][peers[1].n];
-  memset(ishares, 0, sizeof ishares);
-  TOPRF_Share xshares[peers[1].n][peers[1].n];
-  memset(xshares, 0, sizeof xshares);
-  uint8_t commitment_hashes[peers[1].n][stpdkg_commitment_HASHBYTES];
-  uint8_t commitments[peers[1].n][peers[1].n *peers[1].t][crypto_core_ristretto255_BYTES];
-  memset(commitments, 0, sizeof commitments);
-  uint16_t peer_complaints[peers[1].n][peers[1].n*peers[1].n];
-  memset(peer_complaints, 0, sizeof peer_complaints);
-  uint8_t peer_my_complaints[peers[1].n][peers[1].n];
-  memset(peer_my_complaints, 0, sizeof peer_my_complaints);
+  TOPRF_Share dealer_shares[n][n][2];
+  memset(dealer_shares, 0, sizeof dealer_shares);
+  uint8_t encrypted_shares[n][n][noise_xk_handshake3_SIZE + stp_dkg_encrypted_share_SIZE];
+  memset(encrypted_shares,0,sizeof encrypted_shares);
+  uint8_t dealer_commitments[n][n*n][crypto_core_ristretto255_BYTES];
+  memset(dealer_commitments, 0, sizeof dealer_commitments);
+  uint8_t share_macs[n][n*n][crypto_auth_hmacsha256_BYTES];
+  uint8_t peer_k_commitments[n][n][crypto_core_ristretto255_BYTES];
+  memset(peer_k_commitments, 0, sizeof peer_k_commitments);
+  uint8_t commitments_hashes[n][n][stp_dkg_commitment_HASHBYTES];
+  memset(commitments_hashes, 0, sizeof commitments_hashes);
+  uint16_t peer_dealer_share_complaints[n][n*n];
+  memset(peer_dealer_share_complaints, 0, sizeof peer_dealer_share_complaints);
+  uint8_t peer_my_dealer_share_complaints[n][n];
+  memset(peer_my_dealer_share_complaints, 0, sizeof peer_my_dealer_share_complaints);
   uint64_t peer_last_ts[n][n];
   memset(peer_last_ts, 0, sizeof peer_last_ts);
+  STP_DKG_Cheater peer_cheaters[n][t*t - 1];
+  memset(peer_cheaters,0,sizeof(peer_cheaters));
+  Keyloader_CB_Arg cb_arg = {n, &lt_pks, &peers_noise_pks};
+
   fprintf(stderr, " done\n");
 
   for(uint8_t i=0;i<n;i++) {
     // in a real deployment peers do not share the same pks buffers
-    stpdkg_peer_set_bufs(&peers[i], &lt_pks, &peers_noise_pks,
-                        &noise_outs[i], &noise_ins[i],
-                        &ishares[i], &xshares[i],
-                        &commitment_hashes,
-                        &commitments[i],
-                        peer_complaints[i], peer_my_complaints[i],
-                        peer_last_ts[i]);
+    if(0!=stp_dkg_peer_set_bufs(&peers[i], &peerids,
+                                    &keyloader_cb, &cb_arg,
+                                    &lt_pks,
+                                    &peers_noise_pks,
+                                    &noise_outs[i], &noise_ins[i],
+                                    &dealer_shares[i],
+                                    &encrypted_shares[i],
+                                    &share_macs[i],
+                                    &dealer_commitments[i],
+                                    &peer_k_commitments[i],
+                                    &commitments_hashes[i],
+                                    &peer_cheaters[i], sizeof(peer_cheaters) / sizeof(STP_DKG_Cheater) / n,
+                                    peer_dealer_share_complaints[i],
+                                    peer_my_dealer_share_complaints[i],
+                                    peer_last_ts[i])) {
+      fprintf(stderr, "invalid n/t parameters. aborting\n");
+    }
   }
-
 
   // simulate network.
   uint8_t network_buf[n+1][NETWORK_BUF_SIZE];
@@ -466,35 +218,26 @@ int main(const int argc, const char **argv) {
 
   // this is the mainloop - normally only one stp or one peer, but here
   // for demo purposes mixed.
-  // end condition for peers is stpdkg_peer_not_done(&peer)
-  while(stpdkg_stp_not_done(&stp)) {
-
+  // end condition for peers is stp_dkg_peer_not_done(&peer)
+  while(stp_dkg_stp_not_done(&stp)) {
     // doing vla - but avoiding 0 sized ones is ugly
-    const size_t stp_out_size = stpdkg_stp_output_size(&stp);
+    const size_t stp_out_size = stp_dkg_stp_output_size(&stp);
     uint8_t stp_out_buf[stp_out_size==0?1:stp_out_size], *stp_out;
     if(stp_out_size==0) stp_out = NULL;
     else stp_out = stp_out_buf;
 
     // avoiding zero-sized vla is still ugly
-    const size_t stp_in_size = stpdkg_stp_input_size(&stp);
+    const size_t stp_in_size = stp_dkg_stp_input_size(&stp);
     uint8_t stp_in_buf[stp_in_size==0?1:stp_in_size], *stp_in;
     if(stp_in_size==0) stp_in = NULL;
     else stp_in = stp_in_buf;
 
     _recv(network_buf[0], &pkt_len[0], stp_in, stp_in_size);
 
-#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && !defined(FUZZ_PEER)
-    ret = fuzz_loop(step, &stp, peers, network_buf, pkt_len);
-    if(0!=ret) return ret;
-#endif
-#if defined(FUZZ_DUMP) && !defined(FUZZ_PEER)
-    fuzz_dump(step, &stp, stp_in, stp_in_size, argv, argc);
-#endif
-
-    ret = stpdkg_stp_next(&stp, stp_in, stp_in_size, stp_out, stp_out_size);
+    ret = stp_dkg_stp_next(&stp, stp_in, stp_in_size, stp_out, stp_out_size);
     if(0!=ret) {
       // clean up peers
-      for(uint8_t i=0;i<n;i++) stpdkg_peer_free(&peers[i]);
+      for(uint8_t i=0;i<n;i++) stp_dkg_peer_free(&peers[i]);
       if(stp.cheater_len > 0) break;
       return ret;
     }
@@ -502,42 +245,35 @@ int main(const int argc, const char **argv) {
     for(uint8_t i=0;i<stp.n;i++) {
       const uint8_t *msg;
       size_t len;
-      if(0!=stpdkg_stp_peer_msg(&stp, stp_out, stp_out_size, i, &msg, &len)) {
+      if(0!=stp_dkg_stp_peer_msg(&stp, stp_out, stp_out_size, i, &msg, &len)) {
         return 1;
       }
       _send(network_buf[i+1], &pkt_len[i+1], msg, len);
     }
 
-    while(pkt_len[0]==0 && stpdkg_peer_not_done(&peers[1])) {
+    while(pkt_len[0]==0 && stp_dkg_peer_not_done(&peers[1])) {
       for(uint8_t i=0;i<n;i++) {
         // 0sized vla meh
-        const size_t peer_out_size = stpdkg_peer_output_size(&peers[i]);
+        const size_t peer_out_size = stp_dkg_peer_output_size(&peers[i]);
         uint8_t peers_out_buf[peer_out_size==0?1:peer_out_size], *peers_out;
         if(peer_out_size==0) peers_out = NULL;
         else peers_out = peers_out_buf;
 
         // 0sized vla meh for the last time..
-        const size_t peer_in_size = stpdkg_peer_input_size(&peers[i]);
+        const size_t peer_in_size = stp_dkg_peer_input_size(&peers[i]);
         uint8_t peer_in_buf[peer_in_size==0?1:peer_in_size], *peer_in;
         if(peer_in_size==0) peer_in = NULL;
         else peer_in = peer_in_buf;
 
         _recv(network_buf[i+1], &pkt_len[i+1], peer_in, peer_in_size);
 
-#if defined(FUZZ_DUMP) && defined(FUZZ_PEER)
-        if(i==0) fuzz_dump(step, &peers[i], peer_in, peer_in_size, argv, argc);
-#endif
-#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZ_PEER)
-        ret = fuzz_loop(step, &stp, peers, network_buf, pkt_len);
-        if(0!=ret) return ret;
-#endif
-        ret = stpdkg_peer_next(&peers[i],
+        ret = stp_dkg_peer_next(&peers[i],
                               peer_in, peer_in_size,
                               peers_out, peer_out_size);
 
         if(0!=ret) {
           // clean up peers
-          for(uint8_t i=0;i<n;i++) stpdkg_peer_free(&peers[i]);
+          for(uint8_t i=0;i<n;i++) stp_dkg_peer_free(&peers[i]);
           return ret;
         }
 
@@ -546,42 +282,55 @@ int main(const int argc, const char **argv) {
     }
   }
 
-  // we are done. let's check the shares...
-  TOPRF_Share shares[n];
-  if(stp.cheater_len == 0) {
-    for(uint8_t i=0;i<n;i++) {
-      memcpy(&shares[i], (uint8_t*) &peers[i].share, sizeof(TOPRF_Share));
-      dump((uint8_t*) &shares[i], sizeof(TOPRF_Share), "share[%d]", i+1);
+  fprintf(stderr, "----------------------------\nfinal results:\n");
+  for(unsigned i=0;i<n;i++) {
+    if(peers[i].cheater_len>0) {
+      fprintf(stderr, "peer %d has detected some cheaters:\n", i+1);
+      int total_cheaters=0;
+      uint8_t tmp[n+1];
+      memset(tmp,0,n+1);
+      for(int j=0;j<peers[i].cheater_len;j++) {
+        char err[dkg_max_err_SIZE];
+        uint8_t p = stp_dkg_peer_cheater_msg(&(*peers[i].cheaters)[j], err, sizeof(err));
+        fprintf(stderr,"\x1b[0;31m\t%d. %s\x1b[0m\n", j+1, err);
+        if(p==0) continue;
+        if(p > n) return 1;
+        if(tmp[p]==0) total_cheaters++;
+        tmp[p]++;
+      }
+      fprintf(stderr, RED":/ dkg failed, total cheats detected %d, list of cheaters:", total_cheaters);
+      for(int j=1;j<=n;j++) {
+        if(tmp[j]==0) continue;
+        fprintf(stderr," %d(%d)", j, tmp[j]);
+      }
+      fprintf(stderr, NORMAL"\n");
+      //return 1;
     }
+  }
 
-    if(0!=verify_shares(n, shares, t)) {
-        fprintf(stderr, "verify_shares failed\n");
-        return 1;
-    }
-  } else {
+  fprintf(stderr, "----------------------------\nfinal results as seen by stp:\n");
+  if(stp.cheater_len>0) {
     int total_cheaters=0;
     uint8_t tmp[n+1];
     memset(tmp,0,n+1);
     for(int i=0;i<stp.cheater_len;i++) {
       char err[dkg_max_err_SIZE];
-      uint8_t p = stpdkg_cheater_msg(&(*stp.cheaters)[i], err, sizeof(err));
-      fprintf(stderr,"\e[0;31m%s\e[0m\n", err);
+      uint8_t p = stp_dkg_tp_cheater_msg(&(*stp.cheaters)[i], err, sizeof(err));
+      fprintf(stderr,"\e[0;31m\t%d. %s\e[0m\n", i+1, err);
+      if(p==0) continue;
       if(p > n) return 1;
       if(tmp[p]==0) total_cheaters++;
       tmp[p]++;
     }
-    fprintf(stderr, "\e[0;31m:/ dkg failed, total cheaters %d, list of cheaters:", total_cheaters);
+    fprintf(stderr, RED":/ dkg failed, total cheats detected %d, list of cheaters:", total_cheaters);
     for(int i=1;i<=n;i++) {
       if(tmp[i]==0) continue;
       fprintf(stderr," %d(%d)", i, tmp[i]);
     }
-    fprintf(stderr, "\e[0m\n");
+    fprintf(stderr, NORMAL"\n");
     return 1;
   }
+  fprintf(stderr, "\e[0;32mewige blumenkraft!!5!\x1b[0m\n");
 
-  // clean up peers
-  for(uint8_t i=0;i<n;i++) stpdkg_peer_free(&peers[i]);
-
-  fprintf(stderr, "\e[0;32meverything correct!\e[0m\n");
-  return 0;
+  return ret;
 }

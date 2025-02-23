@@ -1,16 +1,18 @@
 Semi-Trusted Party (STP) Distributed Key Generation (DKG)
 
-This document specifies a proposal for a non-robust DKG that can work
-for small deployments with a small number of parties and infrequent
-DKG executions. Non-robust means that the protocol succeeds only if no
-party aborts. If someone aborts then the protocol needs to run again,
-possibly after kicking out misbehaving parties. This protocol does
-support maximum 127 peers. This is probably already too much for a
-non-robust protocol, but it might work in very special circumstances.
+This document specifies a proposal for a robust DKG that can work for
+small deployments with a small number of parties and infrequent DKG
+executions. Robust means that the protocol even succeeds if some
+parties cheat and this is detected, but no party aborts. If someone
+aborts then the protocol needs to run again, possibly after kicking
+out misbehaving parties. This protocol does support maximum 127
+peers. This is probably already too much for a non-robust protocol,
+but it might work in very special circumstances.
 
 Broadcast is implemented by the semi-trusted party (STP) opening a
 channel to each peer secured by the peers long-term encryption
-key. Every message is routed through the STP.
+key. Every message - both broadcast and private - are routed through
+the STP.
 
 Peer long-term encryption keys can be either TLS-based, or
 Noise_XK-based (https://noiseexplorer.com/patterns/XK/). In the latter
@@ -18,22 +20,10 @@ case the long-term public keys must be known and validated in advance
 by the STP.
 
 Peer long-term signature keys must be known by all participating
-parties. These keys can be learned during previous executions of a
-TP-DKG where these keys are freshly generated, and thus provide
-anonymity of the servers.
+parties.
 
-The basis for this protocol is JF-DKG (fig 1.) a variant on Pedersens
-DKG from the 2006 paper "Secure Distributed Key Generation for
-Discrete-Log Based Cryptosystems" by R. Gennaro, S. Jarecki,
-H. Krawczyk, and T. Rabin [GJKR06]. The algorithm JF-DKG is presented
-in the paper as a reduced example how an adversary can influence the
-bits in the generated secret by manipulating the complaints and thus
-the final composition of the QUAL set, gaining a 3/4 chance to
-influence a bit. Since in our STP variant is non-robust, we do not
-allow individual disqualifications of peers, - either all peers
-qualify or the protocol fails - this mitigates the case where an
-adversary can adaptively disqualify a peer. Thus the JF-DKG is a
-simple and sufficient algorithm for our purposes.
+The basis for this protocol is based on the FT-Joint-DL-VSS (fig 7.)
+protocol from [GRR98].
 
 ------<=[ Rationale                                     ]=>-----------
 
@@ -56,71 +46,47 @@ participants must generate a new key, and this can be orchestrated by
 a STP acting as the broadcast and general communication medium between
 the parties.
 
-------<=[ Difference to the TP variant of this protocol ]=>-----------
+------<=[ Difference to the [GRR98] paper               ]=>-----------
 
-This STP variant is almost the same as the TP variant. The following
-notable differences apply:
+In the original paper fig. 7 describing the FT-Joint-DL-VSS protocol,
+does not explicitly check whether the 𝓗(α_i,ρ_i) commitments match
+those broadcast. However the algorithm New-VSS from fig. 1 does
+so. And since FT-Joint-DL-VSS is supposedly based on New-VSS we do
+check the commitment, broadcast and check complaints and dealers of
+verified complaints are disqualified.
 
-1. The long-term signature keys must be known in advance to all
-   participants. Unlike the TP variant where these can be ephemeral
-   and fresh.
+P_i after generating C_ij and share s_ij,r_ij, broadcasts a hash of all
+(concatenated) values C_i1,...,C_in.
 
-2. The session id is generated in the following way: each Pi can
-   choose a nonce, sign it, and then everyone uses the hash of the
-   concatenation of all nonces (after validating the signatures on
-   them) as the session identifier.
-
-3. P_i after generating Aik and s_ij, broadcasts a hash of all
-   (concatenated) values A_i0,...,A_it.
-
-4. after broadcasting Aik and sharing s_ij, before checking (3) all
-   participants Each Pj checks that the hash value broadcast in Round
-   1 by Pi, for i=1,...,n, corresponds to the A_ik values broadcast
-   by Pi in Round 2.  If this is not the case, Pj aborts.
-
-5. when comparing the global transcript: Each party broadcasts the
-   hash of all prior communication with STP and a message saying
-   whether the party aborted in any of the above steps or if all
-   concluded correctly. (referred to as Round 3)
-
-   The parties themselves decide if the protocol is successful, not
-   the STP.
-
-6. cheater detection: the case that a value Aij committed in round 1
-   by Pi is opened to a different value in round 2. Since all these
-   values are signed by Pi, we know it was Pi that cheated.
-
-7. STP cannot cheat by changing the messages sent by servers since
-   those are signed, but STP can omit sending some of these messages
-   to other servers.  Any party expecting a message from STP and not
-   receiving it will abort. If any of these events originated from a
-   misbehaving STP, this will be caught in Round 3 (btw, parties need
-   to include in their Round 3 message any information about errors or
-   verification failures they identified). Note that STP can accuse
-   any Pi of not sending a message it was supposed to send. In this
-   case, the system will need to decide if the accusation is legit or
-   it is a cheat by STP.
+After broadcasting C_ij and sharing s_ij,r_ij, before checking VSPS
+all participants check that the hash value broadcast in Round 1 by
+P_i, for i=1,...,n, corresponds to the C_ij values broadcast by P_i in
+Round 2.  If this is not the case, P_j aborts.
 
 ------<=[ Prototocol Phases                             ]=>-----------
 
 The protocol has the following phases:
 
-  1. Initialization and introduction (step 1 - 5)
-  2. Setup secure P2P channels (step 5 - 10)
-  3. core DKG (step 11 - 17) TODO
-  4. Finish with failure: complaint resolution (only if there are
-     complaints) (step 17 - 19) TODO
-  5. Finish with success: verification of transcript and completion of
-     protocol (step 20 - 22) TODO
+  1. Initialization and introduction: announcement of parameters n, t,
+     long-term signing public keys of all participants, their
+     ordering, and encryption public keys, Establishment of a jointly
+     generated session id.
+  2. AKE - Setup secure P2P channels: to establish protected channels
+     between all peers.
+  3. core DKG
+  4. Complaint analysis: In case of invalid commitments establishment
+     of identity of cheaters.
+  5. Final verification of transcript and completion of
+     protocol
 
 ------<=[ Simplified API                                ]=>-----------
 
-Since the protocol consists of many steps, it is recommended to
-abstract the API to the following schema:
+Since the protocol consists of many steps, the API is abstracted to
+the following schema:
 
 0. Initialize
 While not done and not error:
-  1. Allocate input buffers
+  1. Allocate input buffer(s)
   2. input = receive()
   3. allocate output buffer
   4. run next step of protocol
@@ -128,9 +94,9 @@ While not done and not error:
 6. Post-processing
 
 This simple schema simplifies the load of an implementer using this
-protocol, reducing opportunities for errors and provides strict
-security. It also allows full abstraction of the underlying
-communication media.
+protocol, while at the same time reducing opportunities for errors and
+provides strict security. It also allows full abstraction of the
+underlying communication media.
 
 The reference implementation in stp-dkg.c follows this schema for both
 the STP and the peers.
@@ -139,16 +105,17 @@ the STP and the peers.
 
 Transcript - all broadcast messages are accumulated into a transcript
 by each peer and the semi-trusted party, at the end of the protocol
-all parties publish their signed transcripts and only if all
-signatures are correct and the transcripts match, is the protocol
-successful.
+all parties except for the STP publish their signed transcripts and
+only if all signatures are correct and the transcripts match, is the
+protocol successful. The STP uses its own transcript to learn the
+of the parties agreement.
 
-The transcript is a hash, that is initialized with the string:
-   "stp dkg session transcript"
+The transcript is a hash, which is initialized with the string:
+   "stp vss dkg session transcript"
 
 in pseudo-code:
 
-   transcript_state = hash_init("stp dkg session transcript")
+   transcript_state = hash_init("stp vss dkg session transcript")
 
 Updating the transcript first updates the hash with the canonical
 32bit size of the message to be added to the transcript, then the
@@ -176,28 +143,30 @@ update_ts(state,msg,sig)
 Every execution of the protocol starts by the participants
 establishing a unique and fresh session id, this is to ensure that no
 messages can be replayed. The session id is a 256 bit (32B) random
-value of cryptographic quality.
+value of cryptographic quality entropy.
 
-Each Pi chooses a nonce, signs it, broadcast it. Then everyone
-(including the STP) verifies the signatures, aborts if any signatures
-fail. And then everyone uses the hash of the concatenation of all
-nonces as the session identifier.
+Each peer P_i chooses a 256 bit nonce, signs it, broadcast it. Then
+everyone (including the STP) verifies the signatures, aborts if any
+signatures fail. And then everyone uses the hash of the concatenation
+of all nonces as the session identifier.
 
-The session_id is established in the first (initialization) phase of
-protocol. The STP learns (and starts using) it in step 4, and the
-peers verify if it is correct and start using it in step 5. Every
-message sent after step 3 MUST contain a valid session_id.
+The session_id is established as early as possible in the first
+(initialization) phase of protocol. The STP learns (and starts using)
+it in step 2, and the peers verify if it is correct and start using it
+in step 3. Every message sent after step 3 MUST contain a valid
+session_id.
 
 ```
 nonce_i = random_bytes(32)
 signed_nonce_i = sign(i | nonce, ltsigkey_i)
 broadcast(signed_nonce_i)
 
-acc = []
+acc = ""
 for i in 1..n:
-   signed_nonce_i = receive()
-   i, nonce_i = verify(signed_nonce_i, ltsigpub_i) or abort()
-   acc[i] = nonce_i
+   signed_nonce_i = recv(i)
+   i', nonce_i = verify(signed_nonce_i, ltsigpub_i) or abort()
+   assert i == i'
+   acc = acc | nonce_i
 
 sessionid = h(acc)
 ```
@@ -206,6 +175,8 @@ sessionid = h(acc)
 
 All messages have a message header:
 
+  uint8  signature[32]
+  uint0  sign_here[0]
   uint8  type = 0x80
   uint8  version = 0
   uint8  messageno
@@ -215,10 +186,16 @@ All messages have a message header:
   uint64 timestamp
   uint8  sessionid[32]
 
-The first field is the protocol type identifier. STP-DKG has an
+The header begins with the signature of the sender over the rest of
+the header and all of the data.
+
+The field sign_here is a zero-bit field, only used for addressing the
+start of the data to be signed or verified.
+
+The next field is the protocol type identifier. STP-DKG has an
 identifier value of 128 (0x80).
 
-The second field in the header is really a state identifier. A
+The following field in the header is really a state identifier. A
 recipient MUST verify that the messageno is matching with the expected
 number related to the state of the protocol.
 
@@ -242,8 +219,10 @@ as a reference for synchronizing during the protocol.
 
 ------<=[ Message signatures                            ]=>-----------
 
-Every message MUST be signed using the sender peers ephemeral signing
-key. The signature is made over the complete message.
+Every message MUST be signed using the sender peers long-term signing
+key. The signature is made over the complete message including the
+header, excluding the signature field itself, starting from the
+zero-width sign_here field.
 
 ------<=[ Verifying messages                            ]=>-----------
 
@@ -251,9 +230,9 @@ Whenever a message is received by any participant, they first MUST
 check the correctness of the signature:
 
 ```
-   msg, sig = recv()
+   msg = recv()
    sign_pk = sign_keys[expected_sender_id]
-   assert(verify(sign_pk, msg, sig))
+   assert(verify(sign_pk, msg.sign_her, msg.signature))
 ```
 
 The recipient MUST also assert the correctness of all the other header
@@ -282,19 +261,19 @@ A higher level message transmission interface can be provided, for
 sending:
 
 ```
-msg, sig = send_msg(msgno, from, to, sign_sk, session_id, data)
+msg = send_msg(msgno, from, to, sign_sk, session_id, data)
     ts = timestamp()
     msg = type: 0x80, messageno: msgno, len: len(header) + len(data) + len(sig), from: from, to: to, ts: ts, data
-    sig = sign(sign_sk, msg)
-    return msg, sig
+    msg.sig = sign(sign_sk, msg.sign_here)
+    return msg
 ```
 
 And for validating incoming messages:
 
 ```
 
-data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg, sig)
-   assert(verify(sign_pk, msg, sig)
+data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg)
+   assert(verify(sign_pk, msg.sign_here, msg.sig)
    assert(msg.type == 0x80)
    assert(msg.version == 0)
    assert(msg.messageno == msgno)
@@ -312,9 +291,9 @@ values expected according to the current protocol state.
 
 ------<=[ Cheater detection                             ]=>-----------
 
-The STP MUST report to the user all errors that can identify cheating
-peers in any given step. For each detected cheating peer the STP MUST
-record the following information:
+The STP and the peers MUST report to the user all errors that can
+identify cheating peers in any given step. For each detected cheating
+peer the STP MUST record the following information:
 
  - the current protocol step,
  - the violating peer,
@@ -325,17 +304,29 @@ In order to detect other misbehaving peers in the current step,
 processing for the rest of the SHOULD peers continue until the end of
 the current step. Any further violations should be recorded as above.
 
-Before the next message to the peers is sent, the STP must
-check if there are no noted violations, if so the STP aborts and
-reports all violators with their parameters to the user.
+Before the next message to the peers is sent, the STP MUST check if
+there are no noted hard violations, if so the STP aborts and reports
+all violators with their parameters to the user. Soft violations -
+corruptions robustly handled by the protocol - only need to be
+reported, they do not cause an abort.
 
-Abort conditions include any errors detected by recv_msg(), or when
-the number of complaints is more than t for one peer, or more than t^2
-in total, as well any of the checks of the JF-DKG algorithm from
-GJKR06.
+Abort conditions include any errors detected by recv_msg(), failure to
+verify the hash of the commitments, or when the number of complaints
+is more than t for one peer, or more than t^2 in total. Soft
+violations are failures of dealers VSPS checks and shares not matching
+their commitments.
 
 Participants should log all broadcast interactions, so that any
 post-mortem investigation can identify cheaters.
+
+------<=[ Second generator point                        ]=>-----------
+
+For the homomorphic commitment this protocol requires a second
+generator on the group. We generate it in the following manner:
+
+  h = voprf_hash_to_group(blake2b("nothing up my sleeve number"))
+
+Where voprf_hash_to_groups is according to [RFC9497].
 
 ------<=[ The protocol                                  ]=>-----------
 
@@ -358,55 +349,65 @@ The STP then sanity checks these parameters:
 
 ```
 n = len(peers)
-assert(2<=t<n)
+assert(1<t<n)
 assert(len(proto_name)>0)
 ```
 
 The STP then generates a hash of the DST.
 
 The STP then creates a broadcast message containing the hash (so that
-the message is always of fixed size) of the DST, the values N and T
+the message is always of fixed size) of the DST, the values n and t
 and its own public signing key:
 
 ```
-dst_str = "STP DKG for protocol %s" % proto_name
-dst = hash(I2OSP(len(dst_str)) | dst_str)
-nonce_stp = random_bytes(32)
-data = {dst, n, t, stp_sign_pk}
-msg_0, sig_0 = send_msg(0, 0, 0xff, stp_sign_sk, nonce_stp, data)
-broadcast(msg_0 | sig_0)
+dst_str = "STP VSS DKG for protocol %s" % proto_name
+dst = hash(I2OSP(len(dst_str)) | dst_str | n | t)
+sessionid = random_bytes(32)
+data = {stp_sign_pk, dst, n, t}
+msg_0 = send_msg(0, 0, 0xff, stp_sign_sk, sessionid, data)
+broadcast(msg_0)
 ```
+
+Note that the STP also generates a temporary session id, which is used
+until the parties agree on a joint session id.
 
 The STPs copy of the transcript is initialized by the STP, and updated
 with the value of the 1st broadcast message:
 
 ```
-state = hash_init("stp dkg session transcript")
+state = hash_init("stp vss dkg session transcript")
 state = update_ts(state, msg, sig)
 ```
 
 Since the order of the peers is random, and important for the protocol
 a custom message is created for each peer by the STP and sent
 individually notifying each peer of their index in this protocol
-run. This is essentially an empty message consisting only of a
-header. The msg.to field conveys the index of the peer.
+run. The msg.to field conveys the index of the peer. Additionally the
+hashes of the long-term signing public keys of the other peers are
+also sent along so that each of the peers can load the corresponding
+long-term signing and noise public keys.
 
 ```
 # sending each peer its index
+pkhashes = ""
 for i in 1..n:
-  msg_1, sig_1 = send_msg(1, 0, i, stp_sign_sk, session_id, {})
-  send(i, msg_1 | sig_1)
+  pkhashes = pkhashes | hash(ltsigpk[i])
+
+for i in 1..n:
+  msg_1 = send_msg(1, 0, i, stp_sign_sk, session_id, {pkhashes})
+  send(i, msg_1)
 ```
 
-------<=[ 2. each peer(msg_0, sig_0)                   ]=>------------
+------<=[ 2. each peer(msg_0)                          ]=>------------
 
 In this step each peer receives the initial parameter broadcast,
 verifies it, initializes the transcript and adds the initial
 message. Then receives the message assigning its index.
 
 ```
-msg_0, sig_0 = recv()
-assert(recv_msg(0, 0, 0xff, ref_ts, msg.data.stp_sign_pk, nonce_stp, msg_0, sig_0))
+msg_0 = recv()
+assert(recv_msg(0, 0, 0xff, ref_ts, msg.data.stp_sign_pk, msg.sessionid, msg_0))
+sessionid = msg.sessionid
 ```
 
 If the peer has no accurate internal clock but has at least an RTC, it
@@ -416,11 +417,13 @@ SHOULD set the ref_ts to the message timestamp:
 ref_ts = msg_0.ts
 ```
 
-Furthermore the peer MUST also verify that the N&T parameters are
-sane, and if possible the peer SHOULD also check if the nonce_stp is
-fresh (if it is not possible, isfresh() MAY always return true.
+Furthermore the peer MUST also verify that the n & t parameters are
+sane, and if possible the peer SHOULD also check if the temporary
+STP-assigned session id is fresh (if it is not possible, isfresh() MAY
+always return true.
 
 ```
+assert(1 < n <= 128)
 assert(2 <= msg_0.t < n)
 assert(isfresh(msg_0,sessionid))
 ```
@@ -429,7 +432,7 @@ The transcript MUST be initialized by the peer, and updated with the
 value of the 1st broadcast message:
 
 ```
-state = hash_init("stp dkg session transcript")
+state = hash_init("stp vss dkg session transcript")
 state = update_ts(state, msg, sig)
 ```
 
@@ -438,23 +441,26 @@ have to process the second message from the STP in which they are
 assigned their index.
 
 ```
-sig1, msg1 = recv()
-assert(recv_msg(1, 0, msg1.to, ref_ts, stp_sign_pk, session_id, msg_1, sig_1))
-assert(msg1.to <= 128 and msg1.to > 0)
+msg1 = recv()
+peerids = recv_msg(1, 0, msg1.to, ref_ts, stp_sign_pk, session_id, msg_1)
+assert(msg1.to <= n and msg1.to > 0)
 peerid = msg.to
+peers_noise_pks = []
+peers_sign_pks = []
+for i in 1..n
+   peers_sign_pks[i], peers_noise_pks[i] = keyloader(peerids[i])
 ```
 
-------<=[ 3. peers broadcast fresh noise_keys and nonce ]=>-------------
+------<=[ 3. peers broadcast fresh session nonce        ]=>-------------
 
-All peers broadcast generate fresh noise keys and nonce for use in the
+All peers broadcast generate a fresh session nonce for use in the
 session_id to all peers via the STP.
 
 ```
-peer_noise_sk, peer_noise_pk = noise_genkey()
 nonce_i = random_bytes(32)
 
-msg_2, sig_2 = send_msg(2, peerid, 0xff, peer_sign_sk, nonce_i, {peer_noise_pk})
-broadcast(msg_2 | sig_2 )
+msg_2 = send_msg(2, peerid, 0xff, peer_sign_sk, session_id, nonce_i)
+broadcast(msg_2)
 ```
 
 ------<=[ 4. STP collects and broadcasts messages     ]=>-------------
@@ -466,64 +472,64 @@ intermediary role:
 
   1. receives the messages from each peer
   2. validates the message using recv_msg()
-  3. extracts all noise pubkeys and nonces (or other information
-     depending on the current step) for usage by the STP in the rest of
-     the protocol
+  3. extracts all nonces (or other information depending on the
+     current step) for usage by the STP in the rest of the protocol
   4. concatenates all received messages into a new message
   5. signs the message of messages
   6. adds this the message of messages and its signature to the transcript
   7. sends it to all peers
 
-In this case the STP also calculates the session id, which is the hash
-of the concatenation of all nonces in order of their sending peers
-index (with the STP always having index 0).
+In this case the STP calculates the session id, which is the hash of
+the concatenation of all nonces in order of their sending peers index
+(with the STP always having index 0). The STP already uses the joint
+session_id to wrap all the peers messages into its broadcast envelope.
 
 ```
 peer_sig_pks = []
 msgs = []
 nonces = nonce_stp
 for i in 1..N
-   msg_2, sig_2 = recv()
-   sig_pk, noise_pk = recv_msg(2, i, 0xff, ref_ts, msg_2.data.peer_sign_pk, nonce_i, msg_2, sig_2)
-   peer_sig_pks[i] = sig_pk
-   msgs = msgs | { msg_2 , sig_2 }
+   msg_2 = recv()
+   nonce_i, = recv_msg(2, i, 0xff, ref_ts, msg_2.data.peer_sign_pk, nonce_i, msg_2)
+   msgs = msgs | msg_2
    nonces = nonces | nonce_i
 
 session_id = hash(nonces)
-msg_3, sig_3 = send_msg(3, 0, 0xff, stp_sign_sk, session_id, msgs)
+msg_3 = send_msg(3, 0, 0xff, stp_sign_sk, session_id, msgs)
 
-state = update_ts(state, msg_3, sig_3)
+state = update_ts(state, msg_3)
 
-broadcast(msg_3|sig_3)
+broadcast(msg_3)
 ```
 
-------<=[ 5. each peer get all keys and initiate noise channels with all peers ]=>-------
+------<=[ 5. finish init phase, start AKE phase         ]=>-------
 
-In this phase all peers process the broadcast nonces and noise keys
-received from all peers, and initiate a noise_xk handshake with each
-of them (including themselves for simplicity and thus security).
+In this step all peers process the broadcast nonces received from all
+peers, finishing the initial phase.
 
-Note: For performance it MAY be, that each peer only initiates
-handshakes with peers having a higher index than themselves. But this
-would create a packet-size and timing side-channel revealing the index
-of the peer.
+Every peer also verifies if the joint session_id matches the one in
+the STP broadcast envelope. From now on, every participant has this
+joint session id and uses it for all further messages.
+
+This step also marks the start of the next phase. In this AKE phase
+each peer initiates a noise_xk handshake with all other peers
+(including themselves for simplicity and thus security).
 
 ```
-msg_3, sig_3 = recv()
-msgs = recv_msg(3, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_3, sig_3)
+msg_3 = recv()
+msgs = recv_msg(3, 0, 0xff, ref_ts, stp_sign_pk, msg_3.session_id, msg_3)
 
-state = update_ts(state, msg_3, sig_3)
+state = update_ts(state, msg_3)
 
 nonces = []
-peers_noise_pks = []
-send_session = []
 for i in 1..N
    msg, sig = msgs[i]
-   peers_noise_pks[i] = recv_msg(2, i, 0xff, ref_ts, msg.peer_sign_pk, nonce_i, msg, sig)
+   nonce_i, = recv_msg(2, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg, sig)
    nonces = nonces | nonce_i
 
-session_id2 = hash(nonces)
-assert(session_id == session_id2)
+session_id = hash(nonces)
+assert(msg_3.session_id == session_id)
+send_session = []
 for i in 1..N
    send_session[i], handshake1 = noisexk_initiator_session(peer_noise_sk, peers_noise_pks[i])
    msg, sig = send_msg(4,peerid,i,peer_sign_sk, session_id, handshake1)
@@ -534,10 +540,10 @@ for i in 1..N
 
 The STP receives all 1st handshake messages from all peers and routes
 them correctly to their destination. These messages are not broadcast,
-each of them is a P2P message. The benefit of the STP forming a star
-topology here is, that the peers can be on very different physical
-networks (wifi, lora, uart, nfc, bluetooth, usb, etc) and only the STP
-needs to be able to connect to all of them.
+each of them is an encrypted P2P message. The benefit of the STP
+forming a star topology here is, that the peers can be on very
+different physical networks (wifi, lora, uart, nfc, bluetooth, usb,
+etc) and only the STP needs to be able to connect to all of them.
 
 ```
 for i in 1..N
@@ -572,7 +578,7 @@ for i in 1..N
        send(j, handshakes[j])
 ```
 
-------<=[ 9. each peer completes each handshake with each peer ]=>-------
+------<=[ 9. end of AKE phase, start of core DKG phase  ]=>-------
 
 Peers complete the noise handshake.
 
@@ -583,175 +589,198 @@ for i in 1..N
    send_session[i] = noisexk_initiator_session_complete(send_session[i], handshake3)
 ```
 
-------<=[ 10. Setup complete                                  ]=>-------
+Each peer has a confidential connection with every peer (including
+self, for simplicity)
 
-Each peer has a confidential connection with every peer (including self, for simplicity)
-
-The one time this channel is used, when distributing the shares from
-step 13. The sender uses the initiator interface of the noise session,
+The one time this channel is used, is when distributing the dealer
+shares. The sender uses the initiator interface of the noise session,
 and the receiver uses the responder interface.
 
-------<=[ 11. each peer executes DKG Round 1                  ]=>-------
+This step starts the core FT-Joint-DL-VSS protocol as per [GRR98]
+fig. 7:
 
-This step is as described by GJKR06 (fig 1. JF-DKG) step 1: Each party
-P_i (as a dealer) chooses a random polynomial f_i(z) over Z_q of degree t:
+Player P_i chooses a random value r_i and shares it using the DL-VSS
+protocol, Denote by α_i,j , ρ_i,j the share player P_i gives to player
+P_j, and the value 𝓐_i,j = g^(α_i,j)*h^(ρ_i,j) is the dealers
+commitment to share α_i,j , ρ_i,j.
 
-      f_i(z) = a_(i0) + a_(i1)z + ··· + a_(it)z^t
+The Noise handshake is finalized by encrypting one last empty message,
+which sets the final shared secret. This is needed in case later
+someone accuses this peer with their shares not matching their
+commitment, in which case the peer can reveal this final encryption
+key and prove everyone that the accuser was lying or not.
 
-P_i computes
+The shares α_i,j ,ρ_i,j are encrypted using the final Noise key for
+the recipient, and a key-committing HMAC is also calculated over the
+encrypted shares, since the Noise implementation we use does use
+Poly1305 which is not key-committing and thus would allow the dealer
+to cheat.
 
-      A_ik = g^(a_ik) mod p for k = 0,... ,t.
+The encrypted shares and their commitments 𝓐_i,j are stored by the
+peer for later distribution.
 
-and the shares
+The HMAC for each encrypted share is broadcast together with
+the hash of the concatenation of all A_i,j commitments:
 
-      s_ij = f_i(j) mod q for j = 1, ... ,n.
-
-finally P_i broadcasts the hash of the concatenation of all A_ik:
-
-      C_i = hash(A_i0 | A_i1 | .. | A_it)
+      C_i = hash(A_i0 | A_i1 | .. | A_in)
 
 ```
-a = []
-A = []
-for i in 0..t
-  a[i]=randombytes(32)
-  A[i]=g*a[i]
-
-C_i = hash(A)
-
-s = []
+encrypted_shares = []
+hmacs = []
 for i in 1..N
-  for j in 0..t
-    s[i]+=a[j]*i^j
+   encrypted_shares[i] = noise_send(send_session[i], share[i])
+   hmacs[i] = hmac(send_session[i].key, encrypted_shares[i])
 
-msg_6, sig_6 = send_msg(6, peerid, 0xff, peer_sign_sk, session_id, C_i)
-send(msg_6 | sig_6)
+C_i = hash(commitments)
+msg_6 = send_msg(6, peerid, 0xff, peer_sign_sk, session_id, {C_i, hmacs})
 ```
 
-------<=[ 12. STP collects and broadcasts all C_i commitments ]=>-------
+------<=[ 10. STP collects and broadcasts all C_i commitments ]=>-------
 
 This is another broadcast pattern instance:
 receive-verify-collect-sign-transcript-broadcast. The STP keeps a copy
-of all commitments being broadcast.
+of all commitment-hashes and share-HMACs being broadcast.
+
+The STP keeps a local copy of all commitment hashes and HMACs for
+later verification.
 
 ```
-C = []
+C_hashes = []
+hmacs = []
 msgs = []
 for i in 1..N
-   msg_6, sig_6 = recv(i)
-   C[i] = recv_msg(6, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_6, sig_6)
-   msgs = msgs | { msg_6 , sig_6 }
+   msg_6 = recv(i)
+   C_hashes[i], hmacs[i] = recv_msg(6, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_6)
+   msgs = msgs | msg_6
 
-msg_7, sig_7 = send_msg(7, 0, 0xff, stp_sign_sk, session_id, msgs)
+msg_7 = send_msg(7, 0, 0xff, stp_sign_sk, session_id, msgs)
 
-state = update_ts(state, msg_7, sig_7)
+state = update_ts(state, msg_7)
 
-broadcast(msg_7|sig_7)
+broadcast(msg_7)
 ```
 
-------<=[ 13. Peers receive all C_i commitments and respond   ]=>-------
+------<=[ 11. Peers receive commitment hashes & HMACs   ]=>-------
 
-The peers receive all C_i commitments and broadcast their A commitment
-vectors, and privately send the shares to each recipient.
-
-Note msg_8 and the private msg_9s can be combined into one bundle and
-sent together to the STP, who can separate these and dispatch them properly
+The peers receive all C_i commitment hashes and share-HMACs and
+broadcast their A commitment vectors:
 
 ```
-msg_7, sig_7 = recv()
-msgs = recv_msg(7, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_7, sig_7)
-state = update_ts(state, msg_7, sig_7)
+msg_7 = recv()
+msgs = recv_msg(7, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_7)
+state = update_ts(state, msg_7)
+
+C_hashes = []
+share_macs = []
+for i in 1..N
+   msg_6 = msgs[i]
+   C_hashes[i], share_macs[i] = recv_msg(6, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_6)
+   msgs = msgs | msg_6
+
+msg_8 = send_msg(8, peerid, 0xff, peer_sign_sk, session_id, A)
+```
+
+------<=[ 12. STP broadcasts all commitments            ]=>-------
+
+This is a classical STP broadcast step. Besides keeping a copy of all
+commitments, the STP does also verify the commitment hashes and does
+an FT-VSPS check on the commitments.
+
+The STP verifies the VSPS property of the sum of the shared secrets by
+running VSPS-Check on 𝓐_i,..,𝓐_n where
+
+           𝓐_j = Π 𝓐_i,j
+                 i
+
+If this check fails the STP runs VSPS-Checks on each individual
+sharing. These checks are informational, and should guide the operator
+in detecting and deterring cheaters.
+
+```
+commitments[][]
+msgs = []
+for i in 1..N
+   msg_8 = recv(i)
+   commitments[i] = recv_msg(8, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_8)
+   msgs = msgs | msg_6
+   if C_hashes != hash(commitments[i])
+      report(i)
 
 C = []
-for i in 1..N
-   msg_6, sig_6 = msgs[i]
-   C[i] = recv_msg(6, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_6, sig_6)
-   msgs = msgs | { msg_6 , sig_6 }
+for i in 1..n
+   C[i] = sum(commitments[j][i] for j in 1..n)
 
-msg_8, sig_8 = send_msg(8, peerid, 0xff, peer_sign_sk, session_id, A)
+if vsps(C) fails:
+   for i..n
+      if vsps(commitments[i]) fails report(i)
 
-msg_9s = []
-for i in 1..N
-   pkt = noise_send(send_session[i], s[i])
-   msg, sig = send_msg(9, peerid, i, peer_sign_sk, session_id, pkt)
-   msg_9s = msg_9s | (msg | sig)
+msg_9 = send_msg(9, 0, 0xff, stp_sign_sk, session_id, msgs)
 
-msg_10, sig_10 = send_msg(10, peerid, 0, peer_sign_sk, session_id, {msg_8, sig_8, msg_9s })
+state = update_ts(state, msg_9)
+
+broadcast(msg_9)
 ```
 
-------<=[ 14. STP collects and dispatches all incoming msgs    ]=>-------
+------<=[ 13. Peers receive commitments, send shares    ]=>-------
 
-STP collects all msg_10 message bundles, consisting of the
-  - broadcast msg_8s containing A_i (and keeping a copy of each A_i),
-  - and all private msg_9 messages (also keeping a copy of each for cheater identification)
+The peers receive the broadcast commitments of all dealers, they check
+the commitment hashes and abort if they don't match, otherwise they
+store the commitments for the next step.
 
-STP re-arranges all messages according to recipient and sends them to
-each peer, while also updating the global transcript with all msg_8
-broadcast messages.
-
+Peers privately send the shares to each recipient.
 
 ```
-A = [][]
-encrypted_shares = [][]
-msg_8s = []
-msg_9s_out = [][]
+msg_9 = recv()
+msgs = recv_msg(9, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_9)
+state = update_ts(state, msg_9)
+
+commitments = [][]
 for i in 1..N
-   msg_10, sig_10 = recv(i)
-   msg_8, sig_8, msg_9s_in = recv_msg(10, i, 0, ref_ts, peer_sign_pks[i], session_id, msg_10, sig_10)
+   msg_8 = msgs[i]
+   commitments[i] = recv_msg(8, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_8)
+   assert C_hashes[i] == hash(commitments[i])
 
-   state = update_ts(state, msg_8, sig_8)
+msg_10s = []
+for i in 1..N
+   msg, sig = send_msg(9, peerid, i, peer_sign_sk, session_id, encrypted_shares[i])
+   send(msg,sig)
 
-   A[i] = recv_msg(8, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_8, sig_8)
-   msg_8s = msg_8s | (msg_8, sig_8)
+```
 
+------<=[ 14. STP routes shares to recipients           ]=>-------
+
+STP just routes all P2P messages from all peers to the correct
+recipients of the messages.
+
+```
+for i in 1..N
+   msgs = recv(i)
    for j in 1..N
-      msg_9, sig_9 = msg9s
-      msg_9s_out[j] = msg_9s_out[j] | msg_9s_in[j]
-      encrypted_shares[i][j] = msg
-
-for i in 1..N
-   msg_11, sig_11 = send_msg(11, 0, i, stp_sign_sk, session_id, msg_8s | msgs_9s_out[i])
-   send(i, msg_11 | sig_11)
+       send(j, msgs[j])
 ```
 
-------<=[ 15. each peer receives shares and As, does round 2  ]=>-------
+------<=[ 15. each peer receives shares & check commitments   ]=>-------
 
-The peers receive and unbundle the broadcast A msg_8 and the private
-msg_9 messages containing their shares. They then verify if the As
-correspond to the C commitments broadcast earlier and abort and report
-failures. Similarly the peers verifies the shares against the
-previously broadcast A commitment vectors. For each s_ij, A_i pair
-that fails, a complaint against the peer producing the conflicting
-commitment and share is logged in an array, which is broadcast to
-everyone. This is essentially step 2 from the JF-DKG algorithm
-described in GJKR06.
-
+The peers receive the private messages containing their shares. The
+peers verify the shares against the previously broadcast commitment
+vectors. For each
+    𝓐_i,j == g^(α_i,j) * h^(ρ_i,j)
+pair that fails, a complaint against the peer producing the
+conflicting commitment and share is logged in an array, which is
+broadcast to everyone.
 
 ```
-A = [][]
 s = []
-msg_11, sig_11 = recv()
-msg_8s, msg_9s = recv_msg(11, 0, peerid, ref_ts, stp_sign_pk, session_id, msg_11, sig_11)
-
 for i in 1..N
-   msg, sig = msgs_8[i]
-   A[i] = recv_msg(8, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg, sig)
-   assert(C[i] == hash(A[i]))
-   state = update_ts(state, msg, sig)
-
-   msg, sig = msg_9s[i]
-   pkt = recv_msg(9, i, peerid, ref_ts, peer_sign_pks[i], session_id, msg, sig)
-   s[i] = noise_recv(receive_session[i], pkt)
-
+   msg = recv()
+   pkt = recv_msg(9, i, peerid, ref_ts, peer_sign_pks[i], session_id, msg)
+   α[i,peerid],ρ[i,peerid] = noise_recv(receive_session[i], pkt)
 complaints = []
 for i in 1..N
-   v = 0
-   for k in 0..t
-      v += A[i][k]*peerid*k
-   if (g*s[i] != v)
+   if commitment[i,peerid] != g^(α[i,peerid])*h^(ρ[i,peerid])
       complaints = complaints | i
 
-msg, sig = send_msg(12, peerid, 0xff, peer_sign_sk, session_id, len(complaints) | complaints)
+msg, sig = send_msg(10, peerid, 0xff, peer_sign_sk, session_id, len(complaints) | complaints)
 send(msg | sig)
 
 ```
@@ -759,8 +788,7 @@ send(msg | sig)
 ------<=[ 16. STP collects complaints                         ]=>-------
 
 Another receive-verify-collect-sign-transcribe-broadcast
-instantiation. The STP keeps a copy of all complaints for the 18th
-step.
+instantiation. The STP keeps a copy of all complaints.
 
 If any peer complaints about more than t peers, that complaining peer
 is a cheater, and must be disqualified. Furthermore if there are in
@@ -772,158 +800,180 @@ is initiated.
 complaints = []
 msgs = []
 for i in 1..N
-   msg_12, sig_12 = recv(i)
-   complaints_i = recv_msg(12, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_12, sig_12)
+   msg_10 = recv(i)
+   complaints_i = recv_msg(10, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_10)
    assert(len(complaints_i) < t)
    complaints = complaints | complaints_i
-   msgs = msgs | { msg_12 , sig_12 }
+   msgs = msgs | msg_10
 
 assert(len(complaints) < t^2)
 
-msg_13, sig_13 = send_msg(13, 0, 0xff, stp_sign_sk, session_id, msgs)
+msg_11 = send_msg(11, 0, 0xff, stp_sign_sk, session_id, msgs)
 
-state = update_ts(state, msg_13, sig_13)
+state = update_ts(state, msg_11)
 
-broadcast(msg_13|sig_13)
+broadcast(msg_11)
 ```
 
-The next step of the protocol depends on the number of complaints
-received, if none then the next step is 21. otherwise 18.
+The next phase of the protocol depends on the number of complaints
+received, if none then the next phase is finishing, otherwise the next
+phase complaint analysis.
 
-If the next STP step is 18 (there are complaints) the next input buffer
-size depends on the number of complaints against each peer.
+If the next STP phase is complaint analysis (there are complaints) the
+next input buffer size depends on the number of complaints against
+each peer.
 
-Each complaint is answered by the symmetric encryption key used to
-encrypt the share of the accused belonging to the complainer. Each
-accused packs all answers into one message.
+Each complaint is answered by the encrypted shares and the symmetric
+encryption key used to encrypt these shares of the accused belonging to
+the complainer. Each accused packs all answers into one message.
 
 ------<=[ 17. Each peer receives all complaints               ]=>-------
 
 All complaint messages broadcast are received by each peer. If peer_i
-is being complained about by peer_j, peer_i sends the symmetric
-encryption key that was used to encrypt s_ij to the STP. This is the
-first part of step 3. in JF-DKG of GJKR06. There is a slight
-variation, instead of broadcasting the share, the accused peer reveals
-the symmetric encryption key that was used to encrypt the share. The
-STP has a copy of this encrypted message, and with the symmetric
-encryption key, it can decrypt the originally sent share. This is some
-kind of poor mans provable encryption.
+is being complained about by peer_j, peer_i broadcasts the encrypted
+shares and the symmetric encryption key that was used to encrypt them.
 
-If any complaints have been lodged by any peer the protocol ends here
-for all the peers.
+If there are no complaints at all the peers skip over to the final
+phase step 20., otherwise they engage in the complaint analysis phase.
 
 ```
-msg_13, sig_13 = recv()
-msgs = recv_msg(13, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_13, sig_13)
-state = update_ts(state, msg_13, sig_13)
-keys = []
+msg_11 = recv()
+msgs = recv_msg(11, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_11)
+state = update_ts(state, msg_11)
+defenses = []
 
 for i in 1..N
-   msg, sig = msgs[i]
-   complaints_len, complaints = recv_msg(12, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg, sig)
+   msg = msgs[i]
+   complaints_len, complaints = recv_msg(10, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg)
 
    for k in 0..complaints_len
       if complaints[k] == peerid
-          # complaint about current peer, publish key used to encrypt s_ij
-          keys = keys | send_session[i].key
+          # complaint about current peer, publish key used to encrypt α_i,j , ρ_i,j
+          defenses = defenses | {i, send_session[i].key, encrypted_shares[i]}
 
 if len(keys) > 0
-   msg_14, sig_14 = send_msg(14, peer, 0, peer_sign_sk, session_id, keys)
-   send(msg_14, sig_14)
+   msg_12 = send_msg(12, peer, 0xff, peer_sign_sk, session_id, keys)
+   send(msg_12)
 ```
 
-------<=[ 18. STP collects all s_ij, broadcasts and verifies them ]=>-------
+------<=[ 18. STP collects all defenses, verifies&broadcasts them ]=>-------
 
-In this step STP checks equation 3 from step 2 in JF-DKG of GJKR06.
-
-STP also checks if all complaints lodged earlier are answered by the
-correct s_ij shares. The shares to be verified are decrypted from the
-previously encrypted messages, using the revealed encryption keys by
-the accused peers.
-
-The protocol ends here, as either the complainer or the accused tried
-to cheat.
+STP checks if all complaints lodged earlier are answered by the
+correct encrypted shares and their keys, by first checking if the
+previously recorded MAC successfully verifies the encrypted share with
+the disclosed key, and then decrypts the share with this key, and
+checks if this satisfies the previously recorded commitment for this
+share. If it does, the accuser is reported as a cheater, if the
+commitment doesn't match the share, then the accused dealer is
+disqualified from the protocol and its shares will not contribute to
+the final shared secret.
 
 ```
+msgs = []
 for i in 1..N
     if len(complaints[i]) < 1
         continue
 
-    msg, sig = recv(i)
-    keys = recv_msg(14, i, 0, ref_ts, peers_sign_pks[i], session_id, msg, sig)
-    assert(len(keys) == len(complaints[i]))
-    sij=[][]
-    for j, key in keys
-       sij[i][j]=decrypt(key, encrypted_shares[i][j])
+    msg = recv(i)
+    defenses = recv_msg(12, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg)
+    msgs = msgs | msg
+    assert(len(defenses) == len(complaints[i]))
+    for j, key, encrypted_share in defenses
+       assert j==i
+       if hmacs[i][peerid] == hmac(key, encrypted_share)
+           report(i)
+       s,r=decrypt(key, encrypted_share]) or report(i)
+       if commitments[i][peerid] != g^s * h^r
+           report(i)
 
-    for complaint in complaints[i]
-        v = 0
-        for k in 0..t
-            v += A[i][k]*peerid*k
-        if(g*sij[complaint.from][complaint.data] != v)
-            suspicious = suspicious | identity(i)
-        else
-            suspicious = suspicious | identity(j)
+msg_13 = send_msg(13, 0, 0xff, stp_sign_sk, session_id, msgs)
+state = update_ts(state, msg_13)
+broadcast(msg_13)
 ```
 
+------<=[ 19. Peers receive and check all defenses            ]=>-------
 
-------<=[ 19. Compare all transcripts                         ]=>-------
+Peers receive the encrypted shares, and their encryption keys, and
+then run essentially the same step as the STP in the previous step,
+then they directly skip to the final phase in the next step.
 
-Each peer calculates the final transcripts and sends it to STP.
+------<=[ 20. Peers VSPS check, calculate shares and finish   ]=>-------
+
+Players verify the VSPS property of the sum of the shared secrets by
+running VSPS-Check on 𝓐_i,..,𝓐_n where
+
+           𝓐_j = Π 𝓐_i,j
+                 i
+
+If this check fails the players run VSPS-Check on each individual
+sharing. Any player that fails this check is disqualified. The number
+of all qualified peers (from this step, and the complaint analysis) is
+checked that is greater than 1 and then number of disqualified peers
+is less than t. If this fails the protocol aborts.
+
+The shares dealt by the qualified peers are summed, creating the final
+share. The commitment for this final share is calculated.
+
+Each peer calculates the final transcripts and broadcasts this
+together with the final commitments to all parties.
 
 ```
+C = []
+for i in 1..n
+   C[i] = sum(commitments[j][i] for j in 1..n if peer[i] is qualified)
+
+if vsps(C) fails:
+   for i in 1..n
+      if vsps(commitments[i]) fails disqualify(i)
+
+s = 0, r = 0
+for i in 1..n
+   if i is disqualfied: continue
+   s += shares[i]_s
+   r += shares[i]_r
+
+C = g^s * h^r
+
 transcript = final_ts(state)
-msg_20, sig_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, transcript)
-send(msg_20, sig_20)
+msg_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, {transcript, C})
+send(msg_20)
 ```
 
 ------<=[ 20. STP receives all and verifies transcripts        ]=>-------
 
 STP receives all transcripts, and asserts that they all match its own
-transcript, it aborts if any transcript mismatch is detected. If
-everything matches it broadcasts the result either as OK.
+transcript, it reports if any transcript mismatch is detected. It also
+does a final VSPS check on the commitments seen.
 
 ```
 transcript = final_ts(state)
 
+msgs = []
+commitments = []
 for i in 1..N
     msg, sig = recv(i)
-    ts = recv_msg(20, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg, sig)
-    assert( ts == transcript)
+    ts, c[i] = recv_msg(20, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg, sig)
+    if ts != transcript
+       report transcript mismatch
+    msgs = msgs | {msg, sig}
 
-msg_21, sig_21 = send_msg(21, 0, 0xff, stp_sign_sk, session_id, { "OK" })
+if vsps(commitments) fails:
+    report failure
 
-------<=[ 21. SUCCESS, peers set their share and confirm      ]=>-------
+------<=[ 21. END, peers set their share                ]=>-------
 
-All peers receive the OK acknowledgment from the STP and calculate the
-final share, this is equivalent with the calculation of x_j in the
-4. step in JF-DKG of GJKR06. Finally all peers acknowledge this step
-with another "OK" message sent to the STP. This is the final step for
-the peers, each needs to persist the calculated x_j share for usage in
-later threshold protocol runs (such as tOPRF).
+All peers receive the broadcasts transcripts and commitments, they run
+the same check as the STP in the previous step and abort if any of
+these fails. Otherwise the protocol completes successfully, and the
+peers can store the final shares and commitment together with the list
+of long-term public signing keys of all peers.
 
-```
-msg_21, sig_21 = recv()
-recv_msg(21, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_21, sig_21)
+------<=[ References                                    ]=>-------
 
-share = 0
-for i in 1..N
-   share += s[i]
+[GRR98] R. Gennaro, M. O. Rabin, and T. Rabin. "Simplified VSS and
+fact-track multiparty computations with applications to threshold
+cryptography" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages
+101–111. ACM, June / July 1998
 
-msg_22, sig_22 = send_msg(22, peerid, 0, peers_sign_sk, session_id, "OK")
-
-persist(own_peer_id, share)
-```
-
-------<=[ 22. STP asserts all peers respond with "OK"          ]=>-------
-
-The STP collects all "OK" messages from all peers.
-
-```
-for i in 1..N
-    msg, sig = recv(i)
-    ok = recv_msg(22, i, 0, ref_ts, peers_sign_pks[i], session_id, msg, sig)
-    assert( ok == "OK")
-```
-
-This successfully concludes the protocol.
+[RFC9497] RFC 9497: Oblivious Pseudorandom Functions (OPRFs) Using
+Prime-Order Groups

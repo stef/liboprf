@@ -17,7 +17,7 @@ else
 	CFLAGS+=-fstack-clash-protection
 endif
 
-all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt
+all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt toprf-update 
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
 	$(CC) -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
@@ -37,14 +37,20 @@ tp-dkg: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c ../liboprf.a ../tp-dkg.c
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
-stp-dkg: ../stp-dkg.c stp-dkg.c ../liboprf.a ../stp-dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -o stp-dkg stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+stp-dkg: ../dkg-vss.c ../dkg.c ../stp-dkg.c stp-dkg.c ../stp-dkg.h ../mpmult.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o stp-dkg stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
-stp-dkg-corrupt: ../stp-dkg.c stp-dkg.c ../liboprf.a ../stp-dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+stp-dkg-corrupt: ../dkg-vss.c ../dkg.c ../stp-dkg.c stp-dkg.c ../stp-dkg.h ../mpmult.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
-mpmult: ../mpmult.c ../liboprf.a mpmult.c ../liboprf.a ../utils.c ../toprf.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+mpmult: ../mpmult.c ../liboprf.a mpmult.c ../liboprf.a ../utils.c ../toprf.c ../dkg-vss.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../dkg-vss.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+
+update-poc: ../dkg-vss.c ../dkg.c update-poc.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o update-poc update-poc.c ../dkg-vss.c ../utils.c ../toprf.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+
+toprf-update: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 ../liboprf.a:
 	make -C .. liboprf.a
@@ -67,4 +73,4 @@ tests: all
 	./mpmult
 
 clean:
-	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg toprf mpmult
+	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg toprf mpmult stp-dkg-corrupt stp-dkg update-poc toprf-update

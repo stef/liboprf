@@ -1,0 +1,181 @@
+#include <sodium.h>
+#include <stdint.h>
+#include <string.h>
+#include "toprf.h"
+#include "utils.h"
+#include "dkg.h"
+
+// nothing up my sleeve generator H, generated with:
+// hash_to_group((uint8_t*)"DKG Generator H on ristretto255", 32, H)
+const uint8_t H[crypto_core_ristretto255_BYTES]= {
+  0x66, 0x4e, 0x4c, 0xb5, 0x89, 0x0e, 0xb3, 0xe4,
+  0xc0, 0xd5, 0x48, 0x02, 0x74, 0x8a, 0xb2, 0x25,
+  0xf9, 0x73, 0xda, 0xe5, 0xc0, 0xef, 0xc1, 0x68,
+  0xf4, 0x4d, 0x1b, 0x60, 0x28, 0x97, 0x8f, 0x07};
+
+
+static void polynom(const uint8_t j, const uint8_t threshold,
+                    const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
+                    TOPRF_Share *result) {
+  //f(z) = a_0 + a_1*z + a_2*z^2 + a_3*z^3 + ⋯ + (a_t)*(z^t)
+  result->index=j;
+  // f(z) = result = a[0] +.....
+  memcpy(result->value, a[0], crypto_core_ristretto255_SCALARBYTES);
+
+  // z = j
+  uint8_t z[crypto_core_ristretto255_SCALARBYTES]={j};
+  // z^t ->
+  for(int t=1;t<threshold;t++) {
+    // tmp = 1
+    uint8_t tmp[crypto_core_ristretto255_SCALARBYTES]={1};
+    for(int exp=1;exp<=t;exp++) {
+      // tmp *= z
+      crypto_core_ristretto255_scalar_mul(tmp, tmp, z);
+    }
+    // a[t] * z^t
+    crypto_core_ristretto255_scalar_mul(tmp, a[t], tmp);
+    // add into result
+    crypto_core_ristretto255_scalar_add(result->value, result->value, tmp);
+  }
+}
+
+
+int dkg_vss_commit(const uint8_t a[crypto_core_ristretto255_SCALARBYTES],
+                   const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
+                   uint8_t C[crypto_core_ristretto255_BYTES]) {
+  // compute commitments
+    uint8_t X[crypto_core_ristretto255_BYTES];
+    uint8_t R[crypto_core_ristretto255_BYTES];
+    // x = g^a_ik
+    crypto_scalarmult_ristretto255_base(X, a);
+    // r = h^b_ik
+    if(crypto_scalarmult_ristretto255(R, r, H)) return 1;
+    // C_ik = x+r
+    crypto_core_ristretto255_add(C,X,R);
+
+    return 0;
+}
+
+int dkg_vss_share(const uint8_t n,
+                  const uint8_t threshold,
+                  const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
+                  uint8_t commitments[n][crypto_core_ristretto255_BYTES],
+                  TOPRF_Share shares[n][2],
+                  uint8_t blind[crypto_core_ristretto255_SCALARBYTES]) {
+  uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES];
+  uint8_t b[threshold][crypto_core_ristretto255_SCALARBYTES];
+  if(secret!=NULL) memcpy(a[0],secret, crypto_core_ristretto255_SCALARBYTES);
+  for(int k=0;k<threshold;k++) {
+#ifndef UNIT_TEST
+    if(k!=0 || secret==NULL) crypto_core_ristretto255_scalar_random(a[k]);
+    crypto_core_ristretto255_scalar_random(b[k]);
+#else
+    if(k!=0 || secret==NULL) debian_rng_scalar(a[k]);
+    dump(a[k],crypto_core_ristretto255_SCALARBYTES,"a[%d] ", k);
+    debian_rng_scalar(b[k]);
+    dump(b[k],crypto_core_ristretto255_SCALARBYTES,"b[%d] ", k);
+#endif
+  }
+
+  if(blind!=NULL) {
+    memcpy(blind, b[0], crypto_core_ristretto255_SCALARBYTES);
+  }
+
+  // compute commitments
+  //if(0!=dkg_vss_commit(a[0], b[0], commitments[0])) return 1;
+  //dump((uint8_t*) &commitments[k],crypto_core_ristretto255_BYTES, "c[%d]     ", k);
+
+  for(uint8_t j=1;j<=n;j++) {
+    //f(x) = a_0 + a_1*x + a_2*x^2 + a_3*x^3 + ⋯ + a_(t)*x^(t)
+    polynom(j, threshold, a, &shares[j-1][0]);
+    //f'(x) = b_0 + b_1*x + b_2*x^2 + b_3*x^3 + ⋯ + b_(t)*x^(t)
+    polynom(j, threshold, b, &shares[j-1][1]);
+
+    if(0!=dkg_vss_commit(shares[j-1][0].value, shares[j-1][1].value, commitments[j-1])) return 1;
+  }
+
+  return 0;
+}
+
+int dkg_vss_verify_commitment(const uint8_t commitment[crypto_core_ristretto255_BYTES],
+                              const TOPRF_Share share[2]) {
+  uint8_t c[crypto_core_ristretto255_SCALARBYTES];
+  if(0!=dkg_vss_commit(share[0].value, share[1].value, c)) return 1;
+  if(sodium_memcmp(c,commitment,sizeof c)!=0) return 1;
+  return 0;
+}
+
+uint8_t dkg_vss_verify_commitments(const uint8_t n,
+                                   const uint8_t threshold,
+                                   const uint8_t self,
+                                   const uint8_t commitments[n][n][crypto_core_ristretto255_BYTES],
+                                   const TOPRF_Share shares[n][2],
+                                   uint8_t complaints[n]) {
+  uint8_t complaints_len=0;
+  for(uint8_t i=1;i<=n;i++) {
+    if(i==self) continue;
+
+    if(0!=dkg_vss_verify_commitment(commitments[i-1][self-1], shares[i-1])) {
+      // complain about P_i
+      fprintf(stderr, "\e[0;31mfailed to verify contribs of P_%d in stage 1\e[0m\n", i);
+      complaints[complaints_len++]=i;
+      //return 1;
+    } else {
+#ifdef UNIT_TEST
+      if(debug) fprintf(stderr, "\e[0;32mP_%d stage 1 correct!\e[0m\n", i);
+#endif // UNIT_TEST
+    }
+  }
+  return complaints_len;
+}
+
+int dkg_vss_finish(const uint8_t n,
+                    const uint8_t qual[n],
+                    const TOPRF_Share shares[n][2],
+                    const uint8_t self,
+                    TOPRF_Share share[2],
+                    uint8_t commitment[crypto_core_ristretto255_BYTES]) {
+  memset(share[0].value, 0, crypto_core_ristretto255_SCALARBYTES);
+  memset(share[1].value, 0, crypto_core_ristretto255_SCALARBYTES);
+  for(int i=0;qual[i] && i<n;i++) {
+    if(self!=shares[qual[i]-1][0].index) {
+      fprintf(stderr, "\e[0;31mbad share i=%d qual[i]=%d, index=%d\e[0m\n", i, qual[i], shares[qual[i]-1][0].index);
+    }
+    crypto_core_ristretto255_scalar_add(share[0].value, share[0].value, shares[qual[i]-1][0].value);
+    //dump((uint8_t*)&shares[qual[i]-1][0], sizeof(TOPRF_Share), "s[%d,%d] ", qual[i], self);
+    crypto_core_ristretto255_scalar_add(share[1].value, share[1].value, shares[qual[i]-1][1].value);
+    //dump((uint8_t*)&shares[qual[i]-1][1], sizeof(TOPRF_Share), "S[%d,%d] ", qual[i], self);
+  }
+  //dump(xi->value, crypto_core_ristretto255_SCALARBYTES, "x[%d]     ", self);
+  //dump(x_i->value, crypto_core_ristretto255_SCALARBYTES, "x'[%d]    ", self);
+  if(0!=dkg_vss_commit(share[0].value, share[1].value, commitment)) return 1;
+  return 0;
+}
+
+void dkg_vss_reconstruct(const size_t response_len,
+                         const TOPRF_Share responses[response_len][2],
+                         uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES],
+                         uint8_t blind[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+  uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
+  memset(result,0,crypto_scalarmult_ristretto255_BYTES);
+  result[0]=0;
+  if(blind!=NULL) {
+    memset(blind,0,crypto_scalarmult_ristretto255_BYTES);
+    blind[0]=0;
+  }
+
+  uint8_t indexes[response_len];
+  for(size_t i=0;i<response_len;i++) {
+    indexes[i]=responses[i][0].index;
+  }
+  for(size_t i=0;i<response_len;i++) {
+    coeff(responses[i][0].index, response_len, indexes, lpoly);
+    crypto_core_ristretto255_scalar_mul(tmp, responses[i][0].value, lpoly);
+    crypto_core_ristretto255_scalar_add(result, result, tmp);
+    if(blind!=NULL) {
+      crypto_core_ristretto255_scalar_mul(tmp, responses[i][1].value, lpoly);
+      crypto_core_ristretto255_scalar_add(blind, blind, tmp);
+    }
+  }
+}
