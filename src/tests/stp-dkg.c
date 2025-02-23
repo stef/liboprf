@@ -285,7 +285,7 @@ int main(const int argc, const char **argv) {
     for(int i=0;i<stp.cheater_len;i++) {
       char err[dkg_max_err_SIZE];
       uint8_t p = stp_dkg_tp_cheater_msg(&(*stp.cheaters)[i], err, sizeof(err));
-      fprintf(stderr,"\e[0;31m\t%d. %s\e[0m\n", i+1, err);
+      fprintf(stderr,"\x1b[0;31m\t%d. %s\x1b[0m\n", i+1, err);
       if(p==0) continue;
       if(p > n) return 1;
       if(tmp[p]==0) total_cheaters++;
@@ -299,7 +299,7 @@ int main(const int argc, const char **argv) {
     fprintf(stderr, NORMAL"\n");
     return 1;
   }
-  fprintf(stderr, "\e[0;32mewige blumenkraft!!5!\x1b[0m\n");
+  fprintf(stderr, "\x1b[0;32mewige blumenkraft!!5!\x1b[0m\n");
 
   return ret;
 }
