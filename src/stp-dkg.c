@@ -3,9 +3,6 @@
 #include "stp-dkg.h"
 #include "dkg-vss.h"
 #include "mpmult.h"
-#ifdef UNITTEST_CORRUPT
-#include "tests/stp_dkg_corrupt.h"
-#endif
 
 /*
     @copyright 2025, Stefan Marsiske toprf@ctrlc.hu
@@ -39,6 +36,40 @@
   cryptography" In B. A. Coan and Y. Afek, editors, 17th ACM PODC,
   pages 101–111. ACM, June / July 1998
 */
+
+
+#ifdef UNITTEST_CORRUPT
+void corrupt_vsps_p1t1(STP_DKG_PeerState *ctx) { // deals shares with polynomial t+1 instead of 1
+  if(ctx->index!=1) return;
+  (void)dkg_vss_share(ctx->n, ctx->t+1, NULL, (*ctx->k_commitments), (*ctx->k_shares), NULL);
+}
+
+void corrupt_commitment_p2(STP_DKG_PeerState *ctx) { // corrupts the 1st commitment with the 2nd
+  if(ctx->index!=2) return;
+  memcpy((*ctx->k_commitments)[0], (*ctx->k_commitments)[1], crypto_core_ristretto255_BYTES);
+}
+
+void corrupt_wrongshare_correct_commitment_p3(STP_DKG_PeerState *ctx) { // swaps the share and it's blinder,
+                                                                           // recalculates commitment
+  if(ctx->index!=3) return;
+  TOPRF_Share tmp;
+  // swap shares for p1
+  memcpy(&tmp, &(*ctx->k_shares)[0][0], sizeof tmp);
+  memcpy(&(*ctx->k_shares)[0][0], &(*ctx->k_shares)[0][1], sizeof tmp);
+  memcpy(&(*ctx->k_shares)[0][1], &tmp, sizeof tmp);
+  dkg_vss_commit((*ctx->k_shares)[0][0].value,(*ctx->k_shares)[0][1].value,(*ctx->k_commitments)[0]);
+}
+
+void corrupt_share_p4(STP_DKG_PeerState *ctx) {
+  if(ctx->index!=4) return;
+  (*ctx->k_shares)[0][0].value[2]^=0xff; // flip some bits
+}
+
+void corrupt_false_accuse_p2p3(STP_DKG_PeerState *ctx, uint8_t *fails_len, uint8_t *fails) {
+  if(ctx->index!=2) return;
+  fails[(*fails_len)++]=3;
+}
+#endif // UNITTEST_CORRUPT
 
 size_t stp_dkg_peerstate_size(void) {
   return sizeof(STP_DKG_PeerState);
