@@ -3,7 +3,7 @@
 /**
  * @file tp-dkg.h
 
-  SPDX-FileCopyrightText: 2024, Marsiske Stefan
+  SPDX-FileCopyrightText: 2024-25, Marsiske Stefan
   SPDX-License-Identifier: LGPL-3.0-or-later
 
   API for the Trusted Party Distributed Key Generation Protocol
@@ -242,7 +242,7 @@ int tpdkg_tpstate_step(const TP_DKG_TPState *ctx);
     @param [in] proto_name_len: the size of the array proto_name, to
            allow non-zero terminated DSTs.
 
-    @param [out] msg0_len: the size of memory allocated to the msg0 parameter.
+    @param [in] msg0_len: the size of memory allocated to the msg0 parameter.
            should be exactly tpdkg_msg0_SIZE;
 
     @param [out] msg0: a message to be sent to all peers to initalize them.
@@ -254,7 +254,7 @@ int tpdkg_start_tp(TP_DKG_TPState *ctx, const uint64_t ts_epsilon,
              const size_t msg0_len, DKG_Message *msg0);
 
 /**
-   This function sets all the variable sized buffers in the TP_DKG_PeerState structure.
+   This function sets all the variable sized buffers in the TP_DKG_TPState structure.
 
    A number of buffers are needed in the TP state that depend on the N and T parameters.
    These can be allocated on the stack as follows:
@@ -297,7 +297,7 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
    concatenate all messages from all peers in the order of the peers.
 
    The allocated buffer is to be passed as an input to the
-   tpdkg_pt_next() function, after this the buffer SHOULD be
+   tpdkg_tp_next() function, after this the buffer SHOULD be
    deallocated.
 
    @param [in] ctx: an initialized TP_DKG_TPState struct.
@@ -354,14 +354,13 @@ size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx);
 int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len);
 
 /**
-   This function "converts" the output of tpdkg_tp_next() into a message for the ith peer.
+   This function "converts" the output of tpdkg_tp_next() into a message for the i-th peer.
 
    The outputs of steps of the protocol are sometimes broadcast
    messages where the output is the same for all peers, but some of
    the outputs are dedicated and unique messages for each peer. This
    function returns a pointer to a message and the size of the message
    to be sent for a particular peer specified as a parameter.
-
 
    @param [in] ctx: pointer to a valid TP_DKG_TPState.
    @param [in] base: a pointer to the output of the tpdkg_tp_next() function.
@@ -375,11 +374,6 @@ int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_
 
    @code
     ret = tpdkg_tp_next(&tp, tp_in, sizeof(tp_in), tp_out, sizeof tp_out);
-    if(0!=ret) {
-      // clean up peers
-      for(int i=0;i<n;i++) tpdkg_peer_free(&peers[i]);
-      return ret;
-    }
 
     for(int i=0;i<tp.n;i++) {
       const uint8_t *msg;
@@ -387,7 +381,7 @@ int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_
       if(0!=tpdkg_tp_peer_msg(&tp, tp_out, sizeof tp_out, i, &msg, &len)) {
         return 1;
       }
-      _send(network_buf[i+1], &pkt_len[i+1], msg, len);
+      send(i, msg, len);
     }
     @endcode
 
@@ -395,7 +389,7 @@ int tpdkg_tp_next(TP_DKG_TPState *ctx, const uint8_t *input, const size_t input_
 int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len);
 
 /** This function checks if the protocol has finished for the TP or
-    more tpdk_tp_next() calls are necessary.
+    more tpdkg_tp_next() calls are necessary.
 
    @return 1 if more steps outstanding
  */
@@ -418,7 +412,7 @@ uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outle
 
     This function initializes the state of the peer.
 
-    @param [in] ctx : pointer to a TP_DKG_TPState struct, this struct
+    @param [in] ctx : pointer to a TP_DKG_PeerState struct, this struct
                 will be initialized by this function.
 
     @param [in] ts_epsilon: how many seconds a message can be old,
@@ -430,7 +424,7 @@ uint8_t tpdkg_cheater_msg(const TP_DKG_Cheater *c, char *out, const size_t outle
 
     @param [in] peer_lt_sk: the long-term private signing key of the peer.
 
-    @param [in] t: the msg0 sent from the TP after the TP run tpdkg_tp_start().
+    @param [in] msg0: the msg0 sent from the TP after the TP run tpdkg_tp_start().
 
     @return 0 if no errors.
  **/
@@ -517,9 +511,9 @@ size_t tpdkg_peer_output_size(const TP_DKG_PeerState *ctx);
    and tpdkg_peer_output_size() while allocating the buffers on the stack:
 
    @code
-   uint8_t peers_out[tpdkg_peer_output_size(&peers[i])];
+   uint8_t peers_out[tpdkg_peer_output_size(&peer)];
 
-   uint8_t peer_in[tpdkg_peer_input_size(&peers[i])];
+   uint8_t peer_in[tpdkg_peer_input_size(&peer)];
    recv(socket, peer_in, sizeof(peer_in));
    ret = tpdkg_peer_next(&peer,
                          peer_in, sizeof(peer_in),
