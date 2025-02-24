@@ -284,7 +284,7 @@ int main(const int argc, const char **argv) {
     memset(tmp,0,n+1);
     for(int i=0;i<stp.cheater_len;i++) {
       char err[dkg_max_err_SIZE];
-      uint8_t p = stp_dkg_tp_cheater_msg(&(*stp.cheaters)[i], err, sizeof(err));
+      uint8_t p = stp_dkg_stp_cheater_msg(&(*stp.cheaters)[i], err, sizeof(err));
       fprintf(stderr,"\x1b[0;31m\t%d. %s\x1b[0m\n", i+1, err);
       if(p==0) continue;
       if(p > n) return 1;

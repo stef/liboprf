@@ -356,7 +356,7 @@ int stp_dkg_start_stp(STP_DKG_STPState *ctx, const uint64_t ts_epsilon,
   // keep a copy of our long-term signing key
   memcpy(ctx->sig_sk, ltssk, crypto_sign_SECRETKEYBYTES);
 
-  // data = {stp_lt_pks, dst}
+  // data = {stp_lt_pks, dst, n, t}
   uint8_t *ptr = msg0->data;
   memcpy(ptr, (*sig_pks)[0], crypto_sign_PUBLICKEYBYTES);
   ptr+=crypto_sign_PUBLICKEYBYTES;
@@ -698,7 +698,7 @@ static STP_DKG_Err peer_dkg1_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
   STP_DKG_Message* msg5 = (STP_DKG_Message*) output;
   // we stash our commitments temporarily in k_commitments - they will be sent out in the next step
   if(dkg_vss_share(ctx->n, ctx->t, NULL, (*ctx->k_commitments), (*ctx->k_shares), NULL)) {
-    return ErrShare;
+    return Err_Share;
   }
 #ifdef UNITTEST_CORRUPT
   corrupt_vsps_p1t1(ctx);
@@ -1365,10 +1365,10 @@ static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, con
     fprintf(log_file,"\n");
   }
 
-  ctx->k_share[0].index=ctx->index;
-  ctx->k_share[1].index=ctx->index;
+  ctx->share[0].index=ctx->index;
+  ctx->share[1].index=ctx->index;
   // finalize dkg
-  if(0!=dkg_vss_finish(ctx->n,qual,(*ctx->k_shares),ctx->index,ctx->k_share, ctx->k_commitment)) return Err_DKGFinish;
+  if(0!=dkg_vss_finish(ctx->n,qual,(*ctx->k_shares),ctx->index,ctx->share, ctx->k_commitment)) return Err_DKGFinish;
 
   STP_DKG_Message* msg20 = (STP_DKG_Message*) output;
   crypto_generichash_final(&ctx->transcript, msg20->data, crypto_generichash_BYTES);
@@ -1754,7 +1754,7 @@ int stp_dkg_peer_next(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t
   return ret;
 }
 
-uint8_t stp_dkg_tp_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t outlen) {
+uint8_t stp_dkg_stp_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t outlen) {
   if(c->error>65 && c->error<=71) {
       snprintf(out, outlen, "step %d message from peer %d for peer %d could not be validated: %s",
                c->step, c->peer, c->other_peer, dkg_recv_err(c->error & 0x3f));
