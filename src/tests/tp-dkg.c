@@ -25,10 +25,10 @@ static void topart(TOPRF_Part *r, const TOPRF_Share *s) {
 
 static void shuffle(uint8_t *array, const size_t n) {
   if (n < 2) return;
-  srand(time(NULL));
-  for(int i=0; i<n-1; i++) {
-    size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-    int t = array[j];
+  srand((unsigned) time(NULL));
+  for(unsigned i=0; i<n-1; i++) {
+    size_t j = i + (unsigned)rand() / ((unsigned)RAND_MAX / (n - i) + 1U);
+    uint8_t t = array[j];
     array[j] = array[i];
     array[i] = t;
   }
@@ -39,7 +39,7 @@ static int verify_shares(const uint8_t n, const TOPRF_Share shares[n], const uin
   uint8_t v0[crypto_scalarmult_ristretto255_BYTES]={0};
 
   uint8_t indexes[n];
-  for(int i=0;i<n;i++) indexes[i]=i;
+  for(uint8_t i=0;i<n;i++) indexes[i]=i;
   if(log_file!=NULL) {
     fprintf(stderr, "order: ");
     for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
@@ -364,7 +364,7 @@ int main(const int argc, const char **argv) {
 #endif // defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
     exit(1);
   }
-  uint8_t n=atoi(argv[1]),t=atoi(argv[2]);
+  uint8_t n=(uint8_t)atoi(argv[1]),t=(uint8_t)atoi(argv[2]);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
   uint8_t step=atoi(argv[3]);
 #ifdef FUZZ_PEER

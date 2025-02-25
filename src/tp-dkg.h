@@ -64,11 +64,11 @@
 
 typedef DKG_Cheater TP_DKG_Cheater;
 
-#define tpdkg_msg0_SIZE ( sizeof(DKG_Message)                                         \
+#define tpdkg_msg0_SIZE ( sizeof(DKG_Message)                                            \
                         + crypto_generichash_BYTES/*dst*/                                \
                         + 2 /*n,t*/                                                      \
                         + crypto_sign_PUBLICKEYBYTES /* tp_sign_pk */                    )
-#define tpdkg_msg8_SIZE (sizeof(DKG_Message) /* header */                             \
+#define tpdkg_msg8_SIZE (sizeof(DKG_Message) /* header */                                \
                          + noise_xk_handshake3_SIZE /* 4th&final noise handshake */      \
                          + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped share */     \
                          + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */  \
