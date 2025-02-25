@@ -445,23 +445,23 @@ STP_DKG_Err stp_dkg_start_peer(STP_DKG_PeerState *ctx,
 }
 
 int stp_dkg_peer_set_bufs(STP_DKG_PeerState *ctx,
-                              uint8_t (*peerids)[][crypto_generichash_BYTES],
-                              int (*keyloader_cb)(const uint8_t id[crypto_generichash_BYTES], void *arg, uint8_t sigpk[crypto_sign_PUBLICKEYBYTES], uint8_t noise_pk[crypto_scalarmult_BYTES]),
-                              void *keyloader_cb_arg,
-                              uint8_t (*peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
-                              uint8_t (*peers_noise_pks)[][crypto_scalarmult_BYTES],
-                              Noise_XK_session_t *(*noise_outs)[],
-                              Noise_XK_session_t *(*noise_ins)[],
-                              TOPRF_Share (*k_shares)[][2],
-                              uint8_t (*encrypted_shares)[][TOPRF_Share_BYTES * 2 + noise_xk_handshake3_SIZE + crypto_secretbox_xchacha20poly1305_MACBYTES],
-                              uint8_t (*share_macs)[][crypto_auth_hmacsha256_BYTES],
-                              uint8_t (*ki_commitments)[][crypto_core_ristretto255_BYTES],
-                              uint8_t (*k_commitments)[][crypto_core_ristretto255_BYTES],
-                              uint8_t (*commitments_hashes)[][stp_dkg_commitment_HASHBYTES],
-                              STP_DKG_Cheater (*cheaters)[], const size_t cheater_max,
-                              uint16_t *share_complaints,
-                              uint8_t *my_share_complaints,
-                              uint64_t *last_ts) {
+                          uint8_t (*peerids)[][crypto_generichash_BYTES],
+                          Keyloader_CB keyloader_cb,
+                          void *keyloader_cb_arg,
+                          uint8_t (*peers_sig_pks)[][crypto_sign_PUBLICKEYBYTES],
+                          uint8_t (*peers_noise_pks)[][crypto_scalarmult_BYTES],
+                          Noise_XK_session_t *(*noise_outs)[],
+                          Noise_XK_session_t *(*noise_ins)[],
+                          TOPRF_Share (*k_shares)[][2],
+                          uint8_t (*encrypted_shares)[][TOPRF_Share_BYTES * 2 + noise_xk_handshake3_SIZE + crypto_secretbox_xchacha20poly1305_MACBYTES],
+                          uint8_t (*share_macs)[][crypto_auth_hmacsha256_BYTES],
+                          uint8_t (*ki_commitments)[][crypto_core_ristretto255_BYTES],
+                          uint8_t (*k_commitments)[][crypto_core_ristretto255_BYTES],
+                          uint8_t (*commitments_hashes)[][stp_dkg_commitment_HASHBYTES],
+                          STP_DKG_Cheater (*cheaters)[], const size_t cheater_max,
+                          uint16_t *share_complaints,
+                          uint8_t *my_share_complaints,
+                          uint64_t *last_ts) {
   ctx->peerids = peerids;
   ctx->keyloader_cb = keyloader_cb;
   ctx->keyloader_cb_arg = keyloader_cb_arg;
@@ -551,16 +551,8 @@ static STP_DKG_Err stp_init2_handler(STP_DKG_STPState *ctx, const uint8_t *input
   const uint8_t *ptr = input;
   uint8_t *wptr = ((STP_DKG_Message *) output)->data;
   for(uint8_t i=0;i<ctx->n;i++,ptr+=stp_dkg_peer_init1_msg_SIZE) {
-    const STP_DKG_Message* msg = (const STP_DKG_Message*) ptr;
-    const uint8_t *dptr = msg->data;
-    dkg_dump_msg(ptr, stp_dkg_peer_init1_msg_SIZE, 0);
-    int ret = toprf_recv_msg(ptr, stp_dkg_peer_init1_msg_SIZE, stpvssdkg_peer_init1_msg, i+1, 0xff, (*ctx->sig_pks)[i+1], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
-    if(0!=ret) {
-      if(stp_add_cheater(ctx, 64+ret, i+1, 0xff) == NULL) return Err_CheatersFull;
-      if(log_file!=NULL) fprintf(log_file, RED"failed to validate msg %d from %d, err: %d\n"NORMAL, 1, i+1, ret);
-      continue;
-    }
-
+    const uint8_t *dptr = ((const STP_DKG_Message*) ptr)->data;
+    if(stp_recv_msg(ctx,ptr,stp_dkg_peer_init1_msg_SIZE,stpvssdkg_peer_init1_msg,i+1,0xff)) continue;
     // contribution to final session id
     crypto_generichash_update(&sid_hash_state, dptr, dkg_sessionid_SIZE);
 
@@ -605,18 +597,9 @@ static STP_DKG_Err peer_start_noise_handler(STP_DKG_PeerState *ctx, const uint8_
   const uint8_t *ptr = msg2->data;
   for(uint8_t i=0;i<ctx->n;i++, ptr+=stp_dkg_peer_init1_msg_SIZE) {
     const STP_DKG_Message* msg1 = (const STP_DKG_Message*) ptr;
-    const uint8_t *dptr = msg1->data;
-
-    dkg_dump_msg(ptr, stp_dkg_peer_init1_msg_SIZE, ctx->index);
-    int ret = toprf_recv_msg(ptr, stp_dkg_peer_init1_msg_SIZE, stpvssdkg_peer_init1_msg, i+1, 0xff, (*ctx->sig_pks)[i+1], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[i]);
-    if(0!=ret) {
-      if(peer_add_cheater(ctx, 64+ret, i+1, 0xff) == NULL) return Err_CheatersFull;
-      if(log_file!=NULL) fprintf(log_file, RED"failed to validate msg %d from %d, err: %d\n"NORMAL, 1, i+1, ret);
-      continue;
-    }
+    if(peer_recv_msg(ctx,ptr,stp_dkg_peer_init1_msg_SIZE,stpvssdkg_peer_init1_msg,i+1,0xff)) continue;
     // extract peer noise pk
-    crypto_generichash_update(&sid_hash_state, dptr, dkg_sessionid_SIZE);
-    dptr+=dkg_sessionid_SIZE;
+    crypto_generichash_update(&sid_hash_state, msg1->data, dkg_sessionid_SIZE);
   }
 
   if(ctx->cheater_len>0) return Err_CheatersFound;

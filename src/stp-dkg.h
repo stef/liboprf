@@ -126,7 +126,7 @@ typedef enum {
   stpvssdkg_stp_bc_key_msg,
   stpvssdkg_peer_bc_transcript_msg,
   stpvssdkg_stp_bc_transcript_msg,
-} SSTP_DKG_Message_Type;
+} STP_DKG_Message_Type;
 
 /** @struct STP_DKG_STPState
 
