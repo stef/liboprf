@@ -612,7 +612,7 @@ static STP_DKG_Err peer_start_noise_handler(STP_DKG_PeerState *ctx, const uint8_
   uint8_t *wptr = output;
   for(uint8_t i=0;i<ctx->n;i++, wptr+=stp_dkg_peer_start_noise_msg_SIZE) {
     STP_DKG_Message *msg3 = (STP_DKG_Message *) wptr;
-    uint8_t rname[14];
+    uint8_t rname[15];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
     dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg3->data);
     if(0!=toprf_send_msg(wptr, stp_dkg_peer_start_noise_msg_SIZE, stpvssdkg_peer_start_noise_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return Err_Send;
@@ -644,7 +644,7 @@ static STP_DKG_Err peer_respond_noise_handler(STP_DKG_PeerState *ctx, const uint
 
     // respond to noise handshake request
     STP_DKG_Message *msg4 = (STP_DKG_Message *) wptr;
-    uint8_t rname[14];
+    uint8_t rname[15];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
     dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg3->data, msg4->data);
     if(0!=toprf_send_msg(wptr, stp_dkg_peer_respond_noise_msg_SIZE, stpvssdkg_peer_respond_noise_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return Err_Send;
