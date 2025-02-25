@@ -5,9 +5,10 @@
 #include "../utils.h"
 #include <assert.h>
 #include <string.h>
+#include <stdint.h>
 
 int test_mpmul(void) {
-  const unsigned threshold = 2, dealers = (threshold*2) + 1, peers = dealers * 2;
+  const uint8_t threshold = 2, dealers = (threshold*2) + 1U, peers = dealers * 2;
 
   // share value k0
   uint8_t k0[crypto_core_ristretto255_SCALARBYTES];
@@ -40,19 +41,19 @@ int test_mpmul(void) {
   // each shareholder multiplies their k0,k1 shares
   // and creates a sharing of this product
   uint8_t mulshares[dealers][peers][TOPRF_Share_BYTES];
-  for(unsigned i=0;i<dealers;i++) {
+  for(uint8_t i=0;i<dealers;i++) {
     if( toprf_mpc_mul_start(shares0[i], shares1[i], peers, threshold, mulshares[i])) return 1;
   }
 
   uint8_t indexes[dealers];
-  for(unsigned i=0; i<dealers; i++) indexes[i]=i+1;
+  for(uint8_t i=0; i<dealers; i++) indexes[i]=i+1;
 
   uint8_t sharesP[peers][TOPRF_Share_BYTES];
   //memset(sharesP,0,sizeof sharesP);
 
-  for(unsigned i=0;i<peers;i++) {
+  for(uint8_t i=0;i<peers;i++) {
     uint8_t shares[dealers][TOPRF_Share_BYTES];
-    for(unsigned j=0; j<dealers;j++) {
+    for(uint8_t j=0; j<dealers;j++) {
       memcpy(shares[j], mulshares[j][i], TOPRF_Share_BYTES);
       dump(mulshares[j][i], TOPRF_Share_BYTES, "mulsharesx[%d][%d]", j,i);
       dump(shares[j], TOPRF_Share_BYTES, "sharesx[%d]", i);
@@ -136,7 +137,7 @@ static void eval_poly(const uint8_t t,
 int test_vsps(void) {
   // page 8, paragraph 3, line 1.
   const uint8_t t = 1; // the degree of the polynomial
-  const uint8_t n = 2*(t + 1);
+  const uint8_t n = 2*(t + 1U);
 
   // we need a second generator h = g^z, without knowning what z is.
   uint8_t h[crypto_scalarmult_ristretto255_BYTES] = {0};
