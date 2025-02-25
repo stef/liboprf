@@ -98,7 +98,7 @@ void dkg_reconstruct(const size_t response_len,
 #define noise_xk_handshake1_SIZE 48UL
 #define noise_xk_handshake2_SIZE 48UL
 #define noise_xk_handshake3_SIZE 64UL
-#define dkg_noise_key_SIZE (32UL)
+#define dkg_noise_key_SIZE 32UL
 #define dkg_sessionid_SIZE 32U
 #define dkg_max_err_SIZE 128
 
