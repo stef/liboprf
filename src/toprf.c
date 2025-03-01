@@ -1,7 +1,11 @@
 #include <string.h>
 #include "oprf.h"
 #include "toprf.h"
+#ifdef __WIN32__
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 #ifdef UNIT_TEST
 #include "utils.h"
 #endif
