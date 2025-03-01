@@ -13,12 +13,14 @@ static void corrupt_vsps_t1(TOPRF_Update_PeerState *ctx, // deals shares with po
                             TOPRF_Share (*shares)[][2],
                             uint8_t (*commitments)[][crypto_core_ristretto255_BYTES]) {
   if(ctx->index!=peer) return;
+  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting with wrong degree of the polynom peer %d\n"NORMAL, peer);
   (void)dkg_vss_share(ctx->n, ctx->t+1, NULL, (*commitments), (*shares), NULL);
 }
 
 static void corrupt_commitment(TOPRF_Update_PeerState *ctx, const uint8_t peer,
                                uint8_t (*commitments)[][crypto_core_ristretto255_BYTES]) { // corrupts the 1st commitment with the 2nd
   if(ctx->index!=peer) return;
+  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting commitment of peer %d\n"NORMAL, peer);
   memcpy((*commitments)[0], (*commitments)[1], crypto_core_ristretto255_BYTES);
 }
 
@@ -33,7 +35,8 @@ static void corrupt_wrongshare_correct_commitment(TOPRF_Update_PeerState *ctx, /
   memcpy(&tmp, &(*shares)[share_idx][0], sizeof tmp);
   memcpy(&(*shares)[share_idx][0], &(*shares)[share_idx][1], sizeof tmp);
   memcpy(&(*shares)[share_idx][1], &tmp, sizeof tmp);
-  dkg_vss_commit((*shares)[share_idx][0].value,(*shares)[share_idx][1].value,(*commitments)[0]);
+  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share (but correct commitment) of peer %d\n"NORMAL, peer);
+  dkg_vss_commit((*shares)[share_idx][0].value,(*shares)[share_idx][1].value,(*commitments)[share_idx]);
 }
 
 static void corrupt_share(TOPRF_Update_PeerState *ctx, const uint8_t peer,
@@ -41,6 +44,7 @@ static void corrupt_share(TOPRF_Update_PeerState *ctx, const uint8_t peer,
                           const uint8_t share_type,
                           TOPRF_Share (*shares)[][2]) {
   if(ctx->index!=peer) return;
+  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share of peer %d"NORMAL, peer);
   (*shares)[share_idx][share_type].value[2]^=0xff; // flip some bits
 }
 
@@ -49,6 +53,7 @@ static void corrupt_false_accuse(TOPRF_Update_PeerState *ctx,
                                  const uint8_t p2,
                                  uint8_t *fails_len, uint8_t *fails) {
   if(ctx->index!=peer) return;
+  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting falsely accusing peer %d by peer %d\n"NORMAL, p2, peer);
   fails[(*fails_len)++]=p2;
 }
 #endif // UNITTEST_CORRUPT
@@ -778,12 +783,12 @@ static TOPRF_Update_Err dkg1(TOPRF_Update_PeerState *ctx, const uint8_t n,
   }
 
 #ifdef UNITTEST_CORRUPT
-  if(type[0]!='p') corrupt_vsps_t1(ctx,1, ctx->kc1_shares, ctx->kc1_commitments);
-  if(type[0]!='p') corrupt_commitment(ctx,2,ctx->kc1_commitments);
-  if(type[0]!='k') corrupt_commitment(ctx,3,ctx->p_commitments);
+  //if(type[0]!='p') corrupt_vsps_t1(ctx,1, ctx->kc1_shares, ctx->kc1_commitments);
+  //if(type[0]!='p') corrupt_commitment(ctx,2,ctx->kc1_commitments);
+  //if(type[0]!='k') corrupt_commitment(ctx,3,ctx->p_commitments);
   if(type[0]!='p') corrupt_wrongshare_correct_commitment(ctx,4,2,ctx->kc1_shares,ctx->kc1_commitments);
   if(type[0]!='p') corrupt_share(ctx,5,3,1,ctx->kc1_shares);
-  if(type[0]!='p') corrupt_share(ctx,5,2,0,ctx->kc1_shares);
+  //if(type[0]!='p') corrupt_share(ctx,5,2,0,ctx->kc1_shares);
 #endif // UNITTEST_CORRUPT
 
   if(log_file!=NULL) {
@@ -1169,6 +1174,7 @@ static TOPRF_Update_Err decrypt_shares(TOPRF_Update_PeerState *ctx,
 }
 
 static void verify_commitments(TOPRF_Update_PeerState *ctx,
+                               const char *type,
                                const uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                                const TOPRF_Share (*shares)[][2],
                                uint8_t *fails_len,
@@ -1180,21 +1186,18 @@ static void verify_commitments(TOPRF_Update_PeerState *ctx,
   // verify that the shares match the commitment
   for(uint8_t i=0;i<ctx->n;i++) {
     if(0!=dkg_vss_verify_commitment((*c)[i][ctx->index-1],(*shares)[i])) {
-      if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] failed to verify kc1 commitments from %d!\x1b[0m\n", ctx->index, i+1);
+      if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] failed to verify %s commitments from %d!\x1b[0m\n", ctx->index, type, i+1);
       fails[(*fails_len)++]=i+1;
     }
   }
-#ifdef UNITTEST_CORRUPT
-  corrupt_false_accuse(ctx, 2, 3, fails_len, fails);
-#endif //UNITTEST_CORRUPT
 
   if(log_file!=NULL) {
     if(*fails_len>0) {
-        fprintf(log_file, RED"[%d] kc1 commitment fails#: %d -> ", ctx->index, *fails_len);
-        for(unsigned i=0;i<*fails_len;i++) fprintf(log_file, "%s%d", (i>0)?", ":"", fails[i]);
-        fprintf(log_file, NORMAL"\n");
+      fprintf(log_file, RED"[%d] %s commitment fails#: %d -> ", ctx->index, type, *fails_len);
+      for(unsigned i=0;i<*fails_len;i++) fprintf(log_file, "%s%d", (i>0)?", ":"", fails[i]);
+      fprintf(log_file, NORMAL"\n");
     } else {
-        fprintf(log_file, GREEN"[%d] no kc1 commitment fails\n"NORMAL, ctx->index);
+      fprintf(log_file, GREEN"[%d] no %s commitment fails\n"NORMAL, ctx->index, type);
     }
   }
 }
@@ -1234,11 +1237,14 @@ static TOPRF_Update_Err peer_verify_shares_handler(TOPRF_Update_PeerState *ctx, 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
   uint8_t *fails_len = msg->data;
   uint8_t *fails = fails_len+1;
-  verify_commitments(ctx, ctx->kc1_commitments, ctx->kc1_shares, fails_len, fails);
+  verify_commitments(ctx, "kc1", ctx->kc1_commitments, ctx->kc1_shares, fails_len, fails);
+#ifdef UNITTEST_CORRUPT
+  corrupt_false_accuse(ctx, 2, 3, fails_len, fails);
+#endif //UNITTEST_CORRUPT
 
   fails_len = fails+ctx->n;
   fails = fails_len+1;
-  verify_commitments(ctx, ctx->p_commitments, ctx->p_shares, fails_len, fails);
+  verify_commitments(ctx, "p", ctx->p_commitments, ctx->p_shares, fails_len, fails);
 
   if(0!=toprf_send_msg(output, toprfupdate_peer_verify_shares_msg_SIZE(ctx), toprfupdate_peer_verify_shares_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return Err_Send;
   dkg_dump_msg(output, toprfupdate_peer_verify_shares_msg_SIZE(ctx), ctx->index);
@@ -1387,10 +1393,16 @@ static TOPRF_Update_Err stp_broadcast_defenses(TOPRF_Update_STPState *ctx, const
     const uint8_t *dptr = msg->data;
 
     TOPRF_Update_Err ret = stp_check_defenses(ctx, ctr1[i], i, ctx->kc1_share_macs, ctx->kc1_commitments, &dptr);
-    if(Err_OK != ret) return ret;
+    if(Err_OK != ret) {
+      fprintf(stderr, "qwer\n");
+      return ret;
+    }
 
     ret = stp_check_defenses(ctx, ctr2[i], i, ctx->p_share_macs, ctx->p_commitments, &dptr);
-    if(Err_OK != ret) return ret;
+    if(Err_OK != ret) {
+      fprintf(stderr, "asdf\n");
+      return ret;
+    }
 
     memcpy(wptr, ptr, msg_size);
     wptr+=msg_size;
