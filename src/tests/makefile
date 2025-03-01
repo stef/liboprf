@@ -17,7 +17,7 @@ else
 	CFLAGS+=-fstack-clash-protection
 endif
 
-all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt toprf-update 
+all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt toprf-update toprf-update-corrupt
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
 	$(CC) -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
@@ -52,6 +52,9 @@ update-poc: ../dkg-vss.c ../dkg.c update-poc.c
 toprf-update: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c
 	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
+toprf-update-corrupt: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c ../utils.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o toprf-update-corrupt toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+
 ../liboprf.a:
 	make -C .. liboprf.a
 
@@ -73,4 +76,4 @@ tests: all
 	./mpmult
 
 clean:
-	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg toprf mpmult stp-dkg-corrupt stp-dkg update-poc toprf-update
+	rm -f cfrg_oprf_test_vector_decl.h cfrg_oprf_test_vectors.h tv1 tv2 tp-dkg dkg toprf mpmult stp-dkg-corrupt stp-dkg update-poc toprf-update toprf-update-corrupt
