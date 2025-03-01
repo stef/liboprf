@@ -1,16 +1,15 @@
 PREFIX?=/usr/local
 LDFLAGS=-lsodium
 SOURCES=src/Noise_XK.c src/XK.c
-
-CFLAGS 	?= -Iinclude -I include/karmel -I include/karmel/minimal \
-				-Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
+INCLUDES=-Iinclude -I include/karmel -I include/karmel/minimal
+CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \
-				-ftrapv
+				-ftrapv $(INCLUDES)
 CC?=gcc
 
 SOEXT?=so
@@ -37,6 +36,18 @@ else
    	CFLAGS+=-fstack-clash-protection
    endif
 endif
+
+mingw64: CC=x86_64-w64-mingw32-gcc
+mingw64: SOEXT=dll
+mingw64: STATICEXT=lib
+mingw64: EXT=.exe
+mingw64: MAKETARGET=mingw
+mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
+               -fasynchronous-unwind-tables -fpic -Werror=format-security \
+               -Werror=implicit-function-declaration -ftrapv $(DEFINES) $(INCLUDES) \
+               -I../win/libsodium-win64/include/sodium -I../win/libsodium-win64/include
+mingw64: LDFLAGS+=-L. -L.. -L../win/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
+mingw64: liboprf-noiseXK.$(SOEXT)
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
 

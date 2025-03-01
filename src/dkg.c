@@ -2,7 +2,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h> // time
+#ifdef __WIN32__
+#include <winsock2.h>
+#else
 #include <arpa/inet.h> //htons
+#endif
 #include "toprf.h"
 #include "utils.h"
 #include "dkg.h"
