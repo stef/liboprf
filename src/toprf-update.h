@@ -3,12 +3,15 @@
 #include <stdint.h>
 #include <sodium.h>
 #include "dkg.h"
+#include "toprf.h"
 
 #define noise_xk_handshake1_SIZE 48UL
 #define noise_xk_handshake2_SIZE 48UL
 #define noise_xk_handshake3_SIZE 64UL
 #define toprf_update_noise_key_SIZE (32UL)
 #define toprf_update_sessionid_SIZE 32U
+#define toprf_update_commitment_HASHBYTES 32U
+#define toprf_update_encrypted_shares_SIZE (TOPRF_Share_BYTES * 2)
 #define toprf_keyid_SIZE 32U
 
 typedef DKG_Message TOPRF_Update_Message;
@@ -46,6 +49,8 @@ typedef enum {
   Err_NoiseDecrypt,
   Err_HMac,
   Err_NoSubVSPSFail,
+  Err_NotEnoughDealers,
+  Err_TooManyCheaters,
   Err_DKGFinish,
   Err_FTMULTStep1,
   Err_FTMULTZKCommitments,
@@ -60,10 +65,12 @@ typedef enum {
   TOPRF_Update_STP_Broadcast_NPKs,
   TOPRF_Update_STP_Route_Noise_Handshakes1,
   TOPRF_Update_STP_Route_Noise_Handshakes2,
-  TOPRF_Update_STP_Broadcast_DGK_Commitments,
+
+  TOPRF_Update_STP_Broadcast_DKG_Hash_Commitments,
+  TOPRF_Update_STP_Broadcast_DKG_Commitments,
   TOPRF_Update_STP_Route_Encrypted_Shares,
   TOPRF_Update_STP_Broadcast_Complaints,
-  TOPRF_Update_STP_Route_DKG_Defenses,
+  TOPRF_Update_STP_Broadcast_DKG_Defenses,
   TOPRF_Update_STP_Broadcast_DKG_Transcripts,
   TOPRF_Update_STP_Broadcast_DKG_Final_Commitments,
   TOPRF_Update_STP_Route_Mult_Step1,
@@ -92,17 +99,27 @@ typedef struct {
   uint64_t *last_ts;
   uint64_t ts_epsilon;
   const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES];
+
+  uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
+  uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES];
+  uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES];
   uint16_t kc1_complaints_len;
   uint16_t (*kc1_complaints)[];
+
+  uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
+  uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES];
+  uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
   uint16_t p_complaints_len;
   uint16_t (*p_complaints)[];
+
   size_t cheater_len;
   TOPRF_Update_Cheater (*cheaters)[];
   size_t cheater_max;
   uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES];
   uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES];
   uint8_t delta[crypto_scalarmult_ristretto255_BYTES];
-  crypto_generichash_state transcript;
+  crypto_generichash_state transcript_state;
+  uint8_t transcript[crypto_generichash_BYTES];
 } TOPRF_Update_STPState;
 
 size_t toprf_update_stpstate_size(void);
@@ -112,10 +129,10 @@ size_t toprf_update_stpstate_cheater_len(const TOPRF_Update_STPState *ctx);
 const uint8_t* toprf_update_stpstate_sessionid(const TOPRF_Update_STPState *ctx);
 int toprf_update_stpstate_step(const TOPRF_Update_STPState *ctx);
 
-#define toprf_update_msg0_SIZE ( sizeof(TOPRF_Update_Message)                            \
-                                 + crypto_generichash_BYTES/*dst*/                       \
-                                 + toprf_keyid_SIZE                                      \
-                                 + crypto_sign_PUBLICKEYBYTES                            )
+#define toprfupdate_stp_start_msg_SIZE ( sizeof(TOPRF_Update_Message)                          \
+                                       + crypto_generichash_BYTES/*dst*/                       \
+                                       + toprf_keyid_SIZE                                      \
+                                       + crypto_sign_PUBLICKEYBYTES                            )
 
 int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon,
                            const uint8_t n, const uint8_t t,
@@ -129,6 +146,12 @@ void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
                                uint16_t (*kc1_complaints)[],
                                uint16_t (*p_complaints)[],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
+                               uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
+                               uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
+                               uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
+                               uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
+                               uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
+                               uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint64_t *last_ts);
@@ -137,11 +160,16 @@ typedef enum {
   TOPRF_Update_Peer_Rcv_NPK_SIDNonce,
   TOPRF_Update_Peer_Noise_Handshake,
   TOPRF_Update_Peer_Finish_Noise_Handshake,
+
+  TOPRF_Update_Peer_Rcv_Commitments_Send_Commitments,
   TOPRF_Update_Peer_Rcv_Commitments_Send_Shares,
   TOPRF_Update_Peer_Verify_Commitments,
   TOPRF_Update_Peer_Handle_DKG_Complaints,
-  TOPRF_Update_Peer_Defend_DKG_Accusations, // todo
+  TOPRF_Update_Peer_Defend_DKG_Accusations,
+  TOPRF_Update_Peer_Check_Shares,
   TOPRF_Update_Peer_Finish_DKG,
+  TOPRF_Update_Peer_Confirm_Transcripts,
+
   TOPRF_Update_Peer_Start_Mult,
   TOPRF_Update_Peer_Recv_K1P_Commitments,
   TOPRF_Update_Peer_Send_K1P_Shares,
@@ -160,6 +188,45 @@ typedef enum {
   TOPRF_Update_Peer_Final_OK,
   TOPRF_Update_Peer_Done
 } TOPRF_Update_Peer_Steps;
+
+typedef enum {
+  toprfupdate_stp_start_msg,
+  toprfupdate_peer_init_msg,
+  toprfupdate_stp_bc_init_msg,
+  toprfupdate_peer_ake1_msg,
+  toprfupdate_peer_ake2_msg,
+  toprfupdate_peer_dkg1_msg,
+  toprfupdate_stp_bc_dkg1_msg,
+  toprfupdate_peer_dkg2_msg,
+  toprfupdate_stp_bc_dkg2_msg,
+  toprfupdate_peer_dkg3_msg,
+  toprfupdate_stp_bc_dkg3_msg,
+  toprfupdate_peer_verify_shares_msg,
+  toprfupdate_stp_bc_verify_shares_msg,
+  toprfupdate_peer_share_key_msg,
+  toprfupdate_stp_bc_key_msg,
+  toprfupdate_peer_bc_transcript_msg,
+  toprfupdate_stp_bc_transcript_msg,
+  toprfupdate_peer_mult1_msg,
+  toprfupdate_stp_bc_mult1_msg,
+  toprfupdate_peer_mult2_msg,
+  toprfupdate_peer_zkp1_msg,
+  toprfupdate_stp_bc_zkp1_msg,
+  toprfupdate_peer_zkp2_msg,
+  toprfupdate_stp_bc_zkp2_msg,
+  toprfupdate_peer_zkp3_msg,
+  toprfupdate_stp_bc_zkp3_msg,
+  toprfupdate_peer_zkp4_msg,
+  toprfupdate_stp_bc_zkp4_msg,
+  toprfupdate_peer_zkp5_msg,
+  toprfupdate_stp_bc_zkp5_msg,
+  toprfupdate_peer_mult3_msg,
+  toprfupdate_stp_bc_mult3_msg,
+  toprfupdate_peer_end1_msg,
+  toprfupdate_stp_bc_end1_msg,
+  toprfupdate_peer_end2_msg,
+  toprfupdate_stp_end3_msg,
+}TOPRF_Update_Message_Type;
 
 typedef struct {
   uint8_t d[crypto_scalarmult_ristretto255_SCALARBYTES];
@@ -198,22 +265,31 @@ typedef struct {
   Noise_XK_device_t *dev;
   Noise_XK_session_t *(*noise_outs)[];
   Noise_XK_session_t *(*noise_ins)[];
+
+  uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2];
+
   TOPRF_Share (*kc1_shares)[][2];
   uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES];
-  TOPRF_Share (*p_shares)[][2];
-  uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
+  uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
+  uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES];
   uint16_t kc1_complaints_len;
-  uint16_t p_complaints_len;
   uint16_t *kc1_complaints;
-  uint16_t *p_complaints;
   uint8_t my_kc1_complaints_len;
   uint8_t *my_kc1_complaints;
-  uint8_t my_p_complaints_len;
-  uint8_t *my_p_complaints;
   TOPRF_Share kc1_share[2];
   uint8_t kc1_commitment[crypto_core_ristretto255_BYTES];
+
+  TOPRF_Share (*p_shares)[][2];
+  uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
+  uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
+  uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES];
+  uint16_t p_complaints_len;
+  uint16_t *p_complaints;
+  uint8_t my_p_complaints_len;
+  uint8_t *my_p_complaints;
   TOPRF_Share p_share[2];
   uint8_t p_commitment[crypto_core_ristretto255_BYTES];
+
   uint8_t (*lambdas)[][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share (*k0p_shares)[][2];
   uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES];
@@ -234,7 +310,8 @@ typedef struct {
   size_t cheater_len;
   TOPRF_Update_Cheater (*cheaters)[];
   size_t cheater_max;
-  crypto_generichash_state transcript;
+  crypto_generichash_state transcript_state;
+  uint8_t transcript[crypto_generichash_BYTES];
   TOPRF_Share share;
 } TOPRF_Update_PeerState;
 
@@ -266,6 +343,11 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
                                TOPRF_Share (*p_shares)[][2],
                                uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
+                               uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
+                               uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
+                               uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
+                               uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
+                               uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
                                uint8_t (*lambdas)[][crypto_core_ristretto255_SCALARBYTES],
                                TOPRF_Share (*k0p_shares)[][2],
