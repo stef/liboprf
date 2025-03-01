@@ -5,9 +5,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "crypto_kdf.h"
-#include "crypto_auth_hmacsha256.h"
-#include "export.h"
+#include <sodium.h>
+//#include "crypto_kdf.h"
+//#include "crypto_auth_hmacsha256.h"
+//#include "export.h"
 
 #ifdef __cplusplus
 # ifdef __GNUC__

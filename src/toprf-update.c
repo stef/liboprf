@@ -3,6 +3,9 @@
 #include "toprf-update.h"
 #include "dkg-vss.h"
 #include "mpmult.h"
+#ifndef HAVE_SODIUM_HKDF
+#include "aux_/crypto_kdf_hkdf_sha256.h"
+#endif
 
 #ifdef UNITTEST_CORRUPT
 static void corrupt_vsps_t1(TOPRF_Update_PeerState *ctx, // deals shares with polynomial t+1 instead of 1
