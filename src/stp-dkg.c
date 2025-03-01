@@ -659,7 +659,7 @@ static STP_DKG_Err peer_respond_noise_handler(STP_DKG_PeerState *ctx, const uint
 static STP_DKG_Err stp_route_noise_respond_handler(STP_DKG_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   return stp_route(ctx, input, input_len, output, output_len,
                    "noise2 route p2p noise handshakes to peers",
-                   ctx->n, ctx->n, stpvssdkg_peer_respond_noise_msg, stp_dkg_peer_respond_noise_msg_SIZE, STP_DKG_STP_Broadcast_DGK_Hash_Commitments);
+                   ctx->n, ctx->n, stpvssdkg_peer_respond_noise_msg, stp_dkg_peer_respond_noise_msg_SIZE, STP_DKG_STP_Broadcast_DKG_Hash_Commitments);
 }
 
 #define stp_dkg_peer_start_dkg_msg_SIZE(ctx) (sizeof(STP_DKG_Message) + stp_dkg_commitment_HASHBYTES  + ctx->n * crypto_auth_hmacsha256_BYTES)
@@ -736,7 +736,7 @@ static STP_DKG_Err stp_dkg1_handler(STP_DKG_STPState *ctx, const uint8_t *input,
   STP_DKG_Err ret;
   ret = stp_broadcast(ctx, input, input_len, output, output_len,
                       "dkg1 broadcast commitment commitments",
-                      ctx->n, stp_dkg_peer_start_dkg_msg_SIZE(ctx), stpvssdkg_peer_dkg1_msg, STP_DKG_STP_Broadcast_DGK_Commitments);
+                      ctx->n, stp_dkg_peer_start_dkg_msg_SIZE(ctx), stpvssdkg_peer_dkg1_msg, STP_DKG_STP_Broadcast_DKG_Commitments);
   if(ret != Err_OK) return ret;
   const uint8_t *ptr = input;
   for(unsigned i=0;i<ctx->n;i++,ptr+=stp_dkg_peer_start_dkg_msg_SIZE(ctx)) {
@@ -796,7 +796,7 @@ static STP_DKG_Err stp_dkg2_handler(STP_DKG_STPState *ctx, const uint8_t *input,
 
   // fixup step, that has already been advanced in the call to stp_broadcast above.
   uint8_t step = ctx->step;
-  ctx->step = STP_DKG_STP_Broadcast_DGK_Commitments;
+  ctx->step = STP_DKG_STP_Broadcast_DKG_Commitments;
 
   uint8_t chash[stp_dkg_commitment_HASHBYTES];
   uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) ctx->commitments;
@@ -1490,8 +1490,8 @@ int stp_dkg_stp_input_sizes(const STP_DKG_STPState *ctx, size_t *sizes) {
   case STP_DKG_STP_Broadcast_NPKs: { item = stp_dkg_peer_init1_msg_SIZE; break; }
   case STP_DKG_STP_Route_Noise_Handshakes1: { item=stp_dkg_peer_start_noise_msg_SIZE * ctx->n; break; }
   case STP_DKG_STP_Route_Noise_Handshakes2: { item=stp_dkg_peer_respond_noise_msg_SIZE * ctx->n; break; }
-  case STP_DKG_STP_Broadcast_DGK_Hash_Commitments: { item=stp_dkg_peer_start_dkg_msg_SIZE(ctx); break; }
-  case STP_DKG_STP_Broadcast_DGK_Commitments: { item = stp_dkg_peer_dkg2_msg_SIZE(ctx); break; }
+  case STP_DKG_STP_Broadcast_DKG_Hash_Commitments: { item=stp_dkg_peer_start_dkg_msg_SIZE(ctx); break; }
+  case STP_DKG_STP_Broadcast_DKG_Commitments: { item = stp_dkg_peer_dkg2_msg_SIZE(ctx); break; }
   case STP_DKG_STP_Route_Encrypted_Shares: { item = stp_dkg_peer_dkg3_msg_SIZE * ctx->n; break; }
   case STP_DKG_STP_Broadcast_Complaints: { item = stp_dkg_peer_verify_shares_msg_SIZE(ctx); break; }
   case STP_DKG_STP_Broadcast_DKG_Defenses: {
@@ -1526,8 +1526,8 @@ size_t stp_dkg_stp_output_size(const STP_DKG_STPState *ctx) {
   case STP_DKG_STP_Broadcast_NPKs: return (stp_dkg_peer_init1_msg_SIZE) * ctx->n + sizeof(STP_DKG_Message);
   case STP_DKG_STP_Route_Noise_Handshakes1: return stp_dkg_peer_start_noise_msg_SIZE * ctx->n * ctx->n;
   case STP_DKG_STP_Route_Noise_Handshakes2: return stp_dkg_peer_respond_noise_msg_SIZE * ctx->n * ctx->n;
-  case STP_DKG_STP_Broadcast_DGK_Hash_Commitments: return sizeof(STP_DKG_Message) + (stp_dkg_peer_start_dkg_msg_SIZE(ctx) * ctx->n);
-  case STP_DKG_STP_Broadcast_DGK_Commitments: return sizeof(STP_DKG_Message) + (stp_dkg_peer_dkg2_msg_SIZE(ctx) * ctx->n);
+  case STP_DKG_STP_Broadcast_DKG_Hash_Commitments: return sizeof(STP_DKG_Message) + (stp_dkg_peer_start_dkg_msg_SIZE(ctx) * ctx->n);
+  case STP_DKG_STP_Broadcast_DKG_Commitments: return sizeof(STP_DKG_Message) + (stp_dkg_peer_dkg2_msg_SIZE(ctx) * ctx->n);
   case STP_DKG_STP_Route_Encrypted_Shares: return stp_dkg_peer_dkg3_msg_SIZE * ctx->n * ctx->n;
   case STP_DKG_STP_Broadcast_Complaints: return stp_dkg_stp_bc_verify_shares_msg_SIZE(ctx);
   case STP_DKG_STP_Broadcast_DKG_Defenses: return sizeof(STP_DKG_Message) + stp_dkg_stp_input_size(ctx);
@@ -1562,12 +1562,12 @@ int stp_dkg_stp_peer_msg(const STP_DKG_STPState *ctx, const uint8_t *base, const
     *len = stp_dkg_peer_start_noise_msg_SIZE * ctx->n;
     break;
   }
-  case STP_DKG_STP_Broadcast_DGK_Hash_Commitments: {
+  case STP_DKG_STP_Broadcast_DKG_Hash_Commitments: {
     *msg = base;
     *len = sizeof(STP_DKG_Message) + (stp_dkg_peer_start_dkg_msg_SIZE(ctx) * ctx->n);
     break;
   }
-  case STP_DKG_STP_Broadcast_DGK_Commitments: {
+  case STP_DKG_STP_Broadcast_DKG_Commitments: {
     *msg = base;
     *len = sizeof(STP_DKG_Message) + (stp_dkg_peer_dkg2_msg_SIZE(ctx) * ctx->n);
     break;
@@ -1691,8 +1691,8 @@ int stp_dkg_stp_next(STP_DKG_STPState *ctx, const uint8_t *input, const size_t i
   case STP_DKG_STP_Broadcast_NPKs: { ret =  stp_init2_handler(ctx, input, input_len, output, output_len); break;}
   case STP_DKG_STP_Route_Noise_Handshakes1: { ret = stp_route_start_noise_handler(ctx, input, input_len, output, output_len); break;}
   case STP_DKG_STP_Route_Noise_Handshakes2: { ret = stp_route_noise_respond_handler(ctx, input, input_len, output, output_len); break;}
-  case STP_DKG_STP_Broadcast_DGK_Hash_Commitments: { ret = stp_dkg1_handler(ctx, input, input_len, output, output_len); break;}
-  case STP_DKG_STP_Broadcast_DGK_Commitments: { ret = stp_dkg2_handler(ctx, input, input_len, output, output_len); break;}
+  case STP_DKG_STP_Broadcast_DKG_Hash_Commitments: { ret = stp_dkg1_handler(ctx, input, input_len, output, output_len); break;}
+  case STP_DKG_STP_Broadcast_DKG_Commitments: { ret = stp_dkg2_handler(ctx, input, input_len, output, output_len); break;}
   case STP_DKG_STP_Route_Encrypted_Shares: { ret = stp_dkg3_handler(ctx, input, input_len, output, output_len); break;}
   case STP_DKG_STP_Broadcast_Complaints: { ret = stp_verify_shares_handler(ctx, input, input_len, output, output_len); break;}
   case STP_DKG_STP_Broadcast_DKG_Defenses: { ret = stp_broadcast_defenses(ctx, input, input_len, output, output_len); break;}
@@ -1748,7 +1748,7 @@ uint8_t stp_dkg_stp_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_
                c->step, c->other_peer, dkg_recv_err(c->error & 0x1f));
       return c->peer;
   }
-  if(c->step==STP_DKG_STP_Broadcast_DGK_Commitments) {
+  if(c->step==STP_DKG_STP_Broadcast_DKG_Commitments) {
     switch(c->error) {
     case 1: {snprintf(out, outlen, "failed VSPS check for dealer %d.", c->peer); return c->peer; }
     case 2: {snprintf(out, outlen, "less than 2 honest dealers."); return 0; }
