@@ -20,7 +20,7 @@ endif
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
    CFLAGS+= -I../aux_
-   EXTRA_SOURCES+= ../aux_/kdf_hkdf_sha512.c
+   EXTRA_SOURCES+= ../aux_/kdf_hkdf_sha256.c
 else
    CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
