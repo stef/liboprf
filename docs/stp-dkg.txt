@@ -193,7 +193,8 @@ The field sign_here is a zero-bit field, only used for addressing the
 start of the data to be signed or verified.
 
 The next field is the protocol type identifier. STP-DKG has an
-identifier value of 128 (0x80).
+identifier value of 128 (0x80). And a version number of 0 for the current
+version.
 
 The following field in the header is really a state identifier. A
 recipient MUST verify that the messageno is matching with the expected
@@ -263,7 +264,7 @@ sending:
 ```
 msg = send_msg(msgno, from, to, sign_sk, session_id, data)
     ts = timestamp()
-    msg = type: 0x80, messageno: msgno, len: len(header) + len(data) + len(sig), from: from, to: to, ts: ts, data
+    msg = type: 0x80, version: 0, messageno: msgno, len: len(header) + len(data) + len(sig), from: from, to: to, ts: ts, data
     msg.sig = sign(sign_sk, msg.sign_here)
     return msg
 ```
@@ -774,6 +775,8 @@ s = []
 for i in 1..N
    msg = recv()
    pkt = recv_msg(9, i, peerid, ref_ts, peer_sign_pks[i], session_id, msg)
+   encrypted_share, final_noise_handshake = pkt
+   recv_session[i] = noise_session_decrypt(recv_session[i], final_noise_handshake)
    α[i,peerid],ρ[i,peerid] = noise_recv(receive_session[i], pkt)
 complaints = []
 for i in 1..N
@@ -817,7 +820,7 @@ broadcast(msg_11)
 
 The next phase of the protocol depends on the number of complaints
 received, if none then the next phase is finishing, otherwise the next
-phase complaint analysis.
+phase is complaint analysis.
 
 If the next STP phase is complaint analysis (there are complaints) the
 next input buffer size depends on the number of complaints against
