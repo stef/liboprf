@@ -35,6 +35,14 @@ else
    endif
 endif
 
+SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
+ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
+   CFLAGS+= -Iaux_
+   EXTRA_SOURCES+= aux_/kdf_hkdf_sha512.c
+else
+   CFLAGS+= -DHAVE_SODIUM_HKDF=1
+endif
+
 CFLAGS+=$(INCLUDES)
 
 SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c $(EXTRA_SOURCES)

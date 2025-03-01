@@ -17,6 +17,14 @@ else
 	CFLAGS+=-fstack-clash-protection
 endif
 
+SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
+ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
+   CFLAGS+= -I../aux_
+   EXTRA_SOURCES+= ../aux_/kdf_hkdf_sha512.c
+else
+   CFLAGS+= -DHAVE_SODIUM_HKDF=1
+endif
+
 all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt toprf-update toprf-update-corrupt
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
@@ -49,11 +57,11 @@ mpmult: ../mpmult.c ../liboprf.a mpmult.c ../liboprf.a ../utils.c ../toprf.c ../
 update-poc: ../dkg-vss.c ../dkg.c update-poc.c
 	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o update-poc update-poc.c ../dkg-vss.c ../utils.c ../toprf.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
-toprf-update: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+toprf-update: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c $(EXTRA_SOURCES)
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c $(EXTRA_SOURCES)../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
-toprf-update-corrupt: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c ../utils.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o toprf-update-corrupt toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+toprf-update-corrupt: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c ../utils.c $(EXTRA_SOURCES)
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o toprf-update-corrupt toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c $(EXTRA_SOURCES) ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
 ../liboprf.a:
 	make -C .. liboprf.a
