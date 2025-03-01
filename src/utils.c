@@ -9,13 +9,14 @@ FILE* log_file=NULL;
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar) {
   static int warned=0;
-  static uint8_t rng_i=2;
+  static uint8_t rng_i[4]={1,0,0,0};
   if(!warned) {
      fprintf(stderr, "\x1b[0;31mWARNING! This version of liboprf DKG is compiled with a *NON* random generator for UNIT_TESTS\x1b[0m\n");
      warned=1;
   }
   memset(scalar,0,crypto_core_ristretto255_SCALARBYTES);
-  scalar[0]=rng_i++;
+  sodium_increment(rng_i,4);
+  memcpy(scalar,rng_i,4);
   //static uint16_t rng_i=0;
   //uint16_t tmp[64 / sizeof(uint16_t)];
   //for(unsigned j=0;j<(64/ sizeof(uint16_t));j++) {
