@@ -46,8 +46,8 @@ mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_S
                -fasynchronous-unwind-tables -fpic -Werror=format-security \
                -Werror=implicit-function-declaration -ftrapv $(DEFINES) $(INCLUDES) \
                -I../win/libsodium-win64/include/sodium -I../win/libsodium-win64/include
-mingw64: LDFLAGS+=-L. -L.. -L../win/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
-mingw64: liboprf-noiseXK.$(SOEXT)
+mingw64: LDFLAGS+=-L. -L.. -L../win/libsodium-win64/lib/ -Wl,-Bstatic -lsodium
+mingw64: liboprf-noiseXK.$(STATICEXT)
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
 
