@@ -200,7 +200,6 @@ typedef enum {
   toprfupdate_peer_dkg2_msg,
   toprfupdate_stp_bc_dkg2_msg,
   toprfupdate_peer_dkg3_msg,
-  toprfupdate_stp_bc_dkg3_msg,
   toprfupdate_peer_verify_shares_msg,
   toprfupdate_stp_bc_verify_shares_msg,
   toprfupdate_peer_share_key_msg,

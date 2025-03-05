@@ -8,7 +8,7 @@
 #endif
 
 #ifdef UNITTEST_CORRUPT
-static void corrupt_vsps_t1(TOPRF_Update_PeerState *ctx, // deals shares with polynomial t+1 instead of 1
+static void corrupt_vsps_t1(const TOPRF_Update_PeerState *ctx, // deals shares with polynomial t+1 instead of 1
                             const uint8_t peer,
                             TOPRF_Share (*shares)[][2],
                             uint8_t (*commitments)[][crypto_core_ristretto255_BYTES]) {
@@ -44,7 +44,7 @@ static void corrupt_share(TOPRF_Update_PeerState *ctx, const uint8_t peer,
                           const uint8_t share_type,
                           TOPRF_Share (*shares)[][2]) {
   if(ctx->index!=peer) return;
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share of peer %d"NORMAL, peer);
+  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share of peer %d\n"NORMAL, peer);
   (*shares)[share_idx][share_type].value[2]^=0xff; // flip some bits
 }
 
@@ -595,7 +595,7 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
   ctx->index = self;
   ctx->n = n;
   ctx->t = t;
-  memcpy((uint8_t*) ctx->kc0_share, (uint8_t*) k0, sizeof(TOPRF_Share)*2);
+  memcpy((uint8_t*) ctx->kc0_share, (const uint8_t*) k0, sizeof(TOPRF_Share)*2);
   ctx->kc0_commitments = kc0_commitments;
   ctx->sig_pks = sig_pks;
   ctx->peer_noise_pks = peers_noise_pks;
@@ -783,11 +783,11 @@ static TOPRF_Update_Err dkg1(TOPRF_Update_PeerState *ctx, const uint8_t n,
   }
 
 #ifdef UNITTEST_CORRUPT
-  //if(type[0]!='p') corrupt_vsps_t1(ctx,1, ctx->kc1_shares, ctx->kc1_commitments);
+  if(type[0]!='p') corrupt_vsps_t1(ctx,1, ctx->kc1_shares, ctx->kc1_commitments);
   //if(type[0]!='p') corrupt_commitment(ctx,2,ctx->kc1_commitments);
   //if(type[0]!='k') corrupt_commitment(ctx,3,ctx->p_commitments);
-  if(type[0]!='p') corrupt_wrongshare_correct_commitment(ctx,4,2,ctx->kc1_shares,ctx->kc1_commitments);
-  if(type[0]!='p') corrupt_share(ctx,5,3,1,ctx->kc1_shares);
+  //if(type[0]!='p') corrupt_wrongshare_correct_commitment(ctx,4,2,ctx->kc1_shares,ctx->kc1_commitments);
+  //if(type[0]!='p') corrupt_share(ctx,5,3,1,ctx->kc1_shares);
   //if(type[0]!='p') corrupt_share(ctx,5,2,0,ctx->kc1_shares);
 #endif // UNITTEST_CORRUPT
 
@@ -814,7 +814,7 @@ static void derive_key(const Noise_XK_session_t *noise_session,
   crypto_kdf_hkdf_sha256_expand(key, crypto_auth_KEYBYTES, kdf_context, context_len, mk);
 }
 
-static void encrypt_shares(TOPRF_Update_PeerState *ctx,
+static void encrypt_shares(const TOPRF_Update_PeerState *ctx,
                            const uint8_t i,
                            const char *type,
                            const TOPRF_Share share[2],
@@ -1077,10 +1077,11 @@ static TOPRF_Update_Err stp_dkg2_handler(TOPRF_Update_STPState *ctx, const uint8
     return ret;
   }
   ret = stp_vsps_check(ctx, "p", ctx->p_commitments);
-  if(Err_OK!=ret) {
-    ctx->step=step;
-    return ret;
-  }
+  // the following if is redundant with the end of the function.
+  //if(Err_OK!=ret) {
+  //  ctx->step=step;
+  //  return ret;
+  //}
 
   ctx->step=step;
   return ret;
@@ -1153,7 +1154,7 @@ static TOPRF_Update_Err stp_dkg3_handler(TOPRF_Update_STPState *ctx, const uint8
 }
 
 
-static TOPRF_Update_Err decrypt_shares(TOPRF_Update_PeerState *ctx,
+static TOPRF_Update_Err decrypt_shares(const TOPRF_Update_PeerState *ctx,
                                        const uint8_t i,
                                        const char *type,
                                        const uint8_t hmac[crypto_auth_hmacsha256_BYTES],
@@ -1173,7 +1174,7 @@ static TOPRF_Update_Err decrypt_shares(TOPRF_Update_PeerState *ctx,
   return Err_OK;
 }
 
-static void verify_commitments(TOPRF_Update_PeerState *ctx,
+static void verify_commitments(const TOPRF_Update_PeerState *ctx,
                                const char *type,
                                const uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                                const TOPRF_Share (*shares)[][2],
@@ -1182,7 +1183,7 @@ static void verify_commitments(TOPRF_Update_PeerState *ctx,
   *fails_len=0;
   memset(fails, 0, ctx->n);
 
-  uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) commitments;
+  const uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (const uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) commitments;
   // verify that the shares match the commitment
   for(uint8_t i=0;i<ctx->n;i++) {
     if(0!=dkg_vss_verify_commitment((*c)[i][ctx->index-1],(*shares)[i])) {
@@ -1323,7 +1324,7 @@ static TOPRF_Update_Err stp_check_defenses(TOPRF_Update_STPState *ctx,
                                            const uint8_t (*share_macs)[][crypto_auth_hmacsha256_BYTES],
                                            const uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                                            const uint8_t **dptr) {
-  uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) commitments;
+  const uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (const uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) commitments;
   for(unsigned j=0;j<ctr;j++) {
     const uint8_t accused=i+1;
     const uint8_t accuser=(*dptr)[0];
@@ -1431,7 +1432,7 @@ static TOPRF_Update_Err check_defenses(TOPRF_Update_PeerState *ctx,
                                        uint16_t *complaints_len,
                                        uint16_t *complaints,
                                        const uint8_t **dptr) {
-  uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) commitments;
+  const uint8_t (*c)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES] = (const uint8_t (*)[ctx->n][ctx->n][crypto_core_ristretto255_BYTES]) commitments;
   for(unsigned j=0;j<ctr;j++) {
     const uint8_t accused=i+1;
     const uint8_t accuser=(*dptr)[0];
@@ -1617,7 +1618,9 @@ static TOPRF_Update_Err peer_verify_vsps(TOPRF_Update_PeerState *ctx, uint8_t *o
 
   TOPRF_Update_Message* msg20 = (TOPRF_Update_Message*) output;
   uint8_t *wptr = msg20->data;
-  crypto_generichash_final(&ctx->transcript_state, msg20->data, crypto_generichash_BYTES);
+  crypto_generichash_state transcript_state;
+  memcpy((uint8_t*) &transcript_state, (const uint8_t*) &ctx->transcript_state, sizeof transcript_state);
+  crypto_generichash_final(&transcript_state, wptr, crypto_generichash_BYTES);
   memcpy(ctx->transcript, wptr, crypto_generichash_BYTES);
   wptr+=crypto_generichash_BYTES;
   memcpy(wptr, ctx->kc1_commitment, crypto_core_ristretto255_BYTES);
@@ -1639,7 +1642,9 @@ static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, co
   if(output_len != toprfupdate_stp_bc_transcript_msg_SIZE(ctx)) return Err_OSize;
 
   uint8_t transcript_hash[crypto_generichash_BYTES];
-  crypto_generichash_final(&ctx->transcript_state, transcript_hash, crypto_generichash_BYTES);
+  crypto_generichash_state transcript_state;
+  memcpy((uint8_t*) &transcript_state, (const uint8_t*) &ctx->transcript_state, sizeof transcript_state);
+  crypto_generichash_final(&transcript_state, transcript_hash, crypto_generichash_BYTES);
   uint8_t kc1_commitments[ctx->n][crypto_core_ristretto255_BYTES];
   memset(kc1_commitments,0,sizeof(kc1_commitments));
   uint8_t p_commitments[ctx->n][crypto_core_ristretto255_BYTES];
@@ -1726,7 +1731,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
 
   // in theory this should not be needed, and not fail. except for the
   // case when the dealer shares were corrupted after calculating a
-  // correct commitment for them.
+  // correct commitment for them. but that should also be previously detected.
   debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*kc1com))) {
     debug=1;
@@ -1739,6 +1744,10 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
     if(peer_add_cheater(ctx, 2, 0, 0) == NULL) return Err_CheatersFull;
   }
   debug=1;
+
+  if(ctx->cheater_len>cheaters) return Err_CheatersFound;
+
+  // reset complaints
   ctx->kc1_complaints_len = 0;
   ctx->my_kc1_complaints_len = 0;
   ctx->p_complaints_len = 0;
@@ -1748,6 +1757,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
   memset(ctx->p_complaints, 0, ctx->n*2);
   memset(ctx->my_p_complaints, 0, ctx->n);
 
+  // todo dealers based on cheaters and knowledge of kc0
   const uint8_t dealers = (ctx->t-1)*2 + 1;
 
   // precompute lambdas
@@ -1770,6 +1780,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
                                ctx->kc0_share, ctx->p_share, (*ctx->lambdas),
                                // we reuse kc1_shares as we need to store n shares, and k0p_shares has only dealer entries
                                (*ctx->kc1_shares), (*ctx->k0p_commitments),
+                               // todo IMPORTANT make commitments0 the 1st item of commitments for the VSPS check
                                (*ctx->k0p_commitments0)[0], ctx->k0p_tau)) {
       if(log_file!=NULL) fprintf(log_file, "[%d] failed toprf_mpc_ftmult_step1\n", ctx->index);
       return Err_FTMULTStep1;
@@ -1797,7 +1808,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
   wptr+=crypto_core_ristretto255_BYTES;
   // k1*p commitments
   memcpy(wptr, (*ctx->k1p_commitments), ctx->n * crypto_core_ristretto255_BYTES);
-  wptr+=ctx->n * crypto_core_ristretto255_BYTES;
+  //wptr+=ctx->n * crypto_core_ristretto255_BYTES;
   if(0!=toprf_send_msg(output, toprfupdate_peer_mult1_msg_SIZE(ctx), toprfupdate_peer_mult1_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return Err_Send;
   dkg_dump_msg(output, toprfupdate_peer_mult1_msg_SIZE(ctx), ctx->index);
 
@@ -1846,7 +1857,7 @@ static TOPRF_Update_Err peer_step26_handler(TOPRF_Update_PeerState *ctx, const u
     dptr+=crypto_core_ristretto255_BYTES;
     // k1*p commitments
     memcpy((*ctx->k1p_commitments)[i*ctx->n], dptr, ctx->n * crypto_core_ristretto255_BYTES);
-    dptr+=ctx->n * crypto_core_ristretto255_BYTES;
+    //dptr+=ctx->n * crypto_core_ristretto255_BYTES;
   }
   if(ctx->cheater_len>cheaters) return Err_CheatersFound;
 
@@ -2128,7 +2139,7 @@ static TOPRF_Update_Err aggregate_zk_challenges(TOPRF_Update_PeerState *ctx,
       if(memcmp(zk_challenge_commitment, zk_challenge_nonce_commitments[i], crypto_scalarmult_ristretto255_BYTES)!=0) {
         if(peer_add_cheater(ctx, 1+p, i+1, 0) == NULL) return Err_CheatersFull;
         if(log_file!=NULL) fprintf(log_file, "invalid e_i nonce commitment from %d\n",i);
-        dump((uint8_t*)zk_challenge_nonces[i], 2*crypto_scalarmult_ristretto255_SCALARBYTES, "zk_nonce[%d][%d]", i+1, p);
+        dump((const uint8_t*)zk_challenge_nonces[i], 2*crypto_scalarmult_ristretto255_SCALARBYTES, "zk_nonce[%d][%d]", i+1, p);
         dump(zk_challenge_nonce_commitments[i], crypto_scalarmult_ristretto255_BYTES, "zk_challenge_commmitments[%d][%d]", i+1, p);
       }
       crypto_core_ristretto255_scalar_add(zk_challenge_e_i[dealer],
@@ -2387,8 +2398,8 @@ static TOPRF_Update_Err compute_mul_share(const uint8_t dealers,
   //      2t+1
   //  τ_i = Σ τ_ji
   //       j=1
-  memcpy((uint8_t*) &rshare[0], (uint8_t*) &shares_i[0][0], TOPRF_Share_BYTES);
-  memcpy((uint8_t*) &rshare[1], (uint8_t*) &shares_i[0][1], TOPRF_Share_BYTES);
+  memcpy((uint8_t*) &rshare[0], (const uint8_t*) &shares_i[0][0], TOPRF_Share_BYTES);
+  memcpy((uint8_t*) &rshare[1], (const uint8_t*) &shares_i[0][1], TOPRF_Share_BYTES);
   for(unsigned i=1;i<dealers;i++) {
     crypto_core_ristretto255_scalar_add(rshare[0].value, rshare[0].value, shares_i[i][0].value);
     crypto_core_ristretto255_scalar_add(rshare[1].value, rshare[1].value, shares_i[i][1].value);
@@ -2460,7 +2471,7 @@ static TOPRF_Update_Err stp_step40_handler(TOPRF_Update_STPState *ctx, const uin
   for(unsigned i=0;i<ctx->n;i++,ptr+=toprfupdate_peer_mult3_msg_SIZE) {
     if(stp_recv_msg(ctx,ptr,toprfupdate_peer_mult3_msg_SIZE, toprfupdate_peer_mult3_msg,i+1,0xff)) continue;
     const TOPRF_Update_Message *msg = (const TOPRF_Update_Message *) ptr;
-    uint8_t (*C_i)[crypto_scalarmult_ristretto255_BYTES] = (uint8_t (*)[crypto_scalarmult_ristretto255_BYTES]) msg->data;
+    const uint8_t (*C_i)[crypto_scalarmult_ristretto255_BYTES] = (const uint8_t (*)[crypto_scalarmult_ristretto255_BYTES]) msg->data;
     // keep a copy of all commitments for final verification and for check before reconstructing r and r'
     memcpy((*ctx->k0p_final_commitments)[i], C_i[0], crypto_scalarmult_ristretto255_BYTES);
     memcpy((*ctx->k1p_final_commitments)[i], C_i[1], crypto_scalarmult_ristretto255_BYTES);
