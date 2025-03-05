@@ -99,7 +99,6 @@ int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t
                            const uint8_t lambdas[dealers][crypto_core_ristretto255_SCALARBYTES],
                            TOPRF_Share ci_shares[n][2],
                            uint8_t ci_commitments[n][crypto_core_ristretto255_BYTES],
-                           uint8_t ci_commitment0[crypto_core_ristretto255_BYTES],
                            uint8_t ci_tau[crypto_core_ristretto255_SCALARBYTES]);
 
 int toprf_mpc_ftmult_zk_commitments(const uint8_t B_i[crypto_core_ristretto255_BYTES],

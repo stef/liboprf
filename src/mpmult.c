@@ -306,8 +306,7 @@ int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t
                            const TOPRF_Share alpha[2], const TOPRF_Share beta[2],
                            const uint8_t lambdas[dealers][crypto_core_ristretto255_SCALARBYTES],
                            TOPRF_Share ci_shares[n][2],
-                           uint8_t ci_commitments[n][crypto_core_ristretto255_BYTES],
-                           uint8_t ci_commitment0[crypto_core_ristretto255_BYTES],
+                           uint8_t ci_commitments[n+1][crypto_core_ristretto255_BYTES],
                            uint8_t ci_tau[crypto_core_ristretto255_SCALARBYTES]) {
   // step 1. Each player P_i shares λ_iα_iβ_i, using VSS
   if(lambdas==NULL) {
@@ -329,14 +328,13 @@ int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t
   uint8_t lambda_ai_bi[crypto_scalarmult_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_mul(lambda_ai_bi, alpha[0].value, beta[0].value);
   crypto_core_ristretto255_scalar_mul(lambda_ai_bi, lambda_ai_bi, lambdas[self]);
-  if(0!=dkg_vss_share(n,t,lambda_ai_bi, ci_commitments, ci_shares, ci_tau)) return 1;
+  if(0!=dkg_vss_share(n,t,lambda_ai_bi, &ci_commitments[1], ci_shares, ci_tau)) return 1;
   // c_i0 for the sake of the ZK proof is g^λab * h^t
-  if(0!=dkg_vss_commit(lambda_ai_bi, ci_tau, ci_commitment0)) return 1;
+  if(0!=dkg_vss_commit(lambda_ai_bi, ci_tau, ci_commitments[0])) return 1;
 
   //fprintf(stderr, "ftmult s1: %d\n", self);
-  //dump(ci_commitment0, crypto_core_ristretto255_BYTES, "c_%d0", self);
-  //for(unsigned i=0;i<n;i++) dump(ci_commitments[i], crypto_core_ristretto255_BYTES, "c_%d%d", self, i+1);
-  //for(unsigned i=0;i<n;i++) dump((uint8_t*) ci_shares[i], sizeof(TOPRF_Share)*2, "s_%d%d", self, i+1);
+  //for(unsigned i=0;i<n+1;i++) dump(ci_commitments[i], crypto_core_ristretto255_BYTES, "c_%d%d", self, i);
+  //for(unsigned i=0;i<n;i++) dump((uint8_t*) ci_shares[i], sizeof(TOPRF_Share)*2, "s_%d%d", self, i);
 
   // send ci_shares[j] to P_j
   // broadcast ci_commitments

@@ -228,11 +228,9 @@ int main(const int argc, const char **argv) {
   const uint8_t dealers = (t-1)*2 + 1;
   uint8_t lambdas[n][dealers][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share k0p_shares[n][dealers][2];
-  uint8_t k0p_commitments[dealers*n][crypto_core_ristretto255_BYTES];
-  uint8_t k0p_commitments0[dealers][crypto_core_ristretto255_BYTES];
+  uint8_t k0p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
   TOPRF_Share k1p_shares[n][dealers][2];
-  uint8_t k1p_commitments[dealers*n][crypto_core_ristretto255_BYTES];
-  uint8_t k1p_commitments0[dealers][crypto_core_ristretto255_BYTES];
+  uint8_t k1p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
   uint8_t zk_challenge_nonce_commitments[n][n*2][crypto_scalarmult_ristretto255_BYTES];
   uint8_t zk_challenge_nonces[n][n*2][2][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t zk_challenge_commitments[n][dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
@@ -257,10 +255,8 @@ int main(const int argc, const char **argv) {
                                      &lambdas[i],
                                      &k0p_shares[i],
                                      &k0p_commitments,
-                                     &k0p_commitments0,
                                      &k1p_shares[i],
                                      &k1p_commitments,
-                                     &k1p_commitments0,
                                      &zk_challenge_nonce_commitments[i],
                                      &zk_challenge_nonces[i],
                                      &zk_challenge_commitments[i],

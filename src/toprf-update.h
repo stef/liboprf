@@ -292,11 +292,9 @@ typedef struct {
   uint8_t (*lambdas)[][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share (*k0p_shares)[][2];
   uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES];
-  uint8_t (*k0p_commitments0)[][crypto_core_ristretto255_BYTES];
   uint8_t k0p_tau[crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share (*k1p_shares)[][2];
   uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES];
-  uint8_t (*k1p_commitments0)[][crypto_core_ristretto255_BYTES];
   uint8_t k1p_tau[crypto_core_ristretto255_SCALARBYTES];
   uint8_t zk_chal_nonce[2][2][crypto_core_ristretto255_SCALARBYTES];
   uint8_t (*zk_challenge_nonces)[][2][crypto_scalarmult_ristretto255_SCALARBYTES];
@@ -351,10 +349,8 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
                                uint8_t (*lambdas)[][crypto_core_ristretto255_SCALARBYTES],
                                TOPRF_Share (*k0p_shares)[][2],
                                uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
-                               uint8_t (*k0p_commitments0)[][crypto_core_ristretto255_BYTES],
                                TOPRF_Share (*k1p_shares)[][2],
                                uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
-                               uint8_t (*k1p_commitments0)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*zk_challenge_nonce_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint8_t (*zk_challenge_nonces)[][2][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES],
