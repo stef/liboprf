@@ -9,3 +9,5 @@ stp-dkg-corrupt
 mpmult
 toprf-update
 toprf-update-corrupt
+ft-mult
+update-poc

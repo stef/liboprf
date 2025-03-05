@@ -57,6 +57,9 @@ mpmult: ../mpmult.c ../liboprf.a mpmult.c ../liboprf.a ../utils.c ../toprf.c ../
 update-poc: ../dkg-vss.c ../dkg.c update-poc.c
 	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o update-poc update-poc.c ../dkg-vss.c ../utils.c ../toprf.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
+ft-mult: ../dkg-vss.c ../dkg.c ft-mult.c
+	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o ft-mult ft-mult.c ../dkg-vss.c ../utils.c ../toprf.c ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
+
 toprf-update: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c $(EXTRA_SOURCES)
 	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c $(EXTRA_SOURCES) ../liboprf.a ../noise_xk/liboprf-noiseXK.a -lsodium
 
