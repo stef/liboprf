@@ -131,10 +131,8 @@ void dkg_vss_reconstruct(const size_t response_len,
   uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
   memset(result,0,crypto_scalarmult_ristretto255_BYTES);
-  result[0]=0;
   if(blind!=NULL) {
     memset(blind,0,crypto_scalarmult_ristretto255_BYTES);
-    blind[0]=0;
   }
 
   uint8_t indexes[response_len];
