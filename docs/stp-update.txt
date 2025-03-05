@@ -915,11 +915,12 @@ broadcast(msg_14)
 
 All peers receive the broadcasts transcripts and commitments, they run
 the same check as the STP in the previous step and abort if any of
-these fails. Otherwise the protocol continues with the FT-MULT phase
-of calculating kc0*p and kc1*p.
+these fails. Otherwise the protocol continues with the FT-Mult phase
+of calculating kc*p and kc'*p.
 
-All the peers pre-compute the inverted Vandermonde matrix, and cache
-its first row in an internal state.
+All the peers pre-compute the inverted Vandermonde matrix based on the
+indices of the dealers for the multiplications, and cache its first
+row in their internal state.
 
 Peers start their FT-MULT computations of kc*p and kc'*p in parallel,
 In the following section we describe the steps for one FT-MULT
@@ -932,7 +933,7 @@ calculation, we use the following notation:
  - a share of 𝑠: σ_i = 𝑠(i), blinding factor for the homomorphic
    commitment of β
 
-pubic inputs, for i:=0..n
+public inputs, for i:=0..n
 
  - 𝓐_i = 𝓗(α_i,ρ_i) = g^(α_i)*h^(ρ_i) - the commitments to the
    shares of the value to multiply
