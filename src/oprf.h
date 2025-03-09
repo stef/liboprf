@@ -53,7 +53,7 @@ int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
  * the blinded version of x, an input to oprf_Evaluate
  * @return The function returns 0 if everything is correct.
  */
-int oprf_Blind(const uint8_t *x, const uint8_t x_len,
+int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                uint8_t blinded[crypto_core_ristretto255_BYTES]);
 
@@ -100,7 +100,7 @@ int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
  * @param [in] msg_len: the length of the input
  * @param [out] p: the resulting ristretto255 point
  */
-int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]);
+int voprf_hash_to_group(const uint8_t *msg, const uint16_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]);
 
 /**
  * A utility function from the hash to curve CFRG IRTF draft/spec
@@ -109,7 +109,7 @@ int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[cry
  * for domain separation tag), and produces a high entropy output in
  * uniform_bytes of length: len_in_bytes
  */
-int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
+int expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
 
 #ifdef __EMSCRIPTEN__
 /**

@@ -154,7 +154,7 @@ static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i,
  * 11. uniform_bytes = b_1 || ... || b_ell
  * 12. return substr(uniform_bytes, 0, len_in_bytes)
  */
-int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes) {
+int expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes) {
   // 1.  ell = ceil(len_in_bytes / b_in_bytes)
   const unsigned ell = (len_in_bytes + crypto_hash_sha512_BYTES-1) / crypto_hash_sha512_BYTES;
 #ifdef TRACE
@@ -249,7 +249,7 @@ int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t 
  * 2. P = ristretto255_map(uniform_bytes)
  * 3. return P
  */
-int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]) {
+int voprf_hash_to_group(const uint8_t *msg, const uint16_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]) {
   const uint8_t dst[] = "HashToGroup-"VOPRF"-\x00-ristretto255-SHA512";
   const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
@@ -285,7 +285,7 @@ int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[cry
  * the blinded version of x, an input to oprf_Evaluate
  * @return The function returns 0 if everything is correct.
  */
-int oprf_Blind(const uint8_t *x, const uint8_t x_len,
+int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                uint8_t blinded[crypto_core_ristretto255_BYTES]) {
 #if (defined TRACE || defined CFRG_TEST_VEC)
