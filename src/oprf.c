@@ -19,7 +19,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef __WIN32__
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 #include "oprf.h"
 #include "utils.h"
 #include "toprf.h"
