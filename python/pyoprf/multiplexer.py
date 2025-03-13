@@ -39,12 +39,17 @@ class Peer:
         s.settimeout(self.timeout)
         if self.type == "SSL":
             self.fd = ctx.wrap_socket(s, server_hostname=self.address[0])
-        self.fd.connect(self.address)
+        try: self.fd.connect(self.address)
+        except: return
         self.state="connected"
 
+    def connected(self):
+        return self.state == "connected"
+
     def read(self,size):
-        if self.state != "connected":
-            raise ValueError(f"{self.name} cannot read, is not connected")
+        if not self.connected():
+            return None
+            #raise ValueError(f"{self.name} cannot read, is not connected")
 
         res = []
         read = 0
@@ -58,10 +63,16 @@ class Peer:
         return b''.join(res)
 
     def send(self, msg):
+        if not self.connected():
+            return
+            #raise ValueError(f"{self.name} cannot write, is not connected")
         self.fd.sendall(msg)
 
     def close(self):
         if self.state == "closed": return
+        if not self.connected():
+            return
+            #raise ValueError(f"{self.name} cannot close, is not connected")
         if self.fd and self.fd.fileno() != -1:
             try: self.fd.shutdown(socket.SHUT_RDWR)
             except OSError: pass
@@ -111,6 +122,7 @@ class Multiplexer:
            n=len(self.peers)
        responses={}
        for idx, peer in enumerate(self.peers):
+           if not peer.connected(): continue
            pending = peer.fd.pending()
            if pending == expectedmsglen:
                pkt = peer.read(expectedmsglen)
@@ -124,7 +136,7 @@ class Multiplexer:
            #elif pending != 0:
            #    print(f"wtf peer {peer.name} has {peer.fd.pending()} bytes pending, which is not equ {expectedmsglen}")
        while len(responses)<n:
-          fds={x.fd.fileno(): (i, x) for i,x in enumerate(self.peers) if i not in responses and x.fd.fileno() >= 0}
+          fds={x.fd.fileno(): (i, x) for i,x in enumerate(self.peers) if i not in responses and x.connected() and x.fd.fileno() >= 0}
           if not fds: raise ValueError("not enough peers left to get enough results")
           #print("select")
           r, _,_ =select.select(fds.keys(),[],[],2)
