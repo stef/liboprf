@@ -160,15 +160,15 @@ int dkg_vss_reconstruct(const uint8_t t,
   TOPRF_Share si[t];
   for(unsigned i=0;i<t;i++) {
     memcpy(&si[i], &shares[indexes[i]], TOPRF_Share_BYTES);
-    dump((uint8_t*) &si[i], TOPRF_Share_BYTES, "s%d", i);
+    //dump((uint8_t*) &si[i], TOPRF_Share_BYTES, "s%d", i);
   }
-  if(0!=interpolate(0, t, si, result)) return 1;
+  if(0!=interpolate(x, t, si, result)) return 1;
   if(blind!=NULL) {
     for(unsigned i=0;i<t;i++) {
       memcpy(&si[i], &shares[indexes[i]][1], TOPRF_Share_BYTES);
-      dump((uint8_t*) &si[i], TOPRF_Share_BYTES, "s%d", i);
+      //dump((uint8_t*) &si[i], TOPRF_Share_BYTES, "s%d", i);
     }
-    if(0!=interpolate(0, t, si, blind)) return 1;
+    if(0!=interpolate(x, t, si, blind)) return 1;
   }
   return 0;
 }
