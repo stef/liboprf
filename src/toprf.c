@@ -48,15 +48,12 @@
 
 typedef struct {
   uint8_t index;
-  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
-} __attribute((packed)) TOPRF_Share;
-
-typedef struct {
-  uint8_t index;
   uint8_t value[crypto_core_ristretto255_BYTES];
 } __attribute((packed)) TOPRF_Part;
 
-void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+void lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uint8_t peers[degree], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+  uint8_t xscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
+  xscalar[0]=x;
 
   uint8_t iscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   iscalar[0]=index;
@@ -67,18 +64,48 @@ void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peer
   uint8_t divisor[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   divisor[0]=1;
 
-  for(size_t j=0;j<peers_len;j++) {
+  for(size_t j=0;j<degree;j++) {
     if(peers[j]==index) continue;
     uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
     tmp[0]=peers[j];
-    //divident*=peers[j];
+    //divident*=x-peers[j];
+    crypto_core_ristretto255_scalar_sub(tmp, xscalar, tmp);
     crypto_core_ristretto255_scalar_mul(divident, divident, tmp);
     //divisor*=peers[j]-i;
-    crypto_core_ristretto255_scalar_sub(tmp, tmp, iscalar);
+    memset(tmp, 0, sizeof tmp);
+    tmp[0]=peers[j];
+    crypto_core_ristretto255_scalar_sub(tmp, iscalar, tmp);
     crypto_core_ristretto255_scalar_mul(divisor, divisor, tmp);
   }
   crypto_core_ristretto255_scalar_invert(divisor, divisor);
   crypto_core_ristretto255_scalar_mul(result, divisor, divident);
+}
+
+// interpolates a polynomial of degree t at point x: y = f(x), given t shares of the polynomial
+int interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+  memset(y,0,crypto_scalarmult_ristretto255_SCALARBYTES);
+  uint8_t l[crypto_scalarmult_ristretto255_SCALARBYTES];
+
+  uint8_t indexes[t];
+  for(size_t i=0;i<t;i++) {
+    indexes[i]=shares[i].index;
+  }
+  //dump(indexes, sizeof indexes, "indexes");
+
+  for(unsigned i=0;i<t;i++) {
+    lcoeff(indexes[i], x, t, indexes, l);
+    //dump(l, sizeof l, "l %d,%d", i+1, x);
+    uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
+    //dump(shares[i].value, 32, "share %d", shares[i].index);
+    crypto_core_ristretto255_scalar_mul(tmp, l, shares[i].value);
+    crypto_core_ristretto255_scalar_add(y, y, tmp);
+    //dump(y, 32, "result ");
+  }
+  return 0 ;
+}
+
+void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+  lcoeff(index,0,peers_len,peers,result);
 }
 
 void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],

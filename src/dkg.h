@@ -13,14 +13,10 @@
 #include <sodium.h>
 #include <stdint.h>
 #include "XK.h"
+#include "toprf.h"
 
 #define dkg_hash_BYTES crypto_generichash_BYTES
 #define dkg_commitment_BYTES(threshold) (threshold*crypto_core_ristretto255_BYTES)
-
-typedef struct {
-  uint8_t index;
-  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
-} __attribute((packed)) TOPRF_Share;
 
 #define HASH ((uint8_t) 1)
 #define COMMITMENT ((uint8_t) 2)

@@ -30,10 +30,13 @@ int dkg_vss_finish(const uint8_t n,
                    TOPRF_Share share[2],
                    uint8_t commitment[crypto_core_ristretto255_BYTES]);
 
-void dkg_vss_reconstruct(const size_t response_len,
-                         const TOPRF_Share responses[response_len][2],
-                         uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES],
-                         uint8_t blind[crypto_scalarmult_ristretto255_SCALARBYTES]);
+int dkg_vss_reconstruct(const uint8_t t,
+                        const uint8_t x,
+                        const size_t shares_len,
+                        const TOPRF_Share shares[shares_len][2],
+                        const uint8_t commitments[shares_len][crypto_scalarmult_ristretto255_BYTES],
+                        uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES],
+                        uint8_t blind[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 int dkg_vss_commit(const uint8_t a[crypto_core_ristretto255_SCALARBYTES],
                    const uint8_t r[crypto_core_ristretto255_SCALARBYTES],

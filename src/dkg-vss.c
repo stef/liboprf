@@ -124,28 +124,51 @@ int dkg_vss_finish(const uint8_t n,
   return 0;
 }
 
-void dkg_vss_reconstruct(const size_t response_len,
-                         const TOPRF_Share responses[response_len][2],
-                         uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES],
-                         uint8_t blind[crypto_scalarmult_ristretto255_SCALARBYTES]) {
-  uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
-  uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
-  memset(result,0,crypto_scalarmult_ristretto255_BYTES);
-  if(blind!=NULL) {
-    memset(blind,0,crypto_scalarmult_ristretto255_BYTES);
-  }
-
-  uint8_t indexes[response_len];
-  for(size_t i=0;i<response_len;i++) {
-    indexes[i]=responses[i][0].index;
-  }
-  for(size_t i=0;i<response_len;i++) {
-    coeff(responses[i][0].index, response_len, indexes, lpoly);
-    crypto_core_ristretto255_scalar_mul(tmp, responses[i][0].value, lpoly);
-    crypto_core_ristretto255_scalar_add(result, result, tmp);
-    if(blind!=NULL) {
-      crypto_core_ristretto255_scalar_mul(tmp, responses[i][1].value, lpoly);
-      crypto_core_ristretto255_scalar_add(blind, blind, tmp);
+static void sort_shares(const int n, uint8_t arr[n], uint8_t indexes[n]) {
+  for (uint8_t c = 1 ; c <= n - 1; c++) {
+    uint8_t d = c, t, t1;
+    while(d > 0 && arr[d] < arr[d-1]) {
+      t = arr[d];
+      t1 = indexes[d];
+      arr[d] = arr[d-1];
+      indexes[d] = indexes[d-1];
+      arr[d-1] = t;
+      indexes[d-1] = t1;
+      d--;
     }
   }
+}
+
+int dkg_vss_reconstruct(const uint8_t t,
+                        const uint8_t x,
+                        const size_t shares_len,
+                        const TOPRF_Share shares[shares_len][2],
+                        const uint8_t commitments[shares_len][crypto_scalarmult_ristretto255_BYTES],
+                        uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES],
+                        uint8_t blind[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+  uint8_t qual[t];
+  uint8_t indexes[t];
+  unsigned j=0;
+  for(unsigned i=0;i<shares_len && j<t;i++) {
+    if(commitments != NULL && dkg_vss_verify_commitment(commitments[i],shares[i])!=0) continue;
+    qual[j]=shares[i][0].index;
+    indexes[j++]=i;
+  }
+  if(j<t) return 1;
+  sort_shares(t, qual, indexes);
+
+  TOPRF_Share si[t];
+  for(unsigned i=0;i<t;i++) {
+    memcpy(&si[i], &shares[indexes[i]], TOPRF_Share_BYTES);
+    dump((uint8_t*) &si[i], TOPRF_Share_BYTES, "s%d", i);
+  }
+  if(0!=interpolate(0, t, si, result)) return 1;
+  if(blind!=NULL) {
+    for(unsigned i=0;i<t;i++) {
+      memcpy(&si[i], &shares[indexes[i]][1], TOPRF_Share_BYTES);
+      dump((uint8_t*) &si[i], TOPRF_Share_BYTES, "s%d", i);
+    }
+    if(0!=interpolate(0, t, si, blind)) return 1;
+  }
+  return 0;
 }

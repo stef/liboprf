@@ -22,12 +22,43 @@
 #include <sodium.h>
 #include <stdint.h>
 
-#define TOPRF_Share_BYTES (crypto_core_ristretto255_SCALARBYTES+1UL)
+typedef struct {
+  uint8_t index;
+  uint8_t value[crypto_core_ristretto255_SCALARBYTES];
+} __attribute((packed)) TOPRF_Share;
+
+#define TOPRF_Share_BYTES (sizeof(TOPRF_Share))
 #define TOPRF_Part_BYTES (crypto_core_ristretto255_BYTES+1UL)
 
+/** interpolates a polynomial of degree t at point x: y = f(x), given t shares of the polynomial
+ *
+ * @param [in] x - the value for which to evaluate the polynomial
+ * @param [in] t - the degree of the polynomial
+ * @param [in] shares - evaluated points on the polynomial
+ * @param [out] y - the result of f(x)
+ */
+int interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]);
+
 /**
- * This function calculates a lagrange coefficient based on the index
- * and the indexes of the other contributing shareholders.
+ * This function calculates a lagrange coefficient for f(x) based on
+ * the index and the indexes of the other contributing shareholders.
+ *
+ * @param [in] index - the index of the shareholder whose lagrange
+ *             coefficient we're calculating
+ *
+ * @param [in] x - the x for which the polynomial is to be evaluated
+ *
+ * @param [in] peers_len - the number of shares in peers
+ *
+ * @param [in] peers - the shares that contribute to the reconstruction
+ *
+ * @param [out] result - the lagrange coefficient
+ */
+
+void lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uint8_t peers[degree], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
+/**
+ * This function calculates a lagrange coefficient for f(0) based on
+ * the index and the indexes of the other contributing shareholders.
  *
  * @param [in] index - the index of the shareholder whose lagrange
  *             coefficient we're calculating
@@ -43,6 +74,10 @@ void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peer
 /**
  * This function creates shares of secret in a (threshold, n) scheme
  * over the curve ristretto255
+ *
+ * This function wraps lcoeff, so that if you want to recover the
+ * shared secret you don't have to provide x=0 as a parameter. This is
+ * mostly for backward compatibility.
  *
  * @param [in] secret - the scalar value to be secretly shared
  *
