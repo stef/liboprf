@@ -344,7 +344,7 @@ int test_mul() {
   if(0!=dkg_vss(n,t,kc_shares, kc_commitments)) return 1;
 
   uint8_t kc[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, kc_shares, kc, NULL);
+  dkg_vss_reconstruct(t, 0, n, kc_shares, kc_commitments, kc, NULL);
   debug=1; dump(kc, sizeof kc, "kc ");debug=0;
 
   // step 2. generate ρ
@@ -354,7 +354,7 @@ int test_mul() {
   if(0!=dkg_vss(n,t,p_shares, p_commitments)) return 1;
 
   uint8_t p[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, p_shares, p, NULL);
+  dkg_vss_reconstruct(t, 0, n, p_shares, p_commitments, p, NULL);
   debug=1; dump(p, sizeof p, "p  ");debug=0;
 
   // 3. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ), generating sharings of r.
@@ -362,7 +362,7 @@ int test_mul() {
   if(0!=ft_mult(n, t, kc_shares, kc_commitments, p_shares, p_commitments, r_shares)) return 1;
 
   uint8_t r[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, r_shares, r, NULL);
+  dkg_vss_reconstruct(t, 0, n, r_shares, NULL, r, NULL);
   debug=1;dump(r, sizeof r, "r  ");debug=0;
 
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
@@ -387,7 +387,7 @@ int main(void) {
   uint8_t kc[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t kc1[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t p[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, kc_shares, kc, NULL);
+  dkg_vss_reconstruct(t, 0, n, kc_shares, kc_commitments, kc, NULL);
   debug=1; dump(kc, sizeof kc, "kc ");debug=0;
 
   // precondition 2
@@ -407,14 +407,14 @@ int main(void) {
   TOPRF_Share kc1_shares[n][2];
   uint8_t kc1_commitments[n][crypto_core_ristretto255_BYTES];
   if(0!=dkg_vss(n,t,kc1_shares, kc1_commitments)) return 1;
-  dkg_vss_reconstruct(t, kc1_shares, kc1, NULL);
+  dkg_vss_reconstruct(t, 0, n, kc1_shares, kc1_commitments, kc1, NULL);
   debug=1; dump(kc1, sizeof kc1, "kc1");debug=0;
 
   // step 2. generate ρ
   TOPRF_Share p_shares[n][2];
   uint8_t p_commitments[n][crypto_core_ristretto255_BYTES];
   if(0!=dkg_vss(n,t,p_shares, p_commitments)) return 1;
-  dkg_vss_reconstruct(t, p_shares, p, NULL);
+  dkg_vss_reconstruct(t, 0, n, p_shares, p_commitments, p, NULL);
   debug=1; dump(p, sizeof p, "p  ");debug=0;
 
   // 3. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ), generating sharings of r.
@@ -437,9 +437,9 @@ int main(void) {
 
   uint8_t r[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t r1[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, r_shares, r, NULL);
+  dkg_vss_reconstruct(t, 0, n, r_shares, NULL, r, NULL);
   debug=1;dump(r, sizeof r, "r  ");debug=0;
-  dkg_vss_reconstruct(t, r1_shares, r1, NULL);
+  dkg_vss_reconstruct(t, 0, n, r1_shares, NULL, r1, NULL);
   debug=1;dump(r1, sizeof r1, "r1 ");debug=0;
   uint8_t r1inv[crypto_scalarmult_ristretto255_SCALARBYTES];
   if(0!=crypto_core_ristretto255_scalar_invert(r1inv, r1)) return 1;
@@ -447,12 +447,12 @@ int main(void) {
   crypto_core_ristretto255_scalar_mul(delta, r, r1inv);
 
   // check if delta is equal kc/kc'
-  dkg_vss_reconstruct(t, kc_shares, tmp, NULL);
+  dkg_vss_reconstruct(t, 0, n, kc_shares, kc_commitments, tmp, NULL);
   if(memcmp(tmp,kc,sizeof tmp)!=0) {
     debug=1; dump(tmp, sizeof tmp, "kc ");debug=0;
     return 1;
   }
-  dkg_vss_reconstruct(t, kc1_shares, tmp, NULL);
+  dkg_vss_reconstruct(t, 0, n, kc1_shares, kc1_commitments, tmp, NULL);
   if(memcmp(tmp,kc1,sizeof tmp)!=0) {
     debug=1; dump(kc1, sizeof kc1, "kc1");debug=0;
     return 1;

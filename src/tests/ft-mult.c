@@ -116,7 +116,8 @@ static int vss_share(const uint8_t n,
 int ft_mult(const uint8_t n, const uint8_t t,
             const TOPRF_Share alpha_shares[n][2], const uint8_t A_i[n][crypto_core_ristretto255_BYTES],
             const TOPRF_Share beta_shares[n][2], const uint8_t B_i[n][crypto_core_ristretto255_BYTES],
-            TOPRF_Share r_shares[n][2]) {
+            TOPRF_Share r_shares[n][2],
+            uint8_t r_commitments[n][crypto_core_ristretto255_BYTES]) {
   fprintf(stderr, "start ft_mult\n");
 
   if(t<2) return 1;
@@ -153,15 +154,17 @@ int ft_mult(const uint8_t n, const uint8_t t,
 
     // sanity check
     uint8_t s[crypto_scalarmult_ristretto255_SCALARBYTES];
+    uint8_t r[crypto_scalarmult_ristretto255_SCALARBYTES];
     for(unsigned k=0;k<n-t;k++) {
-      dkg_vss_reconstruct(t, &ci_shares[i][k], s, NULL);
+      if(0!=dkg_vss_reconstruct(t, 0, n-k, &ci_shares[i][k], &ci_commitments[i][k+1], s, r)) return 1;
       if(0!=memcmp(s, lambda_ai_bi, sizeof s)) {
-        debug=1;dump(s, sizeof s, "reconstructed");debug=0;
+        debug=1;dump(s, sizeof s, "reconstructed");
+        dump(lambda_ai_bi, sizeof lambda_ai_bi, "expected     ");debug=0;
       }
     }
 
     // c_i0 is correct ablambda, but the shares are of a random sharing.
-    if(i==0) corrupt_ci_good_ci0(n, t, i+1, ci_shares[i], &ci_commitments[i][1], ci_tau[i]);
+    //if(i==0) corrupt_ci_good_ci0(n, t, i+1, ci_shares[i], &ci_commitments[i][1], ci_tau[i]);
 
     // detected by ZK can be reconstructed
     //if(i==0) corrupt_ci0_good_ci(i+1,ci_commitments[i]);
@@ -182,7 +185,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
     //if(i==2) corrupt_share(i+1,3,1,ci_shares[i]);
 
     uint8_t v[crypto_scalarmult_ristretto255_SCALARBYTES];
-    dkg_vss_reconstruct(t, ci_shares[i], v, NULL);
+    if(0!=dkg_vss_reconstruct(t, 0, n, ci_shares[i], &ci_commitments[i][1], v, NULL)) return 1;
     debug=1; dump(v, sizeof v, "[%d] λ_iα_iβ_i", i+1);debug=0;
     if(memcmp(v, lambda_ai_bi, sizeof v)!=0) {
       fprintf(log_file, RED"failed reconstruction of lambda_ai_bi for %d\n"NORMAL, i+1);
@@ -208,7 +211,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
 
       TOPRF_Share secret[2];
       for(;k<n-t;k++) {
-        dkg_vss_reconstruct(t, &shares[k], secret[0].value, secret[1].value);
+        if(0!=dkg_vss_reconstruct(t, 0, n-k, &shares[k], &commitments[k], secret[0].value, secret[1].value)) return 1;
         if(dkg_vss_verify_commitment(ci_commitments[j][0],secret)!=0) continue;
         debug=1;dump(secret[0].value, sizeof secret[0].value, "reconstructed %d", k);debug=0;
         if(memcmp(secret[1].value, ci_tau[j], crypto_scalarmult_ristretto255_SCALARBYTES)!=0) {
@@ -364,7 +367,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
         fprintf(log_file, RED"[%d] failed ZK proof_3 for dealer %d\n"NORMAL, j, i+1);
 
         TOPRF_Share secret[2];
-        dkg_vss_reconstruct(t, ci_shares[i], secret[0].value, secret[1].value);
+        if(0!=dkg_vss_reconstruct(t, 0, n, ci_shares[i], &ci_commitments[i][1], secret[0].value, secret[1].value)) return 1;
         debug=1;dump(secret[0].value, sizeof secret[0].value, "reconstructed");debug=0;
         if(0!=dkg_vss_commit(secret[0].value, secret[1].value, ci_commitments[i][0])) return 1;
         i--;
@@ -434,7 +437,10 @@ int ft_mult(const uint8_t n, const uint8_t t,
 
     // If the test fails STOP and run MULT from step 2.
   }
-  if(!fail) return 0;
+  if(!fail) {
+    memcpy(r_commitments, &C_i[1], n*crypto_scalarmult_ristretto255_BYTES);
+    return 0;
+  }
 
   fprintf(stderr, "[5] failed vsps check for C_i\n");
 
@@ -454,7 +460,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
           //fprintf(log_file, "trying degree %d\n", t1);
           unsigned k=0;
           for(;k<n-t;k++) {
-            dkg_vss_reconstruct(t1, &ci_shares[j][k], s[0].value, s[1].value);
+            if(0!=dkg_vss_reconstruct(t1, 0, n-k, &ci_shares[j][k], &ci_commitments[j][k+1], s[0].value, s[1].value)) return 1;
             if(dkg_vss_verify_commitment(ci_commitments[j][0],s)!=0) continue;
             debug=1;dump(s[0].value, sizeof s[0].value, "reconstructed");debug=0;
             if(memcmp(s[1].value, ci_tau[j], crypto_scalarmult_ristretto255_SCALARBYTES)!=0) {
@@ -507,9 +513,73 @@ int ft_mult(const uint8_t n, const uint8_t t,
   return 0;
 }
 
+int test_interpol(void) {
+  fprintf(stderr, "testing interpol()\n");
+  debug = 1;
+  uint8_t n=13, t=6;
+  TOPRF_Share vss_shares[n][2];
+  uint8_t commitments[n][crypto_core_ristretto255_BYTES];
+  if(dkg_vss_share(n, t, NULL, commitments, vss_shares, NULL)) return 1;
+
+  TOPRF_Share shares[n];
+  for(unsigned i=0;i<n;i++) {
+    for(unsigned j=0,k=0;j<t;k++) {
+      if(k==i) {
+        //dump(vss_shares[i][0].value, 32, "target %d", vss_shares[i][0].index);
+        continue;
+      }
+      memcpy(&shares[j++], &vss_shares[k][0], TOPRF_Share_BYTES);
+    }
+    TOPRF_Share share;
+    share.index=i+1;
+    if(0!=interpolate(i+1, t, shares, share.value)) return 1;
+    if(memcmp(vss_shares[i][0].value,share.value, 32)!=0) return 1;
+    //dump(vss_shares[i][0].value, 32, "vshare %d", vss_shares[i][0].index);
+    //dump(share.value, 32, "rshare %d", i+1);
+  }
+
+  TOPRF_Share share;
+  share.index=0;
+  if(0!=interpolate(0, t, shares, share.value)) return 1;
+  dump(share.value, 32, "secret   ");
+
+  fprintf(stderr, "success: interpol()\n");
+  return 0;
+}
+
+static void sort_shares(const int n, uint8_t arr[n], uint8_t indexes[n]) {
+  for (uint8_t c = 1 ; c <= n - 1; c++) {
+    uint8_t d = c, t, t1;
+    while(d > 0 && arr[d] < arr[d-1]) {
+      t = arr[d];
+      t1 = indexes[d];
+      arr[d] = arr[d-1];
+      indexes[d] = indexes[d-1];
+      arr[d-1] = t;
+      indexes[d-1] = t1;
+      d--;
+    }
+  }
+}
+
+int test_sort_shares(void) {
+  //uint8_t shares[8] = { 12, 1, 8, 7, 3, 11, 10, 5 };
+  uint8_t qual[4] =       { 12, 3, 7, 5 };
+  uint8_t sorted_qual[4] = { 0, 4, 3, 7 };
+  sort_shares(4, qual, sorted_qual);
+  const uint8_t vqual[4] =        { 3, 5, 7, 12};
+  const uint8_t vsorted_qual[4] = { 4, 7, 3,  0};
+  if(memcmp(vqual, qual, 4)!=0) return 1;
+  if(memcmp(vsorted_qual, sorted_qual, 4)!=0) return 1;
+  return 0;
+}
+
 int main(void) {
   log_file = stderr;
   debug = 0;
+
+  if(test_sort_shares()!=0) return 1;
+  if(test_interpol()!=0) return 1;
 
   uint8_t n=13, t=6;
   TOPRF_Share a_shares[n][2];
@@ -517,7 +587,7 @@ int main(void) {
   if(dkg_vss_share(n, t, NULL, a_commitments, a_shares, NULL)) return 1;
 
   uint8_t a[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, a_shares, a, NULL);
+  if(0!=dkg_vss_reconstruct(t, 0, n, a_shares, a_commitments, a, NULL)) return 1;
   debug=1; dump(a, sizeof a, "a");debug=0;
 
   // step 2. generate ρ
@@ -527,7 +597,7 @@ int main(void) {
   if(dkg_vss_share(n, t, NULL, b_commitments, b_shares, NULL)) return 1;
 
   uint8_t b[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, b_shares, b, NULL);
+  if(0!=dkg_vss_reconstruct(t, 0, n, b_shares, b_commitments, b, NULL)) return 1;
   debug=1; dump(b, sizeof b, "b");debug=0;
 
   if(0!=toprf_mpc_vsps_check(t-1, a_commitments)) return 1;
@@ -536,10 +606,11 @@ int main(void) {
 
   // 3. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ), generating sharings of r.
   TOPRF_Share r_shares[n][2];
-  if(0!=ft_mult(n, t, a_shares, a_commitments, b_shares, b_commitments, r_shares)) return 1;
+  uint8_t r_commitments[n][crypto_core_ristretto255_BYTES];
+  if(0!=ft_mult(n, t, a_shares, a_commitments, b_shares, b_commitments, r_shares, r_commitments)) return 1;
 
   uint8_t r[crypto_scalarmult_ristretto255_SCALARBYTES];
-  dkg_vss_reconstruct(t, r_shares, r, NULL);
+  if(0!=dkg_vss_reconstruct(t, 0, n, r_shares, r_commitments, r, NULL)) return 1;
   debug=1;dump(r, sizeof r, "r  ");debug=0;
 
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
