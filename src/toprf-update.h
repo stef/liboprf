@@ -57,6 +57,8 @@ typedef enum {
   Err_InvPoint,
   Err_CommmitmentsMismatch,
   Err_Proto,
+  Err_BadReconstruct,
+  Err_Reconstruct,
   Err_BroadcastEnv = 32,
   Err_Env = 64
 } TOPRF_Update_Err;
@@ -74,12 +76,19 @@ typedef enum {
   TOPRF_Update_STP_Broadcast_DKG_Transcripts,
   TOPRF_Update_STP_Broadcast_DKG_Final_Commitments,
   TOPRF_Update_STP_Route_Mult_Step1,
+  TOPRF_Update_STP_Broadcast_Mult_Commitments,
   TOPRF_Update_STP_Route_Encrypted_Mult_Shares,
+
+  TOPRF_Update_STP_Broadcast_Mult_Complaints,
+  TOPRF_Update_STP_Broadcast_Mult_Defenses,
+  TOPRF_Update_STP_Broadcast_Reconst_Mult_Shares,
+
+  TOPRF_Update_STP_TOPRF_Update_STP_Route_ZK_Challenge_Commitments,
   TOPRF_Update_STP_Route_ZK_Challenge_Commitments,
   TOPRF_Update_STP_Route_ZK_commitments,
   TOPRF_Update_STP_Broadcast_ZK_nonces,
   TOPRF_Update_STP_Route_ZK_Proofs,
-  TOPRF_Update_STP_Broadcast_Mult_Complaints,
+  TOPRF_Update_STP_Broadcast_ZK_Complaints,
   TOPRF_Update_STP_Route_Mult_Reconstructions, // todo
   TOPRF_Update_STP_Broadcast_Mult_Ci,
   TOPRF_Update_STP_Broadcast_VSPS_Results,
@@ -105,12 +114,16 @@ typedef struct {
   uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES];
   uint16_t kc1_complaints_len;
   uint16_t (*kc1_complaints)[];
+  uint16_t (*x2_complaints)[];
+  uint16_t x2_complaints_len;
 
   uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
   uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES];
   uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
   uint16_t p_complaints_len;
   uint16_t (*p_complaints)[];
+  uint16_t y2_complaints_len;
+  uint16_t (*y2_complaints)[];
 
   size_t cheater_len;
   TOPRF_Update_Cheater (*cheaters)[];
@@ -145,6 +158,8 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
 void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
                                uint16_t (*kc1_complaints)[],
                                uint16_t (*p_complaints)[],
+                               uint16_t (*x2_complaints)[],
+                               uint16_t (*y2_complaints)[],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
                                uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                                uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
@@ -161,7 +176,7 @@ typedef enum {
   TOPRF_Update_Peer_Noise_Handshake,
   TOPRF_Update_Peer_Finish_Noise_Handshake,
 
-  TOPRF_Update_Peer_Rcv_Commitments_Send_Commitments,
+  TOPRF_Update_Peer_Rcv_CHashes_Send_Commitments,
   TOPRF_Update_Peer_Rcv_Commitments_Send_Shares,
   TOPRF_Update_Peer_Verify_Commitments,
   TOPRF_Update_Peer_Handle_DKG_Complaints,
@@ -171,9 +186,18 @@ typedef enum {
   TOPRF_Update_Peer_Confirm_Transcripts,
 
   TOPRF_Update_Peer_Start_Mult,
+  TOPRF_Update_Peer_Rcv_Mult_CHashes_Send_Commitments,
   TOPRF_Update_Peer_Recv_K1P_Commitments,
   TOPRF_Update_Peer_Send_K1P_Shares,
   TOPRF_Update_Peer_Recv_K1P_Shares,
+
+  TOPRF_Update_Peer_Handle_Mult_Share_Complaints,
+  TOPRF_Update_Peer_Defend_Mult_Accusations,
+  TOPRF_Update_Peer_Check_Mult_Shares,
+  TOPRF_Update_Peer_Disclose_Mult_Shares,
+  TOPRF_Update_Peer_Reconstruct_Mult_Shares,
+  TOPRF_Update_Peer_Send_ZK_Challenge_Commitments,
+
   TOPRF_Update_Peer_Send_ZK_Commitments,
   TOPRF_Update_Peer_Send_ZK_nonces,
   TOPRF_Update_Peer_Send_ZK_proofs,
@@ -208,7 +232,15 @@ typedef enum {
   toprfupdate_stp_bc_transcript_msg,
   toprfupdate_peer_mult1_msg,
   toprfupdate_stp_bc_mult1_msg,
+  toprfupdate_peer_mult_coms_msg,
+  toprfupdate_stp_bc_mult_coms_msg,
   toprfupdate_peer_mult2_msg,
+  toprfupdate_peer_verify_mult_shares_msg,
+  toprfupdate_peer_share_mult_key_msg,
+  toprfupdate_stp_bc_mult_key_msg,
+  toprfupdate_peer_reconst_mult_shares_msg,
+  toprfupdate_stp_bc_reconst_mult_shares_msg,
+
   toprfupdate_peer_zkp1_msg,
   toprfupdate_stp_bc_zkp1_msg,
   toprfupdate_peer_zkp2_msg,
