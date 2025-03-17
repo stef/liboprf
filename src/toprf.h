@@ -37,7 +37,7 @@ typedef struct {
  * @param [in] shares - evaluated points on the polynomial
  * @param [out] y - the result of f(x)
  */
-int interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]);
+void interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 /**
  * This function calculates a lagrange coefficient for f(x) based on
