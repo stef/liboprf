@@ -83,8 +83,12 @@ class Peer:
             self.state = "closed"
 
 class Multiplexer:
-    def __init__(self, peers, type="SSL", ssl_cert=None):
-        self.peers = [Peer(name, (p['host'],p['port']), type=p.get("type", "SSL"), ssl_cert = p.get('ssl_cert'))
+    def __init__(self, peers):
+        self.peers = [Peer(name
+                           ,(p['host'],p['port'])
+                           ,type=p.get("type", "SSL")
+                           ,ssl_cert = p.get('ssl_cert')
+                           ,timeout = p.get('timeout'))
                       for name, p in peers.items()]
 
     def __getitem__(self, idx):
