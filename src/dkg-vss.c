@@ -35,6 +35,7 @@ int dkg_vss_share(const uint8_t n,
                   uint8_t commitments[n][crypto_core_ristretto255_BYTES],
                   TOPRF_Share shares[n][2],
                   uint8_t blind[crypto_core_ristretto255_SCALARBYTES]) {
+  if(threshold==0) return 1;
   uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES];
   uint8_t b[threshold][crypto_core_ristretto255_SCALARBYTES];
   if(secret!=NULL) memcpy(a[0],secret, crypto_core_ristretto255_SCALARBYTES);
