@@ -55,10 +55,6 @@ int dkg_vss_share(const uint8_t n,
     memcpy(blind, b[0], crypto_core_ristretto255_SCALARBYTES);
   }
 
-  // compute commitments
-  //if(0!=dkg_vss_commit(a[0], b[0], commitments[0])) return 1;
-  //dump((uint8_t*) &commitments[k],crypto_core_ristretto255_BYTES, "c[%d]     ", k);
-
   for(uint8_t j=1;j<=n;j++) {
     //f(x) = a_0 + a_1*x + a_2*x^2 + a_3*x^3 + ⋯ + a_(t)*x^(t)
     polynom(j, threshold, a, &shares[j-1][0]);
