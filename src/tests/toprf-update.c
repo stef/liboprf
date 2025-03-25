@@ -86,6 +86,7 @@ int main(const int argc, const char **argv) {
   }
   const uint8_t n=atoi(argv[1]);
   const uint8_t t=atoi(argv[2]);
+  const uint8_t dealers = (t-1)*2 + 1;
 
   // share value k0
   TOPRF_Share k0_shares[n][2];
@@ -147,6 +148,11 @@ int main(const int argc, const char **argv) {
   uint8_t stp_p_commitments[n*n][crypto_core_ristretto255_BYTES];
   memset(stp_p_commitments, 0, sizeof stp_p_commitments);
 
+  uint8_t stp_k0p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
+  uint8_t stp_k1p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
+  uint8_t stp_zk_challenge_commitments[dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t stp_zk_challenge_e_i[2*dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
+
   uint8_t k0p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
   uint8_t k1p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
   TOPRF_Update_Cheater stp_cheaters[t*t - 1];
@@ -164,6 +170,11 @@ int main(const int argc, const char **argv) {
                             &stp_p_share_macs,
                             &stp_kc1_commitments,
                             &stp_p_commitments,
+                            &k0_commitments,
+                            &stp_k0p_commitments,
+                            &stp_k1p_commitments,
+                            &stp_zk_challenge_commitments,
+                            &stp_zk_challenge_e_i,
                             &k0p_final_commitments,
                             &k1p_final_commitments,
                             last_ts);
@@ -231,7 +242,6 @@ int main(const int argc, const char **argv) {
 
   uint64_t peer_last_ts[n][n];
   memset(peer_last_ts, 0, sizeof peer_last_ts);
-  const uint8_t dealers = (t-1)*2 + 1;
   uint8_t lambdas[n][dealers][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share k0p_shares[n][dealers][2];
   uint8_t k0p_commitments[n][dealers*(n+1)][crypto_core_ristretto255_BYTES];

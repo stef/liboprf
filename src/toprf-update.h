@@ -83,15 +83,16 @@ typedef enum {
   TOPRF_Update_STP_Broadcast_Mult_Defenses,
   TOPRF_Update_STP_Broadcast_Reconst_Mult_Shares,
 
-  TOPRF_Update_STP_TOPRF_Update_STP_Route_ZK_Challenge_Commitments,
   TOPRF_Update_STP_Route_ZK_Challenge_Commitments,
   TOPRF_Update_STP_Route_ZK_commitments,
   TOPRF_Update_STP_Broadcast_ZK_nonces,
-  TOPRF_Update_STP_Route_ZK_Proofs,
-  TOPRF_Update_STP_Broadcast_ZK_Complaints,
-  TOPRF_Update_STP_Route_Mult_Reconstructions, // todo
+  TOPRF_Update_STP_Broadcast_ZK_Proofs,
+  TOPRF_Update_STP_Broadcast_ZK_Disclosures,
+  TOPRF_Update_STP_Route_Mult_Reconstructions,
   TOPRF_Update_STP_Broadcast_Mult_Ci,
-  TOPRF_Update_STP_Broadcast_VSPS_Results,
+
+  TOPRF_Update_STP_Broadcast_VSPS_Disclosures,
+
   TOPRF_Update_STP_Reconstruct_Delta,
   TOPRF_Update_STP_Broadcast_Full_VSPS_Results, // todo
   TOPRF_Update_STP_Done
@@ -124,6 +125,12 @@ typedef struct {
   uint16_t (*p_complaints)[];
   uint16_t y2_complaints_len;
   uint16_t (*y2_complaints)[];
+
+  uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES];
+  uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES];
+  uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES];
+  uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES];
 
   size_t cheater_len;
   TOPRF_Update_Cheater (*cheaters)[];
@@ -167,6 +174,11 @@ void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
                                uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
                                uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
+                               uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES],
+                               uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
+                               uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
+                               uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES],
+                               uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint64_t *last_ts);
@@ -202,12 +214,17 @@ typedef enum {
   TOPRF_Update_Peer_Send_ZK_nonces,
   TOPRF_Update_Peer_Send_ZK_proofs,
   TOPRF_Update_Peer_Verify_ZK_proofs,
-  TOPRF_Update_Peer_Handle_Mult_Complaints,
-  TOPRF_Update_Peer_Handle_Mult_Cheaters, // todo
+  TOPRF_Update_Peer_Disclose_ZK_Cheaters,
+  TOPRF_Update_Peer_Reconstruct_ZK_Shares,
+
   TOPRF_Update_Peer_Send_Mult_Ci,
   TOPRF_Update_Peer_Final_VSPS_Checks,
-  TOPRF_Update_Peer_Recv_VSPS_Results,
-  TOPRF_Update_Peer_MULT_VSPS_Fail_Recover, // todo
+
+  TOPRF_Update_Peer_Disclose_VSPS_Cheaters,
+  TOPRF_Update_Peer_Reconstruct_VSPS_Shares,
+
+  TOPRF_Update_Peer_Reconstruct_Final_Shares,
+
   TOPRF_Update_Peer_Send_k0p_k1p_Share,
   TOPRF_Update_Peer_Final_OK,
   TOPRF_Update_Peer_Done
@@ -249,10 +266,16 @@ typedef enum {
   toprfupdate_stp_bc_zkp3_msg,
   toprfupdate_peer_zkp4_msg,
   toprfupdate_stp_bc_zkp4_msg,
-  toprfupdate_peer_zkp5_msg,
-  toprfupdate_stp_bc_zkp5_msg,
+
+  toprfupdate_peer_zk_disclose_msg,
+  toprfupdate_stp_bc_zk_disclose_msg,
+
   toprfupdate_peer_mult3_msg,
   toprfupdate_stp_bc_mult3_msg,
+
+  toprfupdate_peer_vsps_disclose_msg,
+  toprfupdate_stp_bc_vsps_disclose_msg,
+
   toprfupdate_peer_end1_msg,
   toprfupdate_stp_bc_end1_msg,
   toprfupdate_peer_end2_msg,
