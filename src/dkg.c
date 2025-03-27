@@ -271,7 +271,7 @@ int dkg_init_noise_handshake(const uint8_t index,
                              uint8_t *rname,
                              Noise_XK_session_t** session,
                              uint8_t msg[noise_xk_handshake1_SIZE]) {
-  if(log_file != NULL) fprintf(log_file, "[%d] creating noise session -> %s\n", index, rname);
+  //if(log_file != NULL) fprintf(log_file, "[%d] creating noise session -> %s\n", index, rname);
   // fixme: damnit this allocates stuff on the heap...
   Noise_XK_peer_t *peer = Noise_XK_device_add_peer(dev, rname, rpk);
   if(!peer) return 1;
@@ -308,7 +308,7 @@ int dkg_respond_noise_handshake(const uint8_t index,
                                 Noise_XK_session_t** session,
                                 uint8_t inmsg[noise_xk_handshake1_SIZE],
                                 uint8_t outmsg[noise_xk_handshake2_SIZE]) {
-  if(log_file != NULL) fprintf(log_file, "[%d] responding noise session -> %s\n", index, rname);
+  //if(log_file != NULL) fprintf(log_file, "[%d] responding noise session -> %s\n", index, rname);
   // fixme: damnit this allocates stuff on the heap...
 
   *session = Noise_XK_session_create_responder(dev);
@@ -372,7 +372,7 @@ int dkg_finish_noise_handshake(const uint8_t index,
       Noise_XK_session_free(*session);
       return 3;
     }
-    fprintf(log_file, "[%d] finishing noise session -> %s\n", index, pinfo);
+    //fprintf(log_file, "[%d] finishing noise session -> %s\n", index, pinfo);
     free(pinfo);
   }
 
