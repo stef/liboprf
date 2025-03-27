@@ -143,10 +143,11 @@ int dkg_vss_reconstruct(const uint8_t t,
                         const uint8_t commitments[shares_len][crypto_scalarmult_ristretto255_BYTES],
                         uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES],
                         uint8_t blind[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+  if(shares_len>128) return 1;
   uint8_t qual[t];
   uint8_t indexes[t];
   unsigned j=0;
-  for(unsigned i=0;i<shares_len && j<t;i++) {
+  for(uint8_t i=0;i<shares_len && j<t;i++) {
     if(commitments != NULL && dkg_vss_verify_commitment(commitments[i],shares[i])!=0) continue;
     qual[j]=shares[i][0].index;
     indexes[j++]=i;
