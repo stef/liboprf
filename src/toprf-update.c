@@ -585,7 +585,6 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
   ctx->p_complaints_len = 0;
   ctx->my_p_complaints_len = 0;
   ctx->cheater_len = 0;
-  // todo simplify this only one needed
   memcpy(ctx->sig_sk, lt_sk, crypto_sign_SECRETKEYBYTES);
 
   crypto_generichash_init(&ctx->transcript_state, NULL, 0, crypto_generichash_BYTES);
@@ -1384,6 +1383,7 @@ static TOPRF_Update_Err stp_check_defenses(TOPRF_Update_STPState *ctx,
   for(unsigned j=0;j<ctr;j++) {
     const uint8_t accused=i+1;
     const uint8_t accuser=(*dptr)[0];
+    if(accuser<1 || accuser>ctx->n) return Err_OOB;
     const uint8_t *key=(*dptr)+1;
     const uint8_t *shares=key+dkg_noise_key_SIZE;
     *dptr += 1U + dkg_noise_key_SIZE + toprf_update_encrypted_shares_SIZE;
@@ -1510,6 +1510,7 @@ static TOPRF_Update_Err check_defenses(TOPRF_Update_PeerState *ctx,
   for(unsigned j=0;j<ctr;j++) {
     const uint8_t accused=i+1;
     const uint8_t accuser=(*dptr)[0];
+    if(accuser<1 || accuser>ctx->n) return Err_OOB;
     const uint8_t *key=(*dptr)+1;
     const uint8_t *shares=key+dkg_noise_key_SIZE;
     *dptr += 1U + dkg_noise_key_SIZE + toprf_update_encrypted_shares_SIZE;
@@ -1961,7 +1962,6 @@ static TOPRF_Update_Err peer_mult2_handler(TOPRF_Update_PeerState *ctx, const ui
     dptr+=toprf_update_commitment_HASHBYTES;
     // todo rename {kc1|p}_{commitment_hashes|share_macs} into more
     // generic names so that they better fit dkg and mult usage
-
 
     for(uint8_t j=0;j<ctx->n;j++) {
       // extract and store encrypted kc1 share mac
@@ -2425,6 +2425,9 @@ static TOPRF_Update_Err reconstruct(const uint8_t n, const uint8_t t,
       if(0!=dkg_vss_commit(r[0].value, r[1].value,(*c)[accused-1][accuser])) return Err_VSSCommit;
       dump((*c)[accused-1][accuser], 32, "[!] corrected ", accuser);
       // todo check vsps on these commitments and if that fails return Err_BadReconstruct;
+      // better to do this only after all reconstructions have been
+      // done in case multiple shares from the same dealer have
+      // adjusted commitments.
     }
   }
   return Err_OK;
@@ -2496,6 +2499,9 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
       if(0!=dkg_vss_commit(r[0].value, r[1].value, (*c)[accused-1][accuser])) return Err_VSSCommit;
       dump((*c)[accused-1][accuser], 32, "[%d] corrected ", ctx->index);
       // todo check vsps on these commitments and if that fails return Err_BadReconstruct;
+      // better to do this only after all reconstructions have been
+      // done in case multiple shares from the same dealer have
+      // adjusted commitments.
     }
 
     int incorrect = 0;
@@ -2743,7 +2749,6 @@ static TOPRF_Update_Err stp_step33_handler(TOPRF_Update_STPState *ctx, const uin
   const uint8_t *ptr = input;
 
   uint8_t zk_challenge_nonces[2][ctx->n][2][crypto_scalarmult_ristretto255_SCALARBYTES];
-  //ret = aggregate_zk_challenges(ctx, dealers, ctx->n, p, (*zk_challenge_nonces)[p], (*zk_challenge_nonce_commitments)[p], (*zk_challenge_e_i)[p]);
   // todo? we skip verifying the challenge_nonce commitments, but we also don't base any decision on this
   // we do this merely to anticipate how many dealers will be exposed/reconstructed
   for(uint8_t i=0;i<ctx->n;i++,ptr+=toprfupdate_peer_zkp3_msg_SIZE) {
@@ -4212,7 +4217,7 @@ size_t toprf_update_peer_input_size(const TOPRF_Update_PeerState *ctx) {
   case TOPRF_Update_Peer_Send_ZK_nonces: return sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp2_msg_SIZE * dealers;
   case TOPRF_Update_Peer_Send_ZK_proofs: return sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp3_msg_SIZE * ctx->n;
   case TOPRF_Update_Peer_Verify_ZK_proofs: return sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp4_msg_SIZE * dealers;
-  case TOPRF_Update_Peer_Disclose_ZK_Cheaters: return 0; // todo toprfupdate_stp_bc_zkp5_msg_SIZE(ctx);
+  case TOPRF_Update_Peer_Disclose_ZK_Cheaters: return 0;
   case TOPRF_Update_Peer_Reconstruct_ZK_Shares: return sizeof(TOPRF_Update_Message) + toprfupdate_peer_zk_disclose_msg_SIZE(ctx) * ctx->n;
   case TOPRF_Update_Peer_Send_Mult_Ci: return 0;
   case TOPRF_Update_Peer_Final_VSPS_Checks: return toprfupdate_stp_bc_mult3_msg_SIZE(ctx);
