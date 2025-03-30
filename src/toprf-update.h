@@ -114,17 +114,17 @@ typedef struct {
   uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES];
   uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES];
   uint16_t kc1_complaints_len;
-  uint16_t (*kc1_complaints)[];
-  uint16_t (*x2_complaints)[];
+  uint16_t *kc1_complaints;
+  uint16_t *x2_complaints;
   uint16_t x2_complaints_len;
 
   uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
   uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES];
   uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
   uint16_t p_complaints_len;
-  uint16_t (*p_complaints)[];
+  uint16_t *p_complaints;
   uint16_t y2_complaints_len;
-  uint16_t (*y2_complaints)[];
+  uint16_t *y2_complaints;
 
   uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES];
   uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES];
@@ -163,10 +163,10 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
                            const size_t msg0_len, TOPRF_Update_Message *msg0);
 
 void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
-                               uint16_t (*kc1_complaints)[],
-                               uint16_t (*p_complaints)[],
-                               uint16_t (*x2_complaints)[],
-                               uint16_t (*y2_complaints)[],
+                               uint16_t kc1_complaints[],
+                               uint16_t p_complaints[],
+                               uint16_t x2_complaints[],
+                               uint16_t y2_complaint[],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
                                uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                                uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],

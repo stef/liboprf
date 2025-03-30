@@ -337,10 +337,10 @@ static TOPRF_Update_Err stp_complaint_handler(TOPRF_Update_STPState *ctx, const 
 
     const uint8_t *fails_len = msg->data;
     const uint8_t *fails = msg->data+1;
-    handle_complaints(msg_count, i+1, *fails_len, fails, &ctx->kc1_complaints_len, (*ctx->kc1_complaints), 0, 0, 0);
+    handle_complaints(msg_count, i+1, *fails_len, fails, &ctx->kc1_complaints_len, ctx->kc1_complaints, 0, 0, 0);
     fails_len = fails+dealers;
     fails = fails_len + 1;
-    handle_complaints(msg_count, i+1, *fails_len, fails, &ctx->p_complaints_len, (*ctx->p_complaints), 0, 0, 0);
+    handle_complaints(msg_count, i+1, *fails_len, fails, &ctx->p_complaints_len, ctx->p_complaints, 0, 0, 0);
 
     memcpy(wptr, ptr, msg_size);
     wptr+=msg_size;
@@ -367,8 +367,8 @@ static TOPRF_Update_Err stp_complaint_handler(TOPRF_Update_STPState *ctx, const 
   if(ctx->kc1_complaints_len == 0 && ctx->p_complaints_len == 0) {
     ctx->step = pass_step;
   } else {
-    dump((uint8_t*) (*ctx->kc1_complaints), ctx->kc1_complaints_len*sizeof(uint16_t), "[!] complaints_1");
-    dump((uint8_t*) (*ctx->p_complaints), ctx->p_complaints_len*sizeof(uint16_t), "[!] complaints_2");
+    dump((uint8_t*) ctx->kc1_complaints, ctx->kc1_complaints_len*sizeof(uint16_t), "[!] complaints_1");
+    dump((uint8_t*) ctx->p_complaints, ctx->p_complaints_len*sizeof(uint16_t), "[!] complaints_2");
     ctx->step = fail_step;
   }
 
@@ -512,10 +512,10 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
 }
 
 void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
-                               uint16_t (*kc1_complaints)[],
-                               uint16_t (*p_complaints)[],
-                               uint16_t (*x2_complaints)[],
-                               uint16_t (*y2_complaints)[],
+                               uint16_t kc1_complaints[],
+                               uint16_t p_complaints[],
+                               uint16_t x2_complaints[],
+                               uint16_t y2_complaints[],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
                                uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                                uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
@@ -1439,12 +1439,12 @@ static TOPRF_Update_Err stp_broadcast_defenses(TOPRF_Update_STPState *ctx, const
   memset(ctr1,0,sizeof(ctr1));
   memset(ctr2,0,sizeof(ctr2));
   for(int i=0;i<ctx->kc1_complaints_len;i++) {
-    const uint8_t peer = ((*ctx->kc1_complaints)[i] & 0xff)-1;
+    const uint8_t peer = (ctx->kc1_complaints[i] & 0xff)-1;
     if(peer>=ctx->n) return Err_OOB;
     ctr1[peer]++;
   }
   for(int i=0;i<ctx->p_complaints_len;i++) {
-    const uint8_t peer = ((*ctx->p_complaints)[i] & 0xff)-1;
+    const uint8_t peer = (ctx->p_complaints[i] & 0xff)-1;
     if(peer>=ctx->n) return Err_OOB;
     ctr2[peer]++;
   }
@@ -1466,12 +1466,12 @@ static TOPRF_Update_Err stp_broadcast_defenses(TOPRF_Update_STPState *ctx, const
     const uint8_t *dptr = msg->data;
 
     TOPRF_Update_Err ret;
-    ret = stp_check_defenses(ctx, ctx->n, ctx->n, 1, ctr1[i], i, 0, ctx->kc1_share_macs, *ctx->kc1_commitments, &ctx->kc1_complaints_len, *ctx->kc1_complaints, &dptr);
+    ret = stp_check_defenses(ctx, ctx->n, ctx->n, 1, ctr1[i], i, 0, ctx->kc1_share_macs, *ctx->kc1_commitments, &ctx->kc1_complaints_len, ctx->kc1_complaints, &dptr);
     if(Err_OK != ret) {
       return ret;
     }
 
-    ret = stp_check_defenses(ctx, ctx->n, ctx->n, 1, ctr2[i], i, 0, ctx->p_share_macs, *ctx->p_commitments, &ctx->p_complaints_len, *ctx->p_complaints, &dptr);
+    ret = stp_check_defenses(ctx, ctx->n, ctx->n, 1, ctr2[i], i, 0, ctx->p_share_macs, *ctx->p_commitments, &ctx->p_complaints_len, ctx->p_complaints, &dptr);
     if(Err_OK != ret) {
       return ret;
     }
@@ -2244,12 +2244,12 @@ static TOPRF_Update_Err stp_broadcast_mult_defenses(TOPRF_Update_STPState *ctx, 
   memset(ctr1,0,sizeof(ctr1));
   memset(ctr2,0,sizeof(ctr2));
   for(int i=0;i<ctx->kc1_complaints_len;i++) {
-    const uint8_t peer = ((*ctx->kc1_complaints)[i] & 0xff)-1;
+    const uint8_t peer = (ctx->kc1_complaints[i] & 0xff)-1;
     if(peer>=dealers) return Err_OOB;
     ctr1[peer]++;
   }
   for(int i=0;i<ctx->p_complaints_len;i++) {
-    const uint8_t peer = ((*ctx->p_complaints)[i] & 0xff)-1;
+    const uint8_t peer = (ctx->p_complaints[i] & 0xff)-1;
     if(peer>=dealers) return Err_OOB;
     ctr2[peer]++;
   }
@@ -2275,12 +2275,12 @@ static TOPRF_Update_Err stp_broadcast_mult_defenses(TOPRF_Update_STPState *ctx, 
     const TOPRF_Update_Message *msg = (const TOPRF_Update_Message *) ptr;
     const uint8_t *dptr = msg->data;
 
-    TOPRF_Update_Err ret = stp_check_defenses(ctx, dealers, ctx->n + 1, 0, ctr1[i], i, 1, ctx->kc1_share_macs, *ctx->k0p_commitments, &ctx->x2_complaints_len, *ctx->x2_complaints, &dptr);
+    TOPRF_Update_Err ret = stp_check_defenses(ctx, dealers, ctx->n + 1, 0, ctr1[i], i, 1, ctx->kc1_share_macs, *ctx->k0p_commitments, &ctx->x2_complaints_len, ctx->x2_complaints, &dptr);
     if(Err_OK != ret) {
       return ret;
     }
 
-    ret = stp_check_defenses(ctx, dealers, ctx->n + 1, 0, ctr2[i], i, 1, ctx->p_share_macs, *ctx->k1p_commitments, &ctx->y2_complaints_len, *ctx->y2_complaints, &dptr);
+    ret = stp_check_defenses(ctx, dealers, ctx->n + 1, 0, ctr2[i], i, 1, ctx->p_share_macs, *ctx->k1p_commitments, &ctx->y2_complaints_len, ctx->y2_complaints, &dptr);
     if(Err_OK != ret) {
       return ret;
     }
@@ -2353,9 +2353,51 @@ static TOPRF_Update_Err peer_check_mult_shares(TOPRF_Update_PeerState *ctx, cons
   return Err_OK;
 }
 
+static uint8_t unique_complaints(const uint8_t n,
+                                 const uint16_t complaints_len,
+                                 const uint16_t complaints[complaints_len]) {
+  if(n==0) return 0xff;
+  uint8_t total=0;
+  uint8_t peer[n];
+  memset(peer, 0, sizeof peer);
+  for(unsigned i=0;i<complaints_len;i++) {
+    const uint8_t accused = complaints[i] & 0xff;
+    if(accused>n || accused == 0) return 0xff; // we set them ourselves. this should not happen
+    peer[accused-1]=1;
+  }
+  for(unsigned i=0;i<n;i++) total+=peer[i];
+  return total;
+}
+#define unique_kc1_complaints(ctx) unique_complaints(ctx->n, ctx->kc1_complaints_len, ctx->kc1_complaints)
+#define unique_p_complaints(ctx) unique_complaints(ctx->n, ctx->p_complaints_len, ctx->p_complaints)
+#define unique_x2_complaints(ctx) unique_complaints(ctx->n, ctx->x2_complaints_len, ctx->x2_complaints)
+#define unique_y2_complaints(ctx) unique_complaints(ctx->n, ctx->y2_complaints_len, ctx->y2_complaints)
+
+static TOPRF_Update_Err disclose_shares(const uint8_t n,
+                                        const uint8_t self,
+                                        const char *type,
+                                        const uint16_t complaints_len,
+                                        const uint16_t complaints[complaints_len],
+                                        TOPRF_Share shares[][2],
+                                        uint8_t **wptr) {
+  if(n==0) return 0xff;
+  int sent[n];
+  memset(sent,0,sizeof sent);
+  for(unsigned i=0;i<complaints_len;i++) {
+    const uint8_t peer = complaints[i] & 0xff;
+    if(peer>=n) return Err_OOB;
+    if(sent[peer-1]!=0) continue;
+    sent[peer-1]=1;
+    memcpy(*wptr, shares[peer-1], TOPRF_Share_BYTES*2);
+    dump(*wptr, TOPRF_Share_BYTES*2, "[%d] disclosing %s share of %d", self, type, peer);
+    *wptr+=TOPRF_Share_BYTES*2;
+  }
+  return Err_OK;
+}
+
 #define toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message)                                  \
-                                                           + ctx->kc1_complaints_len * toprf_update_encrypted_shares_SIZE \
-                                                           + ctx->p_complaints_len * toprf_update_encrypted_shares_SIZE)
+                                                            + unique_kc1_complaints(ctx) * toprf_update_encrypted_shares_SIZE \
+                                                            + unique_p_complaints(ctx) * toprf_update_encrypted_shares_SIZE)
 static TOPRF_Update_Err peer_disclose_mult_shares(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult-reconst1 disclose shares to reconstruct Mult secrets of cheaters\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx)) return Err_OSize;
@@ -2366,18 +2408,11 @@ static TOPRF_Update_Err peer_disclose_mult_shares(TOPRF_Update_PeerState *ctx, u
   // to test, enable in peer_final_handler both:
   // corrupt_share(ctx,5,3,1,ctx->kc1_shares);
   // corrupt_share(ctx,5,2,0,ctx->kc1_shares);
-  for(unsigned i=0;i<ctx->kc1_complaints_len;i++) {
-    const uint8_t peer = ctx->kc1_complaints[i] & 0xff;
-    memcpy(wptr, (*ctx->k0p_shares)[peer-1], TOPRF_Share_BYTES*2);
-    dump(wptr, TOPRF_Share_BYTES*2, "[%d] disclosing k0p share of %d", ctx->index, peer);
-    wptr+=TOPRF_Share_BYTES*2;
-  }
-  for(unsigned i=0;i<ctx->p_complaints_len;i++) {
-    const uint8_t peer = ctx->p_complaints[i] & 0xff;
-    memcpy(wptr, (*ctx->k1p_shares)[peer-1], TOPRF_Share_BYTES*2);
-    dump(wptr, TOPRF_Share_BYTES*2, "[%d] disclosing k1p share of %d", ctx->index, peer);
-    wptr+=TOPRF_Share_BYTES*2;
-  }
+  TOPRF_Update_Err ret;
+  ret =  disclose_shares(ctx->n, ctx->index, "k0p", ctx->kc1_complaints_len, ctx->kc1_complaints, (*ctx->k0p_shares), &wptr);
+  if(ret != Err_OK) return ret;
+  ret =  disclose_shares(ctx->n, ctx->index, "k1p", ctx->p_complaints_len, ctx->p_complaints, (*ctx->k1p_shares), &wptr);
+  if(ret != Err_OK) return ret;
 
   if(0!=toprf_send_msg(output,
                        output_len,
@@ -2392,31 +2427,38 @@ static TOPRF_Update_Err reconstruct(const uint8_t n, const uint8_t t,
                                     const char *type,
                                     const uint16_t complaints_len,
                                     const uint16_t complaints[complaints_len],
-                                    const TOPRF_Share shares[complaints_len][n][2],
+                                    const TOPRF_Share shares[unique_complaints(n, complaints_len, complaints)][n][2],
                                     const uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
-                                    uint8_t secrets[complaints_len][2][crypto_core_ristretto255_SCALARBYTES]) {
+                                    uint8_t secrets[unique_complaints(n, complaints_len, complaints)][2][crypto_core_ristretto255_SCALARBYTES]) {
   const uint8_t dealers = ((t-1)*2 + 1U);
   uint8_t (*c)[dealers][n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][n+1][crypto_core_ristretto255_BYTES]) commitments;
-  for(unsigned i=0;i<complaints_len;i++) {
+  uint8_t seen[n];
+  memset(seen, 0, sizeof seen);
+  for(unsigned i=0, share_idx=0;i<complaints_len;i++) {
     TOPRF_Share r[2];
     const uint8_t accused = complaints[i] & 0xff;
     const uint8_t accuser = complaints[i] >> 8;
+
+    if(accused>=n) return Err_OOB;
+    if(seen[accused-1]) continue;
+    seen[accused-1]=1;
+
     if(log_file!=NULL) fprintf(log_file, "[!] reconstructing %s share/commitment of dealer %d accused by %d\n", type, accused, accuser);
     unsigned t1=t;
     for(t1=t;t1<n;t1++) {
       fprintf(log_file, "trying degree t+%d\n", t1-t);
-      if(0!=dkg_vss_reconstruct(t1, 0, n, shares[i], &(*commitments)[(n+1) * (accused - 1) + 1], r[0].value, r[1].value)) continue;
+      if(0!=dkg_vss_reconstruct(t1, 0, n, shares[share_idx], &(*commitments)[(n+1) * (accused - 1) + 1], r[0].value, r[1].value)) continue;
       if(0!=dkg_vss_verify_commitment((*c)[accused-1][0],r)) continue;
       break;
     }
     if(t1>=n) return Err_Reconstruct;
 
     if(secrets!=NULL) {
-      if(0!=dkg_vss_reconstruct(t1, 0, n, shares[i], &(*commitments)[(n+1) * (accused - 1) + 1], secrets[i][0], secrets[i][1])) return Err_Reconstruct;
+      if(0!=dkg_vss_reconstruct(t1, 0, n, shares[share_idx], &(*commitments)[(n+1) * (accused - 1) + 1], secrets[i][0], secrets[i][1])) return Err_Reconstruct;
       dump((uint8_t*) secrets[i], 2*crypto_core_ristretto255_SCALARBYTES, "[!] reconstructed secret of %d", accused);
     }
 
-    if(0!=dkg_vss_reconstruct(t1, accuser, n, shares[i], &(*commitments)[(n+1) * (accused - 1) + 1], r[0].value, r[1].value)) return Err_Reconstruct;
+    if(0!=dkg_vss_reconstruct(t1, accuser, n, shares[share_idx], &(*commitments)[(n+1) * (accused - 1) + 1], r[0].value, r[1].value)) return Err_Reconstruct;
     dump((uint8_t*) &r, sizeof r, "[!] reconstructed share of %d - accused by %d", accused, accuser);
 
     if(0!=dkg_vss_verify_commitment((*c)[accused-1][accuser],r)) {
@@ -2429,14 +2471,16 @@ static TOPRF_Update_Err reconstruct(const uint8_t n, const uint8_t t,
       // done in case multiple shares from the same dealer have
       // adjusted commitments.
     }
+
+    share_idx++;
   }
   return Err_OK;
 }
 
 
 #define toprfupdate_stp_reconst_mult_shares_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message)      \
-                               + ctx->x2_complaints_len * toprf_update_encrypted_shares_SIZE \
-                               + ctx->y2_complaints_len * toprf_update_encrypted_shares_SIZE)
+                                                           + unique_x2_complaints(ctx) * toprf_update_encrypted_shares_SIZE \
+                                                           + unique_y2_complaints(ctx) * toprf_update_encrypted_shares_SIZE)
 static TOPRF_Update_Err stp_broadcast_reconst_mult_shares(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   TOPRF_Update_Err ret;
   ret = stp_broadcast(ctx, input, input_len, output, output_len,
@@ -2444,25 +2488,25 @@ static TOPRF_Update_Err stp_broadcast_reconst_mult_shares(TOPRF_Update_STPState 
                        ctx->n, toprfupdate_stp_reconst_mult_shares_msg_SIZE(ctx), toprfupdate_peer_reconst_mult_shares_msg, TOPRF_Update_STP_Route_ZK_Challenge_Commitments);
   if(ret != Err_OK) return ret;
 
-  TOPRF_Share k0p_shares[ctx->x2_complaints_len][ctx->n][2];
-  TOPRF_Share k1p_shares[ctx->y2_complaints_len][ctx->n][2];
+  TOPRF_Share k0p_shares[unique_x2_complaints(ctx)][ctx->n][2];
+  TOPRF_Share k1p_shares[unique_y2_complaints(ctx)][ctx->n][2];
   const uint8_t *ptr = input;
   for(uint8_t i=0;i<ctx->n;i++,ptr+=toprfupdate_stp_reconst_mult_shares_msg_SIZE(ctx)) {
     const TOPRF_Update_Message* msg = (const TOPRF_Update_Message*) ptr;
     const uint8_t *dptr = msg->data;
-    for(unsigned j=0;j<ctx->x2_complaints_len;j++) {
+    for(unsigned j=0;j<unique_x2_complaints(ctx);j++) {
       memcpy(k0p_shares[j][msg->from-1], dptr, TOPRF_Share_BYTES*2);
       dptr+=TOPRF_Share_BYTES*2;
     }
-    for(unsigned j=0;j<ctx->y2_complaints_len;j++) {
+    for(unsigned j=0;j<unique_y2_complaints(ctx);j++) {
       memcpy(k1p_shares[j][msg->from-1], dptr, TOPRF_Share_BYTES*2);
       dptr+=TOPRF_Share_BYTES*2;
     }
   }
 
-  ret = reconstruct(ctx->n, ctx->t,"k0p", ctx->x2_complaints_len,(*ctx->x2_complaints),k0p_shares,ctx->k0p_commitments, NULL);
+  ret = reconstruct(ctx->n, ctx->t,"k0p", ctx->x2_complaints_len,ctx->x2_complaints,k0p_shares,ctx->k0p_commitments, NULL);
   if(ret != Err_OK) return ret;
-  ret = reconstruct(ctx->n, ctx->t,"k1p", ctx->y2_complaints_len,(*ctx->y2_complaints),k1p_shares,ctx->k1p_commitments, NULL);
+  ret = reconstruct(ctx->n, ctx->t,"k1p", ctx->y2_complaints_len,ctx->y2_complaints,k1p_shares,ctx->k1p_commitments, NULL);
 
   return ret;
 }
@@ -2471,26 +2515,33 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
                                          const char *type,
                                          uint16_t *complaints_len,
                                          uint16_t complaints[*complaints_len],
-                                         const TOPRF_Share shares[*complaints_len][ctx->n][2],
+                                         const TOPRF_Share shares[unique_complaints(ctx->n, *complaints_len, complaints)][ctx->n][2],
                                          const uint8_t (*commitments)[][crypto_core_ristretto255_BYTES],
                                          TOPRF_Share (*my_shares)[2]) {
   const uint8_t dealers = ((ctx->t-1)*2 + 1U);
   uint8_t (*c)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) commitments;
-  for(unsigned i=0;i<*complaints_len;i++) {
+  uint8_t seen[ctx->n];
+  memset(seen, 0, sizeof seen);
+  for(unsigned i=0, share_idx=0;i<*complaints_len;i++) {
     TOPRF_Share r[2];
     const uint8_t accused = complaints[i] & 0xff;
     const uint8_t accuser = complaints[i] >> 8;
+
+    if(accused>=ctx->n) return Err_OOB;
+    if(seen[accused-1]) continue;
+    seen[accused-1]=1;
+
     if(log_file!=NULL) fprintf(log_file, "[%d] reconstructing %s share/commitment of dealer %d accused by %d\n", ctx->index, type, accused, accuser);
     unsigned t1=ctx->t;
     for(t1=ctx->t;t1<ctx->n;t1++) {
       fprintf(log_file, "trying degree t+%d\n", t1-ctx->t);
-      if(0!=dkg_vss_reconstruct(t1, 0, ctx->n, shares[i], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) continue;
+      if(0!=dkg_vss_reconstruct(t1, 0, ctx->n, shares[share_idx], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) continue;
       if(0!=dkg_vss_verify_commitment((*c)[accused-1][0],r)) continue;
       break;
     }
     if(t1>=ctx->n) return Err_Reconstruct;
 
-    if(0!=dkg_vss_reconstruct(t1, accuser, ctx->n, shares[i], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) return Err_Reconstruct;
+    if(0!=dkg_vss_reconstruct(t1, accuser, ctx->n, shares[share_idx], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) return Err_Reconstruct;
     dump((uint8_t*) &r, sizeof r, "[%d] reconstructed share of %d - accused by %d", ctx->index, accused, accuser);
 
     if(0!=dkg_vss_verify_commitment((*c)[accused-1][accuser],r)) {
@@ -2513,7 +2564,7 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
     }
 
     if(accuser != ctx->index) {
-      if(0!=dkg_vss_reconstruct(t1, ctx->index, ctx->n, shares[i], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) return Err_Reconstruct;
+      if(0!=dkg_vss_reconstruct(t1, ctx->index, ctx->n, shares[share_idx], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) return Err_Reconstruct;
     }
 
     const int diff = (memcmp(r[0].value, my_shares[accused - 1][0].value, 32)!=0) |  (memcmp(r[1].value, my_shares[accused - 1][1].value, 32)!=0) << 1;
@@ -2532,6 +2583,7 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
         memcpy(my_shares[accused - 1][1].value, r[1].value, 32);
       }
     }
+    share_idx++;
   }
   *complaints_len = 0;
   memset(complaints, 0, ctx->n*2);
@@ -2548,17 +2600,17 @@ static TOPRF_Update_Err peer_reconst_mult_shares(TOPRF_Update_PeerState *ctx, co
   int ret = unwrap_envelope(ctx,input,input_len,toprfupdate_stp_bc_reconst_mult_shares_msg,&ptr);
   if(ret!=Err_OK) return ret;
 
-  TOPRF_Share k0p_shares[ctx->kc1_complaints_len][ctx->n][2];
-  TOPRF_Share k1p_shares[ctx->p_complaints_len][ctx->n][2];
+  TOPRF_Share k0p_shares[unique_kc1_complaints(ctx)][ctx->n][2];
+  TOPRF_Share k1p_shares[unique_p_complaints(ctx)][ctx->n][2];
   for(uint8_t i=0;i<ctx->n;i++,ptr+=toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx)) {
     const TOPRF_Update_Message* msg = (const TOPRF_Update_Message*) ptr;
     if(peer_recv_msg(ctx,ptr,toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx),toprfupdate_peer_reconst_mult_shares_msg,i+1,0xff)) continue;
     const uint8_t *dptr = msg->data;
-    for(unsigned j=0;j<ctx->kc1_complaints_len;j++) {
+    for(unsigned j=0;j<unique_kc1_complaints(ctx);j++) {
       memcpy(k0p_shares[j][msg->from-1], dptr, TOPRF_Share_BYTES*2);
       dptr+=TOPRF_Share_BYTES*2;
     }
-    for(unsigned j=0;j<ctx->p_complaints_len;j++) {
+    for(unsigned j=0;j<unique_p_complaints(ctx);j++) {
       memcpy(k1p_shares[j][msg->from-1], dptr, TOPRF_Share_BYTES*2);
       dptr+=TOPRF_Share_BYTES*2;
     }
@@ -3018,10 +3070,10 @@ static TOPRF_Update_Err stp_step35_handler(TOPRF_Update_STPState *ctx, const uin
   ctx->p_complaints_len = 0;
   const uint8_t *fails_len = fails[0];
   const uint8_t *xfails = fails_len+1;
-  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->kc1_complaints_len, (*ctx->kc1_complaints), 0, 0, 0);
+  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->kc1_complaints_len, ctx->kc1_complaints, 0, 0, 0);
   fails_len = fails[1];
   xfails = fails_len+1;
-  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->p_complaints_len, (*ctx->p_complaints), 0, 0, 0);
+  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->p_complaints_len, ctx->p_complaints, 0, 0, 0);
 
   if(ctx->kc1_complaints_len != 0 || ctx->p_complaints_len != 0) {
     dump((uint8_t*) ctx->kc1_complaints, ctx->kc1_complaints_len*sizeof(uint16_t), "[!] complaints_1");
@@ -3154,8 +3206,8 @@ static TOPRF_Update_Err stp_bc_zk_disclosures(TOPRF_Update_STPState *ctx, const 
   const uint8_t dealers = ((ctx->t-1)*2 + 1);
   uint8_t (*c)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k0p_commitments);
   for(unsigned i=0;i<ctx->kc1_complaints_len;i++) {
-    const uint8_t accused = (*ctx->kc1_complaints)[i] & 0xff;
-    //const uint8_t accuser = (*ctx->kc1_complaints)[i] >> 8;
+    const uint8_t accused = ctx->kc1_complaints[i] & 0xff;
+    //const uint8_t accuser = ctx->kc1_complaints[i] >> 8;
     //if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*ctx->k0p_commitments)[(ctx->n+1) * (accused-1) +1], secret[0].value, secret[1].value)) return 1;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed lab");
@@ -3163,8 +3215,8 @@ static TOPRF_Update_Err stp_bc_zk_disclosures(TOPRF_Update_STPState *ctx, const 
   }
   c = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k1p_commitments);
   for(unsigned i=0;i<ctx->p_complaints_len;i++) {
-    const uint8_t accused = (*ctx->p_complaints)[i] & 0xff;
-    //const uint8_t accuser = (*ctx->p_complaints)[i] >> 8;
+    const uint8_t accused = ctx->p_complaints[i] & 0xff;
+    //const uint8_t accuser = ctx->p_complaints[i] >> 8;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k1p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed");
     if(0!=dkg_vss_commit(secret[0].value, secret[1].value, (*c)[accused-1][0])) return Err_VSSCommit;
@@ -3204,7 +3256,7 @@ static TOPRF_Update_Err peer_reconst_zk_shares(TOPRF_Update_PeerState *ctx, cons
   uint8_t (*c)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k0p_commitments);
   for(unsigned i=0;i<ctx->kc1_complaints_len;i++) {
     const uint8_t accused = ctx->kc1_complaints[i] & 0xff;
-    //const uint8_t accuser = (*ctx->kc1_complaints)[i] >> 8;
+    //const uint8_t accuser = ctx->kc1_complaints[i] >> 8;
     //if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*ctx->k0p_commitments)[(ctx->n+1) * (accused-1) +1], secret[0].value, secret[1].value)) return 1;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed lab");
@@ -3213,7 +3265,7 @@ static TOPRF_Update_Err peer_reconst_zk_shares(TOPRF_Update_PeerState *ctx, cons
   c = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k1p_commitments);
   for(unsigned i=0;i<ctx->p_complaints_len;i++) {
     const uint8_t accused = ctx->p_complaints[i] & 0xff;
-    //const uint8_t accuser = (*ctx->p_complaints)[i] >> 8;
+    //const uint8_t accuser = ctx->p_complaints[i] >> 8;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k1p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed");
     if(0!=dkg_vss_commit(secret[0].value, secret[1].value, (*c)[accused-1][0])) return Err_VSSCommit;
@@ -3347,10 +3399,10 @@ static TOPRF_Update_Err stp_step40_handler(TOPRF_Update_STPState *ctx, const uin
   ctx->p_complaints_len = 0;
   const uint8_t *fails_len = fails[0];
   const uint8_t *xfails = fails_len+1;
-  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->kc1_complaints_len, (*ctx->kc1_complaints), 0, 0, 0);
+  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->kc1_complaints_len, ctx->kc1_complaints, 0, 0, 0);
   fails_len = fails[1];
   xfails = fails_len+1;
-  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->p_complaints_len, (*ctx->p_complaints), 0, 0, 0);
+  handle_complaints(dealers, 0, *fails_len, xfails, &ctx->p_complaints_len, ctx->p_complaints, 0, 0, 0);
 
   if(0!=toprf_send_msg(output, output_len, toprfupdate_stp_bc_mult3_msg, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return Err_Send;
   // add broadcast msg to transcript
@@ -3563,9 +3615,9 @@ static TOPRF_Update_Err stp_bc_vsps_disclosures(TOPRF_Update_STPState *ctx, cons
     }
   }
 
-  ret = stp_reshare(ctx, ctx->kc1_complaints_len, (*ctx->kc1_complaints), k0p_shares, '0', ctx->k0p_commitments);
+  ret = stp_reshare(ctx, ctx->kc1_complaints_len, ctx->kc1_complaints, k0p_shares, '0', ctx->k0p_commitments);
   if(ret!=Err_OK) return ret;
-  ret = stp_reshare(ctx, ctx->p_complaints_len, (*ctx->p_complaints), k1p_shares, '0', ctx->k1p_commitments);
+  ret = stp_reshare(ctx, ctx->p_complaints_len, ctx->p_complaints, k1p_shares, '0', ctx->k1p_commitments);
   if(ret!=Err_OK) return ret;
 
   const uint8_t dealers = ((ctx->t-1)*2 + 1);
@@ -3822,12 +3874,12 @@ int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes
     memset(ctr1,0,ctx->n);
     memset(ctr2,0,ctx->n);
     for(int i=0;i<ctx->kc1_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->kc1_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->kc1_complaints[i] & 0xff) - 1;
       if(peer>=ctx->n) return Err_OOB;
       ctr1[peer]++;
     }
     for(int i=0;i<ctx->p_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->p_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->p_complaints[i] & 0xff) - 1;
       if(peer>=ctx->n) return Err_OOB;
       ctr2[peer]++;
     }
@@ -3867,12 +3919,12 @@ int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes
     memset(ctr1,0,sizeof ctr1);
     memset(ctr2,0,sizeof ctr2);
     for(int i=0;i<ctx->kc1_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->kc1_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->kc1_complaints[i] & 0xff) - 1;
       if(peer>=dealers) return Err_OOB;
       ctr1[peer]++;
     }
     for(int i=0;i<ctx->p_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->p_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->p_complaints[i] & 0xff) - 1;
       if(peer>=dealers) return Err_OOB;
       ctr2[peer]++;
     }
@@ -4013,12 +4065,12 @@ int toprf_update_stp_peer_msg(const TOPRF_Update_STPState *ctx, const uint8_t *b
     memset(ctr1,0,sizeof ctr1);
     memset(ctr2,0,sizeof ctr2);
     for(int i=0;i<ctx->kc1_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->kc1_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->kc1_complaints[i] & 0xff) - 1;
       if(peer>=ctx->n) return Err_OOB;
       ctr1[peer]++;
     }
     for(int i=0;i<ctx->p_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->p_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->p_complaints[i] & 0xff) - 1;
       if(peer>=ctx->n) return Err_OOB;
       ctr2[peer]++;
     }
@@ -4064,12 +4116,12 @@ int toprf_update_stp_peer_msg(const TOPRF_Update_STPState *ctx, const uint8_t *b
     memset(ctr1,0,sizeof ctr1);
     memset(ctr2,0,sizeof ctr2);
     for(int i=0;i<ctx->kc1_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->kc1_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->kc1_complaints[i] & 0xff) - 1;
       if(peer>=dealers) return Err_OOB;
       ctr1[peer]++;
     }
     for(int i=0;i<ctx->p_complaints_len;i++) {
-      const uint8_t peer = ((*ctx->p_complaints)[i] & 0xff) - 1;
+      const uint8_t peer = (ctx->p_complaints[i] & 0xff) - 1;
       if(peer>=dealers) return Err_OOB;
       ctr2[peer]++;
     }

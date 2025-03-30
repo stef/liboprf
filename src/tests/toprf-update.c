@@ -158,10 +158,10 @@ int main(const int argc, const char **argv) {
   TOPRF_Update_Cheater stp_cheaters[t*t - 1];
   memset(stp_cheaters,0,sizeof(stp_cheaters));
   toprf_update_stp_set_bufs(&stp,
-                            &stp_kc1_complaints,
-                            &stp_p_complaints,
-                            &stp_x2_complaints,
-                            &stp_y2_complaints,
+                            stp_kc1_complaints,
+                            stp_p_complaints,
+                            stp_x2_complaints,
+                            stp_y2_complaints,
                             &stp_cheaters,
                             sizeof(stp_cheaters) / sizeof(TOPRF_Update_Cheater),
                             &stp_kc1_commitments_hashes,
@@ -339,7 +339,7 @@ int main(const int argc, const char **argv) {
       else stp_in = stp_in_buf;
 
       _recv(network_buf[0], &pkt_len[0], stp_in, stp_in_size);
-      if(pkt_len[0]>0) fprintf(stderr, "\x1b[0;31m pkt_len[0] > 0 -> %ld\x1b[0m\n", pkt_len[0]);
+      if(pkt_len[0]>0) fprintf(stderr, RED"[!] pkt_len[0] > 0 -> %ld unconsumed\n"NORMAL, pkt_len[0]);
 
       ret = toprf_update_stp_next(&stp, stp_in, stp_in_size, stp_out, stp_out_size);
       if(0!=ret) {
