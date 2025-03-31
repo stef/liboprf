@@ -1,4 +1,8 @@
+#ifdef __WIN32__
+#include <winsock2.h>
+#else
 #include <arpa/inet.h> //htons
+#endif
 #include "utils.h"
 #include "toprf-update.h"
 #include "dkg-vss.h"
