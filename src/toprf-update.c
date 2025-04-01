@@ -3161,16 +3161,12 @@ static TOPRF_Update_Err peer_zkproof_disclose(TOPRF_Update_PeerState *ctx, uint8
 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
   uint8_t *wptr = msg->data;
-  for(unsigned i=0;i<ctx->kc1_complaints_len;i++) {
-    const uint8_t peer = ctx->kc1_complaints[i] & 0xff;
-    memcpy(wptr, (*ctx->k0p_shares)[peer-1], TOPRF_Share_BYTES*2);
-    wptr+=TOPRF_Share_BYTES*2;
-  }
-  for(unsigned i=0;i<ctx->p_complaints_len;i++) {
-    const uint8_t peer = ctx->p_complaints[i] & 0xff;
-    memcpy(wptr, (*ctx->k1p_shares)[peer-1], TOPRF_Share_BYTES*2);
-    wptr+=TOPRF_Share_BYTES*2;
-  }
+
+  TOPRF_Update_Err ret;
+  ret = disclose_shares(ctx->n, ctx->index, "k0p", ctx->kc1_complaints_len, ctx->kc1_complaints, (*ctx->k0p_shares), &wptr);
+  if(ret != Err_OK) return ret;
+  ret = disclose_shares(ctx->n, ctx->index, "k1p", ctx->p_complaints_len, ctx->p_complaints, (*ctx->k1p_shares), &wptr);
+  if(ret != Err_OK) return ret;
 
   if(0!=toprf_send_msg(output, output_len, toprfupdate_peer_zk_disclose_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return Err_Send;
 
