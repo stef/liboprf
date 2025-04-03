@@ -1,0 +1,10 @@
+fuzz-bin
+fuzz-dump
+in
+out
+fuzz-complog
+fuzz-bin-asan
+fuzz-bin-asan-peer
+fuzz-bin-peer
+fuzz-complog-peer
+fuzz-dump-peer
