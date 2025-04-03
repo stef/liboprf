@@ -60,39 +60,56 @@ There is three roles in this protocol:
 
 ------<=[ Prototocol Phases                             ]=>-----------
 
+Some of the following phases are optional and only executed if the
+previous step revealed a misbehaving party, these phases make the
+protocol robust to also successfully complete in the presence of
+misbehaving parties. Phases 3, 5, 7, and 9 are these optional
+corrective phases.
+
 0. pre-condition: all parties know the long-term signing keys of each
    other. STP ensures that n >= 2t+1 and at least 2t+1 of them hold
    shares of the old key kc, otherwise abort.
 
-1. execute STP-DKG for all peers that hold a share of kc, calculating
+1. Initialization, sharing of basic parameters, setup of p2p noise
+   channels.
+
+2. execute STP-DKG for all peers that hold a share of kc, calculating
    sharing of new key kc' and in parallel also a sharing of ρ, if a
    fast-track VSPS check fails disqualify the cheaters, abort if less
    than 2t+1 peers remain in the intersection of the two DKGs which
    qualify as dealers. Abort if some other hard-fail occurs during the
    DKG.
 
-2. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ),
+3. DKG dealers defend against complaints by revealing contested
+   shares. Based on this peers disqualify any misbehaving peers from
+   contributing to the result of the DKG.
+
+4. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ),
    generating sharings of r and in parallel calculate FT-Mult(kc`, ρ),
    generating sharings of r'.
 
-3. Verify the commitments matching the shares of step 2, if there is
+5. Verify the commitments matching the shares of step 2, if there is
    failures to verify run a recovery procedure to correct the failing
    shares/commitments.
 
-4. Dealers run ZK proofs on the correctness of their 𝓒_i0
+6. Dealers run ZK proofs on the correctness of their 𝓒_i0
    commitment. If any of these fails, run a recovery procedure to
    correct the commitment.
 
-5. Run a Fast-track VSPS check on the final commitments for the shares
-   of the multiplications. Fi any of these fails, run a recovery
-   procedure to correct the shares/commitments.
+7. Recover from failed ZK proofs, reconstructing the failing dealer
+   P_i secret λ_iα_iβ_i and recalculating the correct 𝓒_i0 commitment.
 
-6. parties send their r and r` shares to the STP
+8. Aggregate the final shares and commitments. Run a Fast-track VSPS
+   check on the final commitments for the shares of the
+   multiplications. If any of these fails, run a recovery procedure.
 
-7. STP reconstructs r = ρ·kc and r′ = ρ·kc′ and computes ∆= r/r′.
+9. Recovery of λ_iα_iβ_i for any dealer who fails the VSPS check and
+   deterministically re-share the recovered secret.
 
-8. parties delete their r and r` shares and replace their kc share
-   with their kc` share.
+10. Finalization of computation: parties send their r and r` shares to
+   the STP which reconstructs r = ρ·kc and r′ = ρ·kc′ and computes ∆=
+   r/r′.Parties delete their r and r` shares and replace their kc
+   share with their kc` share.
 
 ------<=[ Simplified API                                ]=>-----------
 
