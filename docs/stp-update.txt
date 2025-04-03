@@ -1,5 +1,7 @@
 Semi-Trusted-Party (STP) threshold-OPRF key-update Protocol
 
+[[[ note this is a draft, which matches the current implementation, changes are still expected ]]]
+
 This document specifies a proposal for a semi-robust threshold-OPRF
 key- update protocol that can work for small deployments with a small
 number of parties and infrequent executions. Semi-robust means that
@@ -8,20 +10,20 @@ still succeed later if some parties are detected cheating or
 aborting. If someone aborts in the first DKG phase then the protocol
 needs to run again, possibly after kicking out misbehaving
 parties. This protocol does support maximum 127 peers. This is
-probably already too much for a generic threshold protocol, but it
+probably way too much for a generic threshold protocol, but it
 might work in very special circumstances.
 
-Broadcast is implemented by the trusted party (STP) opening a channel
-to each peer secured by the peers long-term encryption key. Every
-message is routed through the STP.
+Broadcast is implemented by the semi-trusted party (STP) opening a
+channel to each peer secured by the peers long-term encryption
+key. Every message is routed through the STP.
 
 Peer long-term encryption keys can be either TLS-based, or
 Noise_XK-based (https://noiseexplorer.com/patterns/XK/). In the latter
 case the long-term public keys must be known and validated in advance
 by the STP.
 
-Peers long-term signing keys MUST be known by all parties before the
-start of the protocol.
+The long-term signing keys of peers MUST be known by all parties
+before the start of the protocol.
 
 This protocol is based on the threshold updatable OPRF as described in
 section 6.2 of [JKR18].
@@ -52,8 +54,8 @@ There is three roles in this protocol:
 
  - semi-trusted party orchestrating the communication between all
    other participants.
- - dealers: exactly 2t+1 participants (having shares of both kc and
-   kc') are acting as dealers
+ - dealers: exactly 2t+1 participants (having shares of both kc, kc'
+   and p) are acting as dealers
  - all participants
 
 ------<=[ Prototocol Phases                             ]=>-----------
@@ -63,26 +65,33 @@ There is three roles in this protocol:
    shares of the old key kc, otherwise abort.
 
 1. execute STP-DKG for all peers that hold a share of kc, calculating
-   sharing of new key kc', if disqualify cheaters, abort if less than
-   2t+1 peers remain in the intersection of the two DKGs qualified
-   dealers. Abort if some other hard-fail occurs during the DKG.
+   sharing of new key kc' and in parallel also a sharing of ρ, if a
+   fast-track VSPS check fails disqualify the cheaters, abort if less
+   than 2t+1 peers remain in the intersection of the two DKGs which
+   qualify as dealers. Abort if some other hard-fail occurs during the
+   DKG.
 
-2. execute STP-DKG for all dealers, calculating sharing of ρ, if DKG
-   fails, abort. - SHOULD be executed in parallel with step 1. With
-   exactly the same properties, conditions, outcomes, etc.
+2. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ),
+   generating sharings of r and in parallel calculate FT-Mult(kc`, ρ),
+   generating sharings of r'.
 
-3. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ),
-   generating sharings of r.
+3. Verify the commitments matching the shares of step 2, if there is
+   failures to verify run a recovery procedure to correct the failing
+   shares/commitments.
 
-4. execute the FT-Mult protocol, to calculate FT-Mult(kc`, ρ),
-   generating sharings of r'. SHOULD be executed in parallel with
-   step 3.
+4. Dealers run ZK proofs on the correctness of their 𝓒_i0
+   commitment. If any of these fails, run a recovery procedure to
+   correct the commitment.
 
-5. parties send their r and r` shares to the STP
+5. Run a Fast-track VSPS check on the final commitments for the shares
+   of the multiplications. Fi any of these fails, run a recovery
+   procedure to correct the shares/commitments.
 
-6. STP reconstructs r = ρ·kc and r′ = ρ·kc′ and computes ∆= r/r′.
+6. parties send their r and r` shares to the STP
 
-7. parties delete their r and r` shares and replace their kc share
+7. STP reconstructs r = ρ·kc and r′ = ρ·kc′ and computes ∆= r/r′.
+
+8. parties delete their r and r` shares and replace their kc share
    with their kc` share.
 
 ------<=[ Simplified API                                ]=>-----------
@@ -120,14 +129,19 @@ The transcript is a hash, that is initialized with the string:
 
 in pseudo-code:
 
-   transcript_state = hash_init("stp update session transcript")
+```
+   transcript_state = hash_init()
+   transcript_state = hash_update("stp update session transcript")
+```
 
 Updating the transcript first updates the hash with the canonical
 32bit size of the message to be added to the transcript, then the
 message itself is added to the hash.
 
+```
     transcript_state = hash_update(transcript_state, I2OSP(len(msg))
     transcript_state = hash_update(transcript_state, msg)
+```
 
 A function `update_ts` can be used as a high-level interface to
 updating the transcript with messages:
@@ -154,10 +168,10 @@ value of cryptographic quality.
 Every message sent MUST contain a valid session id.
 
 The session id is established in the very first steps of the protocol,
-where each peer generates a nonce, and broadcasts this, and uppon
-reception of all peers such nonces hashes the STP session id nonce
-together with the concatenation of the peers nonces (in order of the
-peers) to establish the final session id.
+where each peer generates a 32B nonce, and broadcasts this, and - upon
+reception of all peers - hashes the STP session id nonce together with
+the concatenation of the peers nonces (in order of the peers) to
+establish the final session id.
 
 ------<=[ Message header                                ]=>-----------
 
@@ -180,8 +194,8 @@ the header and all of the data.
 The field sign_here is a zero-bit field, only used for addressing the
 start of the data to be signed or verified.
 
-The next field is the protocol type identifier. STP-DKG has an
-identifier value of 128 (0x80). And currently a version number of 0.
+The next field is the protocol type identifier. STP Update has an
+identifier value of 129 (0x81). And currently a version number of 0.
 
 The following field in the header is really a state identifier. A
 recipient MUST verify that the messageno is matching with the expected
@@ -228,6 +242,7 @@ fields:
 
 ```
    assert(msg.type == 0x81)
+   assert(msg.version == 0)
    assert(msg.messageno == expected_messageno)
    assert(msg.from == expected_sender_id)
    assert(msg.to == (own_peer_id or 0xff))
@@ -241,8 +256,6 @@ value that doesn't cause protocol aborts due to slow responses.
 If at any step of the protocol any participant receives one or more
 messages that fail these checks, the participant MUST abort the
 protocol and log all violations and if possible alert the user.
-
-Note the sub-protocols STP-DKG and FT-MULT have their own message types.
 
 ------<=[ Message transmission                          ]=>-----------
 
@@ -266,7 +279,7 @@ data = recv_msg(msgno, from, to, ref_ts, sign_pk, session_id, msg)
     assert(msg.type == 0x81)
     assert(msg.version == 0)
     assert(msg.messageno == msgno)
-    assert(msg.len == len(msg|sig))
+    assert(msg.len == len(msg))
     assert(msg.from == from)
     assert(msg.to == to)
     assert(ref_ts < msg.ts < ref_ts + timeout))
@@ -280,9 +293,9 @@ values expected according to the current protocol state.
 
 ------<=[ Cheater detection                             ]=>-----------
 
-The STP MUST report to the user all errors that can identify cheating
-peers in any given step. For each detected cheating peer the STP MUST
-record the following information:
+All participants MUST report to the user all errors that can identify
+cheating peers in any given step. For each detected cheating peer the
+participants MUST record and log the following information:
 
  - the current protocol step,
  - the violating peer,
@@ -299,8 +312,7 @@ reports all violators with their parameters to the user.
 
 Abort conditions include any errors detected by recv_msg(), or when
 the number of complaints is more than t for one peer, or more than t^2
-in total, as well any of the checks of the JF-DKG algorithm from
-[GJKR06].
+in total.
 
 Participants should log all broadcast interactions, so that any
 post-mortem investigation can identify cheaters.
@@ -330,9 +342,11 @@ as in fig. 6 of [GRR98], page 19. It goes as follows:
 2. STP and peers MUST know long-term signing keys of everyone in the
    protocol.
 
-3. There is at least 2t+1 dealers participating in the protocol.
+3. There is at least 2t+1 peers holding shares of both operands
+   participating in the protocol, 2t+1 of them will be acting as
+   dealers, the rest of the participants act as passive receivers.
 
-4. Each Peer P_i has
+4. Each dealer P_i has
    - a share of α: α_i = 𝑓_α(i), one of the values to multiply
    - a share of β: β_i = 𝑓_β(i), the other value to multiply
    - a share of 𝑟: ρ_i = 𝑟(i), a blinding factor for the homomorphic commitment of α
@@ -386,15 +400,20 @@ This initial message contains:
  - and an initial session_id.
 
 The peers receive this message, and check if the public key of the STP
-is authorized to operate on this key. And respond accordingly.
+is authorized to operate on this key, they abort if the STP is
+unauthorized.
 
 ------<=[ 1. Peer shares sid nonce                      ]=>-----------
 
-This step has no input, it is initiated (and initialized) by the call
-to toprf_update_start_peer().
+The peers all receive the initial message from the STP.
 
-Each peer generates their own session id nonce. This nonce is
-broadcast via the STP.
+This message contains a keyid, so that the client can check and load
+the corresponding kc key share and corresponding long-term signature
+keys of the peers, information stored in an internal state.
+
+Finally the peers each start their own protocol loop, in which they
+generate their own session id nonce. This nonce is broadcast via the
+STP.
 
 ------<=[ 2. STP sets sessionid and forwards keys       ]=>-----------
 
@@ -453,6 +472,8 @@ This step concludes the Initialization phase and starts the DKG phase.
 
 The peers receive the 3rd and final message of the Noise handshakes,
 completing the setup of these Noise-protected peer-to-peer channels.
+
+------<=[ Phase 2 - STP DKG of kc' and p                ]=>-----------
 
 The peers then start the DKG phase during which they collectively
 generate the new shared key kc' and the shared p blinding
@@ -565,7 +586,7 @@ msg_8 = send_msg(8, peerid, 0xff, peer_sign_sk, session_id, {kc1_A, p_A})
 
 ------<=[ 12. STP broadcasts all commitments            ]=>-------
 
-This is a classical STP broadcast step. Besides keeping a copy of all
+This is a regular STP broadcast step. Besides keeping a copy of all
 commitments, the STP does also verify the commitment hashes and does
 an FT-VSPS check on the commitments.
 
@@ -776,6 +797,11 @@ if len(keys) > 0
    send(msg_12)
 ```
 
+------<=[ Phase 3 - STP DKG cheater handling            ]=>-----------
+
+If any complaints have been registered in the previous phase,
+investigate and neutralize any possible cheaters.
+
 ------<=[ 16. STP collects all defenses, verifies&broadcasts them ]=>-------
 
 STP checks if all complaints lodged earlier are answered by the
@@ -882,7 +908,7 @@ msg_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, {transcript, C})
 send(msg_20)
 ```
 
-------<=[ 21. STP receives all and verifies transcripts        ]=>-------
+------<=[ 21. STP receives and verifies all transcripts        ]=>-------
 
 STP receives all transcripts, and asserts that they all match its own
 transcript, it reports if any transcript mismatch is detected. It also
@@ -918,6 +944,11 @@ the same check as the STP in the previous step and abort if any of
 these fails. Otherwise the protocol continues with the FT-Mult phase
 of calculating kc*p and kc'*p.
 
+------<=[ Phase 4 - FT-Mult                             ]=>-----------
+
+In this phase we calculate the product of the original key kc with p
+and the new key kc' with p in parallel.
+
 All the peers pre-compute the inverted Vandermonde matrix based on the
 indices of the dealers for the multiplications, and cache its first
 row in their internal state.
@@ -933,7 +964,7 @@ calculation, we use the following notation:
  - a share of 𝑠: σ_i = 𝑠(i), blinding factor for the homomorphic
    commitment of β
 
-public inputs, for i:=0..n
+public inputs, for i:=1..n
 
  - 𝓐_i = 𝓗(α_i,ρ_i) = g^(α_i)*h^(ρ_i) - the commitments to the
    shares of the value to multiply
@@ -943,7 +974,6 @@ public inputs, for i:=0..n
 We denote as a dealer all peers, whose index is smaller or equal to
 2(t-1)+1. (we use t to denote the threshold, but we need to decrease
 it by one to get the degree of the polynomial)
-
 
 Each dealer P_i shares λ_iα_iβ_i, using VSS:
 
@@ -963,29 +993,135 @@ public information:
 𝓒_ij = g^(c_ij) * h^(τ_ij) for i,j := 1..n
 𝓒_i0 = g^(c_i0) * h^(τ_i0) for i := 1..n
 
-Dealers broadcast their 𝓒_i0, 𝓒_ij commitments for both kc*p and kc'*p
-to all peers.
+Dealers broadcast their a hash of their 𝓒_i0, 𝓒_ij commitments for
+each of their sharings for kc*p and kc'*p, and the HMACs for each of
+the shares to all peers.
 
-------<=[ 23. STP broadcasts 𝓒_i0, 𝓒_ij for kc*p and kc'*p ]=>-----------
+------<=[ 23. STP broadcasts commitment hashes and HMACs   ]=>-----------
 
-STP does the regular broadcasting procedure.
+STP does the regular broadcasting procedure. The STP keeps a copy of
+all commitment hashes and of all share HMACs for later.
 
-------<=[ 24. Peers receive commitments, send shares    ]=>-----------
+------<=[ 24. Peers receive commitments hashes and HMACs]=>-----------
 
-Peers receive and store the commitments in an internal state for later.
+Peers receive and store the commitment hashes and the share HMACs in
+an internal state for later.
+
+Dealers broadcast their commitments.
+
+------<=[ 25. STP broadcasts 𝓒_i0, 𝓒_ij for kc*p and kc'*p ]=>-----------
+
+STP does the regular broadcasting procedure. STP verifies the
+commitment hashes received in the previous step against commitments,
+aborts if any of these fails. STP may also run VSPS checks on all of
+the commitments, reports any failures, but otherwise doesn't react to
+them and just continues.
+
+------<=[ 26. Peers receive commitments, send shares    ]=>-----------
+
+Peers receive all commitments and verify them against the commitment
+hashes. If this fails, they abort.
 
 Dealers send the shares c_ij, τ_ij for both kc*p and kc'p to the
 corresponding peers via noise protected channel.
 
-------<=[ 25. STP standard p2p routing shares           ]=>-----------
+------<=[ 27. STP standard p2p routing shares           ]=>-----------
 
 In this step the STP simply distributes the incoming Noise protected
 shares to their proper recipients.
 
-------<=[ 26. Peers receive shares                      ]=>-----------
+------<=[ 28. Peers receive shares                      ]=>-----------
 
 Peers receive shares, verify them against the previously broadcast
-commitments.
+commitments. Peers broadcast complaints against any dealers failing
+their commitments.
+
+------<=[ 29. STP broadcasts complaints                 ]=>-----------
+
+STP does the regular broadcasting procedure. If there are no
+complaints registered the STP will continue with the regular protocol,
+otherwise the next step will be conflict resolution.
+
+------<=[ 30. Peers receive complaints                  ]=>-----------
+
+In this step the peers decide whether to continue with the regular
+protocol or they engage in conflict resolution.
+
+If there is complaints, the accused dealer broadcasts the contested
+encrypted shares together with their encryption keys.
+
+If there is no complaints, the regular protocol continues with the
+verification of the ZK proofs on the correctness of 𝓒_i0.
+
+------<=[ Phase 5 - Recover from commitment failures    ]=>-----------
+
+------<=[ 31. STP broadcasts dealer defenses            ]=>-----------
+
+In case there was complaints, the STP checks for each disclosure if
+the previously stored share HMACs equal the hmac(key, encrypted
+share), and if the commitment matches the decrypted share. The STP
+keeps track of these results to anticipate which dealer will send how
+much data in the next step.
+
+------<=[ 32. Peers receive dealer defenses             ]=>-----------
+
+Each peer checks for each disclosure if the previously stored share
+HMACs equal the hmac(key, encrypted share), and if the commitment
+matches the decrypted share. If both of these checks succeed, then the
+accused dealer is cleared and the accuser is reported, and the
+complaint is cleared.
+
+If there is no valid complaints, the regular protocol continues with
+the next phase: verification of the ZK proofs on the correctness of 𝓒_i0.
+
+For any valid remaining complaints, the peers reconstruct the accused
+dealers secret by broadcasting their share to everyone.
+
+------<=[ 33. STP broadcasts shares for reconstruction  ]=>-----------
+
+STP does the regular broadcasting procedure. Based on the received
+shares STP also reconstructs any shares and corrects any invalid
+commitments it has stored.
+
+Reconstruction is done as following:
+
+0. we set the candidate threshold to the originally configured
+   threshold.
+
+1. all shares are checked against their commitments and any correct
+   ones are selected for reconstructing the shared secret. If there is
+   not enough correct shares to satisfy the threshold the
+   reconstruction attempt fails.
+
+2. the reconstructed secret is verified against the 𝓒_i0 commitment,
+   if this succeeds the reconstruction attempt is successful and we
+   continue with the next step. If the attempt fails we increment the
+   threshold by one and abort if we have less shares than this new
+   threshold, otherwise we try again with step 2.
+
+3. If step 2 succeeded in reconstructing the secret with a candidate
+   threshold, we reconstruct any contested shares and their
+   commitments.
+
+------<=[ 34. Peers receive shares for reconstruction   ]=>-----------
+
+Peers reconstruct any shares that have been complained about - the
+accuser replaces their previously possibly faulty share with the
+reconstructed share - and calculate the correct commitment for this
+share, if this is different than previously received, this is replaced
+by the corrected one. See the previous STP step on how the
+reconstruction process works.
+
+This step has no output. Peers immediately continue with the next
+step.
+
+------<=[ Phase 6 - ZK proof of correctness of product  ]=>-----------
+
+------<=[ 35. Dealers prove in ZK correctness of 𝓒_i0   ]=>-----------
+
+This step has no input, we arrive here either because there was no
+complaints, all complaints were invalid, or the valid complaints
+were neutralized by reconstruction of the contested shares.
 
 We now start the ZK proofs, in which P_i proves in zk that 𝓒_i0 is a
 commitment of the product λ_iα_iβ_i. As per Appendix F: ZK Proof for
@@ -1020,11 +1156,11 @@ Each per chooses a challenge e_j,r_j ∈ Z_q, broadcasts a commitment
 Note for each kc*p and kc'*p separate values are generated and
 broadcast.
 
-------<=[ 27. STP broadcasts 𝓒_ej commitments           ]=>-----------
+------<=[ 36. STP broadcasts 𝓒_ej commitments           ]=>-----------
 
 STP does the regular broadcasting procedure.
 
-------<=[ 28. Peers receive 𝓒_ej commitments            ]=>-----------
+------<=[ 37. Peers receive 𝓒_ej commitments            ]=>-----------
 
 The peers store the 𝓒_ej commitments for later usage.
 
@@ -1035,27 +1171,34 @@ Broadcasts the following messages:
       M_1 = g^x * h^s_1,
       M_2 = B^x * h^s_2
 
-------<=[ 29. STP broadcasts M,M_1,M_2 messages         ]=>-----------
+------<=[ 38. STP broadcasts M,M_1,M_2 messages         ]=>-----------
 
-STP does the regular broadcasting procedure.
+STP does the regular broadcasting procedure. STP keeps a copy of all
+the ZK commitments received.
 
-------<=[ 30. Peers receive M,M_1,M_2 messages          ]=>-----------
+------<=[ 39. Peers receive M,M_1,M_2 messages          ]=>-----------
 
-Peers receive and store the M, M_1 and M_2 messages, and they now
+Peers receive and store the M, M_1 and M_2 messages. Peers now
 broadcast their previously chosen e_j,r_j values.
 
-------<=[ 31. STP broadcasts e_j,r_j values             ]=>-----------
+------<=[ 40. STP broadcasts e_j,r_j values             ]=>-----------
 
-STP does the regular broadcasting procedure.
+STP does the regular broadcasting procedure. STP computes e'_i for all
+dealers P_i:
 
-------<=[ 32. Peers receive e_j,r_j values              ]=>-----------
+      e'_i = Σ e_j
+           j!=i
+
+and stores these for later.
+
+------<=[ 41. Peers receive e_j,r_j values              ]=>-----------
 
 Peers receive e_j,r_j values, verify then against the previously
 received, 𝓒_ej commitments:
 
       𝓒_ej == g^e_j * h^r_j
 
-      aborts if this fails.
+      abort if this fails.
 
 each peer computes e'_i for all dealers P_i:
 
@@ -1070,11 +1213,13 @@ Each dealer P_i broadcasts the following values:
       w_1 = s_1 + e'_iρλ
       w_2 = s_2 + e'_i(τ - σαλ)
 
-------<=[ 33. STP broadcasts proofs                     ]=>-----------
+------<=[ 42. STP broadcasts proofs                     ]=>-----------
 
-STP does the regular broadcasting procedure.
+STP does the regular broadcasting procedure. Verifies all ZK proofs
+and uses this information to decide with step to continue with in the
+protocol.
 
-------<=[ 34. Peers receive proofs checks them.         ]=>-----------
+------<=[ 43. Peers receive proofs checks them.         ]=>-----------
 
 Each peer checks for each proof the following equations.
 
@@ -1082,34 +1227,47 @@ Each peer checks for each proof the following equations.
       g^z * h^w_1 == M_1 * A^e'_iλ
       B^z * h^w_2 == M_2 * C^e'_i
 
-TODO "expose the values of the P_i who fail the proof." which values,
-     and why?
+If all the proofs are correct the protocol continues with completing
+the FT-Mult results. This step has no output, the output is generated
+by the next step which is immediately executed by the peers after this
+one.
 
-Broadcast any complaints against dealers who fail their proof.
+------<=[ Phase 7 - Recover from ZK proof failures      ]=>-----------
 
-------<=[ 35. STP broadcasts complaints                 ]=>-----------
+In this phase peers disclose the shares from the dealer that failed to
+prove the correctness of C_i0 so that this C_i0 can be corrected.
 
-STP does the regular broadcasting procedure. However STP keeps a copy
-of each complaint. Aborts immediately if more than t^2 complaints are
-received.
+------<=[ 44. Peers receive proofs checks them.         ]=>-----------
 
-------<=[ 36. Peers get complaints                      ]=>-----------
+If any of the ZK proofs fail, the peers expose the shares of the
+dealer P_i who failed the proof and engage in a reconstruction
+phase. Peers broadcast the plaintext shares of the dealers who failed.
 
-Peers record any complaints. They don't output anything, as the output
-depends on the fact whether there are complaints.
+------<=[ 45. STP broadcasts shares for reconstruction  ]=>-----------
 
-TODO define what to do when there are complaints. Let accused publish
-their shares, and possibly their encryption key so we can see what
-message was sent, to identify the cheater either a false accusation or
-a bogus dealer?
+STP does the regular broadcasting procedure. STP also reconstructs the
+secret of the sharing and verifies that it satisfies 𝓒_i0, if that
+fails, the STP aborts the protocol.
 
-Anyway, currently we only abort the protocol here if there is any
-complaints.
+------<=[ 46. Peers receive shares for reconstruction   ]=>-----------
 
-------<=[ 37. Peers calculate FT-MULT results           ]=>-----------
+Peers reconstruct the secret of any dealers failing their ZK proof,
+the reconstructed secret is checked if it matches the corresponding
+𝓒_i0 commitment, if this fails the peers abort.
 
-Note this step has no input it follows directly step 38 if it received
-zero complaints.
+This step has no output, peers immediately continue with the next
+phase/step.
+
+------<=[ Phase 8 - Finish FT-Mult                      ]=>-----------
+
+In this phase the FT-Mult protocol concludes, one last check and if
+needed reconstruction phase provide robustness.
+
+------<=[ 47. Peers calculate FT-MULT results           ]=>-----------
+
+Note this step has no input it follows directly if all ZK proofs were
+correct or if the failing dealers secrets have been successfully
+reconstructed.
 
 Each peer P_i computes:
 
@@ -1137,57 +1295,86 @@ and also:
 
 Then compares 𝓒_i == 𝓒'_i, and aborts if this fails.
 
-Otherwise the peers broadcast their new 𝓒_i commitment.
+Otherwise the peers broadcast their final 𝓒_i commitment.
 
-------<=[ 38. STP broadcasts 𝓒_i commitment            ]=>-----------
+------<=[ 48. STP broadcasts 𝓒_i commitment            ]=>-----------
 
 STP does the regular broadcasting procedure. However STP keeps a copy
-of each of the commitments, for later verification of the final
-reconstruction of kc*p and kc'*p.
+of each of the final commitments, for later verification of the final
+reconstruction of kc*p and kc'*p. STP also runs a fast-track VSPS
+check on all the commitments, depending on the result of this deciding
+on the next step of the protocol regular or reconstruction.
 
-------<=[ 39. Peers receive 𝓒_i, run VSPS on them       ]=>-----------
+------<=[ 49. Peers receive 𝓒_i, run VSPS on them       ]=>-----------
 
 players run a VSPS Check on 𝓒_i for both kc*p and kc'*p, if any of
 them fails peers run a VSPS Check on every dealers sharing,
 identifying the one that fails the VSPS check.
 
-The peers broadcast the result of these checks.
+If the fast-track VSPS checks succeed on the final commitments the
+protocol continues with the regular final phase, otherwise the
+protocol for a last time engages in a reconstruction of secrets of
+dealers who failed the VSPS check of their commitments.
 
-------<=[ 40. STP broadcasts VSPS results              ]=>-----------
+This step has no output message, either of the two possible follow-up
+steps will generate an output message.
 
-STP does the regular broadcasting procedure. However STP keeps a copy
-of these results.
+------<=[ Phase 9 - Recover from failing VSPS-checks    ]=>-----------
 
-------<=[ 41. Peers receive VSPS result broadcasts      ]=>-----------
+In this phase any failing VSPS-checks are countered by reconstruction
+of the secret of the dealer who failed the check, the secret is then
+re-shared using a "deterministic" sharing.
 
-Peers record any complaints. They don't output anything, as the output
-depends on the fact whether there are complaints.
+------<=[ 51. Peers disclose shares of failed dealers  ]=>-----------
 
-TODO define what to do when there are complaints. Let accused publish
-their shares, and possibly their encryption key so we can see what
-message was sent, to identify the cheater either a false accusation or
-a bogus dealer?
+In case the VSPS checks failed in the previous step, all peers
+disclose the shares of the dealer(s) who has failed the VSPS check.
 
-Anyway, currently we only abort the protocol here if there is any
-complaints.
+------<=[ 52. STP broadcasts shares and re-shares       ]=>-----------
 
-GRR98 says: Players run a VSPS Check on P_i's sharing. If a sharing
-fails the test then expose the secret through the VSS
-reconstruction. So this would be TODO 1-2 extra steps, before
-continuing to step 44.
+The STP broadcasts all the disclosed shares.
 
-------<=[ 42. Peers calculate FT-MULT results           ]=>-----------
+The STP also reconstructs the secrets associated with these shares,
+and then creates a "deterministic" re-sharing of this secret and
+updates the commitments it holds to these new shares and re-calculates
+the final commitments based on these.
 
-Note this step has no input it follows directly step 43 if it received
-zero complaints.
+The "deterministic" re-sharing of the reconstructed shares is based on
+a polynomial with the constant term being the secret and the other
+coefficients being derived by using HKDF-expand(info, prk), where the
+prk is the current sessionid and the info parameter is either
 
-   Secret information of P_i: share γ_i
-   Public information: 𝓒_i, for i:=1..n
-   FT-MULT sub-protocol completes successfully
+  "kXp lambda * a * b re-sharing"
+or
+  "kXp blind re-sharing"
+
+for the secret and the blinding factor respectively. The X is replace
+with either 0 or 1 depending on which multiplication we are
+re-sharing.
+
+This deterministic re-sharing is used so that all parties in the
+protocol can create the same re-sharing without any party having
+control over this and without needing to distribute extra information
+to all parties.
+
+------<=[ 53. Peers receive shares and re-share         ]=>-----------
+
+Peers receive disclosed shares of all dealers who failed the VSPS
+check, and re-share the reconstructed secrets in the same way as the
+STP does using the same "deterministic" re-sharing procedure.
+
+This step has no output message, it immediately followed by the next
+step sending the results of both multiplications to the STP.
+
+------<=[ Phase 10 - Finalize TOPRF Update              ]=>-----------
+
+This phase concludes the update of the TOPRF secret.
+
+------<=[ 54. Peers send their final shares to STP      ]=>-----------
 
 The peers send their kc*p and kc'*p shares to the STP.
 
-------<=[ 43. STP receives results and calculates delta]=>-----------
+------<=[ 55. STP receives results and calculates delta ]=>-----------
 
 The STP receives all shares from peers, runs a VSPS check on their
 commitments, aborts if these fail. It also verifies the commitments of
@@ -1200,8 +1387,8 @@ and computes:
 
   ∆= r/r′
 
-Finally it sends out a message of one byte of value 0 to all peers
-indicating the success of the protocol.
+Finally the STP sends out a message of one byte of value 0 to all
+peers indicating the success of the protocol.
 
 The protocol finishes for the STP.
 
@@ -1217,7 +1404,9 @@ The protocol finishes here for the peers.
 ------<=[ TODO verify transcript                        ]=>-----------
 
 All parties broadcast their transcript, and verify that they all
-match. If there is non-matching, abort.
+match. If there is non-matching, abort. Maybe make the transcript a
+rolling check, by for example using it as a continuously updated
+sessionid.
 
 ------<=[ References                                    ]=>-----------
 
@@ -1228,3 +1417,6 @@ cryptography" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages
 
 [JKR18] "Threshold Partially-Oblivious PRFs with Applications to Key
 Management", by Stanislaw Jarecki, Hugo Krawczyk, and Jason Resch.
+
+[RFC9497] Oblivious Pseudorandom Functions (OPRFs) Using Prime-Order
+Groups https://www.rfc-editor.org/rfc/rfc9497.html
