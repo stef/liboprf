@@ -7,6 +7,12 @@
 #include "aux_/crypto_kdf_hkdf_sha256.h"
 #endif
 
+// todo handle adding new peers who don't have a share of kc
+// todo handle random order of peers - related to prev todo
+// todo revert to non-fast-track mult to catch the case when dealer
+//      deals something else than λ_iα_iβ_i but 𝓒_i0 is based on the
+//      correct value, so the ZK proof does not fail.
+
 #ifdef UNITTEST_CORRUPT
 static void corrupt_ci0_good_ci(const uint8_t peer, uint8_t commitments[][crypto_core_ristretto255_BYTES]) {
   // this corruption does not influence the outcome of the protocol
@@ -452,7 +458,8 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
                            const uint8_t keyid[toprf_keyid_SIZE],
                            const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                            const uint8_t ltssk[crypto_sign_SECRETKEYBYTES],
-                           const size_t msg0_len, TOPRF_Update_Message *msg0) {
+                           const size_t msg0_len,
+                           TOPRF_Update_Message *msg0) {
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] init 0. start toprf update\x1b[0m\n");
   if(2>n || t>=n || n>128 || n<2*t+1) return 1;
   if(proto_name_len<1) return 2;
@@ -2404,10 +2411,6 @@ static TOPRF_Update_Err peer_disclose_mult_shares(TOPRF_Update_PeerState *ctx, u
 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
   uint8_t *wptr = msg->data;
-  // TODO / fixme if multiple peers complained about the same dealer only disclose the same share once
-  // to test, enable in peer_final_handler both:
-  // corrupt_share(ctx,5,3,1,ctx->kc1_shares);
-  // corrupt_share(ctx,5,2,0,ctx->kc1_shares);
   TOPRF_Update_Err ret;
   ret =  disclose_shares(ctx->n, ctx->index, "k0p", ctx->kc1_complaints_len, ctx->kc1_complaints, (*ctx->k0p_shares), &wptr);
   if(ret != Err_OK) return ret;
@@ -3339,7 +3342,8 @@ static TOPRF_Update_Err peer_step39_handler(TOPRF_Update_PeerState *ctx, uint8_t
   }
   if(memcmp(Cx_i, C_i[1], sizeof Cx_i) != 0) {
     if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to verify commitment for k1p share"NORMAL, ctx->index);
-    return 99;
+    // todo cheater handling? who would be the cheater here?
+    return Err_CommmitmentsMismatch; // probably cannot happen?
   }
 
   if(0!=toprf_send_msg(output, toprfupdate_peer_mult3_msg_SIZE, toprfupdate_peer_mult3_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return Err_Send;
@@ -3522,6 +3526,7 @@ static int vss_reshare(const uint8_t n,
   uint8_t b[threshold][crypto_core_ristretto255_SCALARBYTES];
   memcpy(a[0], secret, crypto_core_ristretto255_SCALARBYTES);
 
+  // todo inlude also the idx of the dealer in the ctx.
   char share_ctx[] = "kXp lambda * a * b re-sharing";
   share_ctx[1] = midx;
   char blind_ctx[] = "kXp blind re-sharing";
@@ -3609,7 +3614,7 @@ static TOPRF_Update_Err stp_bc_vsps_disclosures(TOPRF_Update_STPState *ctx, cons
 
   ret = stp_reshare(ctx, ctx->kc1_complaints_len, ctx->kc1_complaints, k0p_shares, '0', ctx->k0p_commitments);
   if(ret!=Err_OK) return ret;
-  ret = stp_reshare(ctx, ctx->p_complaints_len, ctx->p_complaints, k1p_shares, '0', ctx->k1p_commitments);
+  ret = stp_reshare(ctx, ctx->p_complaints_len, ctx->p_complaints, k1p_shares, '1', ctx->k1p_commitments);
   if(ret!=Err_OK) return ret;
 
   const uint8_t dealers = ((ctx->t-1)*2 + 1);
@@ -3705,7 +3710,7 @@ static TOPRF_Update_Err peer_reconst_vsps_shares(TOPRF_Update_PeerState *ctx, co
 
   ret = peer_reshare(ctx, &ctx->kc1_complaints_len, ctx->kc1_complaints, k0p_shares, '0', (*ctx->k0p_shares), ctx->k0p_share, ctx->k0p_commitments);
   if(ret!=Err_OK) return ret;
-  ret = peer_reshare(ctx, &ctx->p_complaints_len, ctx->p_complaints, k1p_shares, '0', (*ctx->k1p_shares), ctx->k1p_share, ctx->k1p_commitments);
+  ret = peer_reshare(ctx, &ctx->p_complaints_len, ctx->p_complaints, k1p_shares, '1', (*ctx->k1p_shares), ctx->k1p_share, ctx->k1p_commitments);
   if(ret != Err_OK) return ret;
 
   // reset my_complaints
