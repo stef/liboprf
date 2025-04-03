@@ -67,34 +67,26 @@ typedef enum {
   TOPRF_Update_STP_Broadcast_NPKs,
   TOPRF_Update_STP_Route_Noise_Handshakes1,
   TOPRF_Update_STP_Route_Noise_Handshakes2,
-
   TOPRF_Update_STP_Broadcast_DKG_Hash_Commitments,
   TOPRF_Update_STP_Broadcast_DKG_Commitments,
   TOPRF_Update_STP_Route_Encrypted_Shares,
   TOPRF_Update_STP_Broadcast_Complaints,
   TOPRF_Update_STP_Broadcast_DKG_Defenses,
   TOPRF_Update_STP_Broadcast_DKG_Transcripts,
-  TOPRF_Update_STP_Broadcast_DKG_Final_Commitments,
   TOPRF_Update_STP_Route_Mult_Step1,
   TOPRF_Update_STP_Broadcast_Mult_Commitments,
   TOPRF_Update_STP_Route_Encrypted_Mult_Shares,
-
   TOPRF_Update_STP_Broadcast_Mult_Complaints,
   TOPRF_Update_STP_Broadcast_Mult_Defenses,
   TOPRF_Update_STP_Broadcast_Reconst_Mult_Shares,
-
   TOPRF_Update_STP_Route_ZK_Challenge_Commitments,
   TOPRF_Update_STP_Route_ZK_commitments,
   TOPRF_Update_STP_Broadcast_ZK_nonces,
   TOPRF_Update_STP_Broadcast_ZK_Proofs,
   TOPRF_Update_STP_Broadcast_ZK_Disclosures,
-  TOPRF_Update_STP_Route_Mult_Reconstructions,
   TOPRF_Update_STP_Broadcast_Mult_Ci,
-
   TOPRF_Update_STP_Broadcast_VSPS_Disclosures,
-
   TOPRF_Update_STP_Reconstruct_Delta,
-  TOPRF_Update_STP_Broadcast_Full_VSPS_Results, // todo
   TOPRF_Update_STP_Done
 } TOPRF_Update_STP_Steps;
 
@@ -187,7 +179,6 @@ typedef enum {
   TOPRF_Update_Peer_Rcv_NPK_SIDNonce,
   TOPRF_Update_Peer_Noise_Handshake,
   TOPRF_Update_Peer_Finish_Noise_Handshake,
-
   TOPRF_Update_Peer_Rcv_CHashes_Send_Commitments,
   TOPRF_Update_Peer_Rcv_Commitments_Send_Shares,
   TOPRF_Update_Peer_Verify_Commitments,
@@ -196,35 +187,25 @@ typedef enum {
   TOPRF_Update_Peer_Check_Shares,
   TOPRF_Update_Peer_Finish_DKG,
   TOPRF_Update_Peer_Confirm_Transcripts,
-
-  TOPRF_Update_Peer_Start_Mult,
   TOPRF_Update_Peer_Rcv_Mult_CHashes_Send_Commitments,
-  TOPRF_Update_Peer_Recv_K1P_Commitments,
   TOPRF_Update_Peer_Send_K1P_Shares,
   TOPRF_Update_Peer_Recv_K1P_Shares,
-
   TOPRF_Update_Peer_Handle_Mult_Share_Complaints,
   TOPRF_Update_Peer_Defend_Mult_Accusations,
   TOPRF_Update_Peer_Check_Mult_Shares,
   TOPRF_Update_Peer_Disclose_Mult_Shares,
   TOPRF_Update_Peer_Reconstruct_Mult_Shares,
   TOPRF_Update_Peer_Send_ZK_Challenge_Commitments,
-
   TOPRF_Update_Peer_Send_ZK_Commitments,
   TOPRF_Update_Peer_Send_ZK_nonces,
   TOPRF_Update_Peer_Send_ZK_proofs,
   TOPRF_Update_Peer_Verify_ZK_proofs,
   TOPRF_Update_Peer_Disclose_ZK_Cheaters,
   TOPRF_Update_Peer_Reconstruct_ZK_Shares,
-
   TOPRF_Update_Peer_Send_Mult_Ci,
   TOPRF_Update_Peer_Final_VSPS_Checks,
-
   TOPRF_Update_Peer_Disclose_VSPS_Cheaters,
   TOPRF_Update_Peer_Reconstruct_VSPS_Shares,
-
-  TOPRF_Update_Peer_Reconstruct_Final_Shares,
-
   TOPRF_Update_Peer_Send_k0p_k1p_Share,
   TOPRF_Update_Peer_Final_OK,
   TOPRF_Update_Peer_Done
