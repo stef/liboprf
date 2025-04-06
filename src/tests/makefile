@@ -84,6 +84,8 @@ tests: all
 	(ulimit -s 66000; ./tp-dkg-corrupt 3 2 || exit 0)
 	(ulimit -s 1966000; ./stp-dkg 9 4)
 	(ulimit -s 1966000; ./stp-dkg-corrupt 9 4 || exit 0)
+	(ulimit -s 1966000; ./toprf-update 9 4)
+	(ulimit -s 1966000; ./toprf-update-corrupt 9 4)
 	./mpmult
 
 clean:
