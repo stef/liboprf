@@ -505,5 +505,6 @@ void dkg_dump_msg(const uint8_t* ptr, const size_t msglen, const uint8_t type) {
         fprintf(log_file,"[%d] msgno: %d, len: %d, from: %d to: %x ", type, msg->msgno, htonl(msg->len), msg->from, msg->to);
      }
      dump(ptr, msglen, "msg");
+     if(debug==0) fprintf(log_file, "\n");
   }
 }
