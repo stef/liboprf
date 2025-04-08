@@ -415,6 +415,10 @@ const uint8_t* stp_dkg_peerstate_lt_sk(const STP_DKG_PeerState *ctx);
     The size of the final share is TOPRF_Share_BYTES * 2
  */
 const uint8_t* stp_dkg_peerstate_share(const STP_DKG_PeerState *ctx);
+
+/** Getter for the commitments of the generated shares result of this protocol
+ */
+const uint8_t* stp_dkg_peerstate_commitments(const STP_DKG_PeerState *ctx);
 /** Getter for the current step of the Peer State
  */
 int stp_dkg_peerstate_step(const STP_DKG_PeerState *ctx);

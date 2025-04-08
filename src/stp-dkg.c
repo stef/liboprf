@@ -89,6 +89,9 @@ const uint8_t* stp_dkg_peerstate_lt_sk(const STP_DKG_PeerState *ctx) {
 const uint8_t* stp_dkg_peerstate_share(const STP_DKG_PeerState *ctx) {
   return (const uint8_t*) &ctx->share;
 }
+const uint8_t* stp_dkg_peerstate_commitments(const STP_DKG_PeerState *ctx) {
+  return (const uint8_t*) *ctx->k_commitments;
+}
 int stp_dkg_peerstate_step(const STP_DKG_PeerState *ctx) {
   return ctx->step;
 }
@@ -107,6 +110,9 @@ size_t stp_dkg_stpstate_cheater_len(const STP_DKG_STPState *ctx) {
 }
 const uint8_t* stp_dkg_stpstate_sessionid(const STP_DKG_STPState *ctx) {
   return ctx->sessionid;
+}
+const uint8_t* stp_dkg_stpstate_commitments(const STP_DKG_STPState *ctx) {
+  return (const uint8_t*) *ctx->commitments;
 }
 int stp_dkg_stpstate_step(const STP_DKG_STPState *ctx) {
   return ctx->step;
@@ -1374,8 +1380,6 @@ static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_
 
   uint8_t transcript_hash[crypto_generichash_BYTES];
   crypto_generichash_final(&ctx->transcript, transcript_hash, crypto_generichash_BYTES);
-  uint8_t commitments[ctx->n][crypto_core_ristretto255_BYTES];
-  memset(commitments,0,sizeof(commitments));
 
   size_t cheaters = ctx->cheater_len;
   uint8_t *wptr = ((STP_DKG_Message *) output)->data;
@@ -1384,7 +1388,7 @@ static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_
     const STP_DKG_Message* msg = (const STP_DKG_Message*) ptr;
     if(stp_recv_msg(ctx,ptr,stp_dkg_peer_bc_transcript_msg_SIZE,stpvssdkg_peer_bc_transcript_msg,i+1,0xff)) continue;
 
-    memcpy(commitments[i], msg->data + crypto_generichash_BYTES, crypto_core_ristretto255_BYTES);
+    memcpy((*ctx->commitments)[i], msg->data + crypto_generichash_BYTES, crypto_core_ristretto255_BYTES);
 
     if(sodium_memcmp(transcript_hash, msg->data, sizeof(transcript_hash))!=0) {
       if(log_file!=NULL) {
@@ -1400,7 +1404,7 @@ static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_
   if(ctx->cheater_len>cheaters) return Err_CheatersFound;
 
   debug=0;
-  if(0!=toprf_mpc_vsps_check(ctx->t-1, commitments)) {
+  if(0!=toprf_mpc_vsps_check(ctx->t-1, *ctx->commitments)) {
     debug=1;
     if(log_file!=NULL) fprintf(stderr, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
     if(stp_add_cheater(ctx, 2, 0, 0) == NULL) return Err_CheatersFull;
