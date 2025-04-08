@@ -1231,12 +1231,13 @@ static TOPRF_Update_Err decrypt_shares(const TOPRF_Update_PeerState *ctx,
   derive_key((*ctx->noise_ins)[i],ctx->index,type,key);
   uint8_t nonce[crypto_stream_NONCEBYTES]={0};
   nonce[0]=nonce_ctr;
-
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
   if(0!=crypto_auth_verify(hmac, ct, toprf_update_encrypted_shares_SIZE, key)) {
     //dump(key, sizeof key, "[%d] key for %s share of p_%d", ctx->index, type, i+1);
     dump(ct, toprf_update_encrypted_shares_SIZE, "[%d] encrypted %s share of p_%d", ctx->index, type, i+1);
     return Err_HMac;
   }
+#endif
   crypto_stream_xor((uint8_t*) share, ct, TOPRF_Share_BYTES*2, nonce, key);
 
   return Err_OK;
@@ -1415,12 +1416,14 @@ static TOPRF_Update_Err stp_check_defenses(TOPRF_Update_STPState *ctx,
       dump(shares,toprf_update_encrypted_shares_SIZE,"encrypted shares");
     }
 
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_auth_verify((*share_macs)[(accused-1)*ctx->n+(accuser-1)], shares, toprf_update_encrypted_shares_SIZE, key)) {
       if(log_file!=NULL) fprintf(log_file,RED"[!] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, accused, accuser);
       if(stp_add_cheater(ctx, 1, accused, accuser) == NULL) return Err_CheatersFull;
       complaints[(*complaints_len)++]=accuser << 8 | accused;
       continue;
     }
+#endif
     TOPRF_Share share[2];
     uint8_t nonce[crypto_stream_NONCEBYTES]={0};
     nonce[0]=nonce_ctr;
@@ -1542,12 +1545,14 @@ static TOPRF_Update_Err check_defenses(TOPRF_Update_PeerState *ctx,
       dump(shares,toprf_update_encrypted_shares_SIZE,"encrypted shares");
     }
 
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_auth_verify((*share_macs)[(accuser-1)*ctx->n+(accused-1)], shares, toprf_update_encrypted_shares_SIZE, key)) {
       if(log_file!=NULL) fprintf(log_file,RED"[%d] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
       if(peer_add_cheater(ctx, 1, accused, accuser) == NULL) return Err_CheatersFull;
       complaints[(*complaints_len)++]=accuser << 8 | accused;
       continue;
     }
+#endif
     TOPRF_Share share[2];
     uint8_t nonce[crypto_stream_NONCEBYTES]={0};
     nonce[0]=nonce_ctr;
