@@ -404,10 +404,11 @@ void stp_dkg_stp_set_bufs(STP_DKG_STPState *ctx,
 }
 
 STP_DKG_Err stp_dkg_start_peer(STP_DKG_PeerState *ctx,
-                            const uint64_t ts_epsilon,
-                            const uint8_t lt_sk[crypto_sign_SECRETKEYBYTES],
-                            const STP_DKG_Message *msg0,
-                            uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]) {
+                               const uint64_t ts_epsilon,
+                               const uint8_t lt_sk[crypto_sign_SECRETKEYBYTES],
+                               const uint8_t noise_sks[crypto_scalarmult_SCALARBYTES],
+                               const STP_DKG_Message *msg0,
+                               uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]) {
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] step 0.5 start peer\x1b[0m\n");
 
   ctx->ts_epsilon = ts_epsilon;
@@ -438,6 +439,7 @@ STP_DKG_Err stp_dkg_start_peer(STP_DKG_PeerState *ctx,
   ctx->my_share_complaints_len = 0;
   ctx->cheater_len = 0;
   memcpy(ctx->sig_sk, lt_sk, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->noise_sk, noise_sks, crypto_scalarmult_SCALARBYTES);
 
   crypto_generichash_init(&ctx->transcript, NULL, 0, crypto_generichash_BYTES);
   crypto_generichash_update(&ctx->transcript, (const uint8_t*) "stp vss dkg session transcript", 31);

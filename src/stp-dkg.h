@@ -440,6 +440,8 @@ int stp_dkg_peerstate_step(const STP_DKG_PeerState *ctx);
 
     @param [in] peer_lt_sk: the long-term private signing key of the peer.
 
+    @param [in] nose_sks: the long-term noise secret key of the peer.
+
     @param [in] msg0: the initiating msg sent from the TP after the TP
                 run tpdkg_tp_start().
 
@@ -452,6 +454,7 @@ int stp_dkg_peerstate_step(const STP_DKG_PeerState *ctx);
 STP_DKG_Err stp_dkg_start_peer(STP_DKG_PeerState *ctx,
                                const uint64_t ts_epsilon,
                                const uint8_t lt_sk[crypto_sign_SECRETKEYBYTES],
+                               const uint8_t noise_sks[crypto_scalarmult_SCALARBYTES],
                                const STP_DKG_Message *msg0,
                                uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]);
 

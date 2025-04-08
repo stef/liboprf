@@ -111,17 +111,19 @@ int main(const int argc, const char **argv) {
 
   STP_DKG_PeerState peers[n];
   uint8_t peers_noise_pks[n][crypto_scalarmult_BYTES];
+  uint8_t peers_noise_sks[n][crypto_scalarmult_SCALARBYTES];
   for(uint8_t i=0;i<n;i++) {
-    randombytes_buf(peers[i].noise_sk, sizeof peers[i].noise_sk);
-    crypto_scalarmult_base(peers_noise_pks[i], peers[i].noise_sk);
+    randombytes_buf(peers_noise_sks[i], crypto_scalarmult_SCALARBYTES);
+    crypto_scalarmult_base(peers_noise_pks[i], peers_noise_sks[i]);
   }
 
   for(uint8_t i=0;i<n;i++) {
     uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES];
     ret = stp_dkg_start_peer(&peers[i], dkg_freshness_TIMEOUT,
-                                  lt_sks[i+1],
-                                  (DKG_Message*) msg0,
-                                  stp_ltpk);
+                             lt_sks[i+1],
+                             peers_noise_sks[i],
+                             (DKG_Message*) msg0,
+                             stp_ltpk);
     if(0!=ret) return ret;
     if(memcmp(stp_ltpk, lt_pks[0], crypto_sign_PUBLICKEYBYTES)!=0) {
       return 1;
