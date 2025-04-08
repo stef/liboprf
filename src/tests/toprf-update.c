@@ -332,8 +332,6 @@ static int fuzz_loop(const uint8_t step, TOPRF_Update_STPState *stp, TOPRF_Updat
 }
 #endif
 #endif
-               
-
 
 int main(const int argc, const char **argv) {
   int ret=0;

@@ -345,7 +345,6 @@ typedef struct {
   size_t cheater_max;
   crypto_generichash_state transcript_state;
   uint8_t transcript[crypto_generichash_BYTES];
-  TOPRF_Share share;
 } TOPRF_Update_PeerState;
 
 size_t toprf_update_peerstate_size(void);

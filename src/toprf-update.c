@@ -12,6 +12,7 @@
 // todo revert to non-fast-track mult to catch the case when dealer
 //      deals something else than λ_iα_iβ_i but 𝓒_i0 is based on the
 //      correct value, so the ZK proof does not fail.
+// todo add toprf_update_(stp|peer)_cheater_msg()
 
 #ifdef UNITTEST_CORRUPT
 static void corrupt_ci0_good_ci(const uint8_t peer, uint8_t commitments[][crypto_core_ristretto255_BYTES]) {
@@ -3206,8 +3207,6 @@ static TOPRF_Update_Err stp_bc_zk_disclosures(TOPRF_Update_STPState *ctx, const 
   uint8_t (*c)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k0p_commitments);
   for(unsigned i=0;i<ctx->kc1_complaints_len;i++) {
     const uint8_t accused = ctx->kc1_complaints[i] & 0xff;
-    //const uint8_t accuser = ctx->kc1_complaints[i] >> 8;
-    //if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*ctx->k0p_commitments)[(ctx->n+1) * (accused-1) +1], secret[0].value, secret[1].value)) return 1;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed lab");
     if(0!=dkg_vss_commit(secret[0].value, secret[1].value, (*c)[accused-1][0])) return Err_VSSCommit;
@@ -3215,7 +3214,6 @@ static TOPRF_Update_Err stp_bc_zk_disclosures(TOPRF_Update_STPState *ctx, const 
   c = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k1p_commitments);
   for(unsigned i=0;i<ctx->p_complaints_len;i++) {
     const uint8_t accused = ctx->p_complaints[i] & 0xff;
-    //const uint8_t accuser = ctx->p_complaints[i] >> 8;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k1p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed");
     if(0!=dkg_vss_commit(secret[0].value, secret[1].value, (*c)[accused-1][0])) return Err_VSSCommit;
@@ -3255,8 +3253,6 @@ static TOPRF_Update_Err peer_reconst_zk_shares(TOPRF_Update_PeerState *ctx, cons
   uint8_t (*c)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k0p_commitments);
   for(unsigned i=0;i<ctx->kc1_complaints_len;i++) {
     const uint8_t accused = ctx->kc1_complaints[i] & 0xff;
-    //const uint8_t accuser = ctx->kc1_complaints[i] >> 8;
-    //if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*ctx->k0p_commitments)[(ctx->n+1) * (accused-1) +1], secret[0].value, secret[1].value)) return 1;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k0p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed lab");
     if(0!=dkg_vss_commit(secret[0].value, secret[1].value, (*c)[accused-1][0])) return Err_VSSCommit;
@@ -3264,7 +3260,6 @@ static TOPRF_Update_Err peer_reconst_zk_shares(TOPRF_Update_PeerState *ctx, cons
   c = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) (*ctx->k1p_commitments);
   for(unsigned i=0;i<ctx->p_complaints_len;i++) {
     const uint8_t accused = ctx->p_complaints[i] & 0xff;
-    //const uint8_t accuser = ctx->p_complaints[i] >> 8;
     if(0!=dkg_vss_reconstruct(ctx->t, 0, ctx->n, k1p_shares[i], &(*c)[accused-1][1], secret[0].value, secret[1].value)) return Err_Reconstruct;
     dump(secret[0].value, sizeof secret[0].value, "reconstructed");
     if(0!=dkg_vss_commit(secret[0].value, secret[1].value, (*c)[accused-1][0])) return Err_VSSCommit;
@@ -3956,19 +3951,6 @@ int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes
   case TOPRF_Update_STP_Broadcast_Mult_Ci: { item = toprfupdate_peer_mult3_msg_SIZE; break; }
   case TOPRF_Update_STP_Broadcast_VSPS_Disclosures: { item = toprfupdate_peer_vsps_disclose_msg_SIZE(ctx); break; }
   case TOPRF_Update_STP_Reconstruct_Delta: { item = toprfupdate_peer_end2_msg_SIZE; break; }
-    //case 8: {
-    //  uint8_t ctr[ctx->n];
-    //  memset(ctr,0,ctx->n);
-    //  for(int i=0;i<ctx->complaints_len;i++) ctr[((*ctx->complaints)[i] & 0xff) - 1]++;
-    //  for(int i=0;i<ctx->n;i++) {
-    //    if(ctr[i]>0) {
-    //      sizes[i]=sizeof(TOPRF_Update_Message) + (1+dkg_noise_key_SIZE) * ctr[i];
-    //    } else {
-    //      sizes[i]=0;
-    //    }
-    //  }
-    //  return 0;
-    //}
   default: {
     if(log_file!=NULL) fprintf(log_file, "[!] isize invalid stp step: %d\n", ctx->step);
   }
@@ -4331,16 +4313,6 @@ size_t toprf_update_peer_output_size(const TOPRF_Update_PeerState *ctx) {
   case TOPRF_Update_Peer_Reconstruct_VSPS_Shares:
   case TOPRF_Update_Peer_Send_k0p_k1p_Share: return toprfupdate_peer_end2_msg_SIZE;
   case TOPRF_Update_Peer_Final_OK: return 0;
-
-    //case 8: {
-    //  if(ctx->complaints_len > 0) {
-    //    if(ctx->my_complaints_len > 0) {
-    //      return sizeof(TOPRF_Update_Message) + ctx->my_complaints_len * (1+dkg_noise_key_SIZE);
-    //    }
-    //    return 0;
-    //  }
-    //  return toprf_update_msg19_SIZE;
-    //}
   default: {
     if(log_file!=NULL) fprintf(log_file, "[%d] peer output size invalid step\n", ctx->index);
   }
@@ -4355,12 +4327,15 @@ int toprf_update_stp_next(TOPRF_Update_STPState *ctx, const uint8_t *input, cons
   case TOPRF_Update_STP_Broadcast_NPKs: { ret =  stp_step2_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Route_Noise_Handshakes1: { ret = stp_step4_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Route_Noise_Handshakes2: { ret = stp_step6_handler(ctx, input, input_len, output, output_len); break;}
+
   case TOPRF_Update_STP_Broadcast_DKG_Hash_Commitments: { ret = stp_dkg1_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_DKG_Commitments: { ret = stp_dkg2_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Route_Encrypted_Shares: { ret = stp_dkg3_handler(ctx, input, input_len, output, output_len); break;}
+
   case TOPRF_Update_STP_Broadcast_Complaints: { ret = stp_verify_shares_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_DKG_Defenses: { ret = stp_broadcast_defenses(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_DKG_Transcripts: { ret = stp_bc_transcript_handler(ctx, input, input_len, output, output_len); break;}
+
   case TOPRF_Update_STP_Route_Mult_Step1: { ret = stp_step25_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_Mult_Commitments: { ret = stp_mult_com_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Route_Encrypted_Mult_Shares: { ret = stp_step27_handler(ctx, input, input_len, output, output_len); break;}
@@ -4374,19 +4349,10 @@ int toprf_update_stp_next(TOPRF_Update_STPState *ctx, const uint8_t *input, cons
   case TOPRF_Update_STP_Broadcast_ZK_nonces: { ret = stp_step33_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_ZK_Proofs: { ret = stp_step35_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_ZK_Disclosures: { ret = stp_bc_zk_disclosures(ctx, input, input_len, output, output_len); break;}
+
   case TOPRF_Update_STP_Broadcast_Mult_Ci: { ret = stp_step40_handler(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Broadcast_VSPS_Disclosures: { ret = stp_bc_vsps_disclosures(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Reconstruct_Delta: { ret = stp_step45_handler(ctx, input, input_len, output, output_len); break;}
-    //case 7: {
-    //  ret = stp_step18_handler(ctx, input, input_len, output, output_len);
-    //  ctx->prev = ctx->step;
-    //  if(ctx->complaints_len == 0) {
-    //    // we skip over to step 21
-    //    ctx->step++;
-    //  }
-    //  ctx->step++;
-    //  return ret;
-    //}
   default: {
     if(log_file!=NULL) fprintf(log_file, "[!] stp next invalid step\n");
     return 99;
@@ -4404,6 +4370,7 @@ int toprf_update_peer_next(TOPRF_Update_PeerState *ctx, const uint8_t *input, co
   case TOPRF_Update_Peer_Rcv_NPK_SIDNonce: { ret = peer_step3_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Noise_Handshake: { ret = peer_step5_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Finish_Noise_Handshake: { ret = peer_dkg1_handler(ctx, input, input_len, output, output_len); break; }
+
   case TOPRF_Update_Peer_Rcv_CHashes_Send_Commitments: { ret = peer_dkg2_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Rcv_Commitments_Send_Shares: { ret = peer_dkg3_handler(ctx, input, input_len, output, output_len); break; }
 
@@ -4411,8 +4378,10 @@ int toprf_update_peer_next(TOPRF_Update_PeerState *ctx, const uint8_t *input, co
   case TOPRF_Update_Peer_Handle_DKG_Complaints: { ret = peer_dkg_fork(ctx, input, input_len); break; }
   case TOPRF_Update_Peer_Defend_DKG_Accusations: { ret = peer_defend(ctx, output, output_len); break; }
   case TOPRF_Update_Peer_Check_Shares: { ret = peer_check_shares(ctx, input, input_len, output, output_len); break; }
+
   case TOPRF_Update_Peer_Finish_DKG: { ret = peer_verify_vsps(ctx, output, output_len); break; }
   case TOPRF_Update_Peer_Confirm_Transcripts: { ret = peer_final_handler(ctx, input, input_len, output, output_len); break; }
+
   case TOPRF_Update_Peer_Rcv_Mult_CHashes_Send_Commitments: { ret = peer_mult2_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Send_K1P_Shares: { ret = peer_step26_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Recv_K1P_Shares: { ret = peer_step28_handler(ctx, input, input_len, output, output_len); break; }
@@ -4422,8 +4391,8 @@ int toprf_update_peer_next(TOPRF_Update_PeerState *ctx, const uint8_t *input, co
   case TOPRF_Update_Peer_Check_Mult_Shares: { ret = peer_check_mult_shares(ctx,input,input_len); break; }
   case TOPRF_Update_Peer_Disclose_Mult_Shares: { ret = peer_disclose_mult_shares(ctx, output, output_len); break; }
   case TOPRF_Update_Peer_Reconstruct_Mult_Shares: { ret = peer_reconst_mult_shares(ctx,input,input_len,output,output_len); break;}
-  case TOPRF_Update_Peer_Send_ZK_Challenge_Commitments: { ret = peer_send_zk_chalcoms(ctx, output, output_len); break; }
 
+  case TOPRF_Update_Peer_Send_ZK_Challenge_Commitments: { ret = peer_send_zk_chalcoms(ctx, output, output_len); break; }
   case TOPRF_Update_Peer_Send_ZK_Commitments: { ret = peer_step30_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Send_ZK_nonces: { ret = peer_step32_handler(ctx, input, input_len, output, output_len); break; }
   case TOPRF_Update_Peer_Send_ZK_proofs: { ret = peer_step34_handler(ctx, input, input_len, output, output_len); break; }
