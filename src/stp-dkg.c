@@ -620,7 +620,7 @@ static STP_DKG_Err peer_start_noise_handler(STP_DKG_PeerState *ctx, const uint8_
     STP_DKG_Message *msg3 = (STP_DKG_Message *) wptr;
     uint8_t rname[15];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
-    dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg3->data);
+    if(0!=dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg3->data)) return Err_Noise;
     if(0!=toprf_send_msg(wptr, stp_dkg_peer_start_noise_msg_SIZE, stpvssdkg_peer_start_noise_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return Err_Send;
     dkg_dump_msg(wptr, stp_dkg_peer_start_noise_msg_SIZE, ctx->index);
   }
@@ -652,7 +652,7 @@ static STP_DKG_Err peer_respond_noise_handler(STP_DKG_PeerState *ctx, const uint
     STP_DKG_Message *msg4 = (STP_DKG_Message *) wptr;
     uint8_t rname[15];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
-    dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg3->data, msg4->data);
+    if(0!=dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg3->data, msg4->data)) return Err_Noise;
     if(0!=toprf_send_msg(wptr, stp_dkg_peer_respond_noise_msg_SIZE, stpvssdkg_peer_respond_noise_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return Err_Send;
     dkg_dump_msg(wptr, stp_dkg_peer_respond_noise_msg_SIZE, ctx->index);
   }
@@ -679,7 +679,7 @@ static STP_DKG_Err peer_dkg1_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
     STP_DKG_Message* msg4 = (STP_DKG_Message*) ptr;
     if(peer_recv_msg(ctx,ptr,stp_dkg_peer_respond_noise_msg_SIZE,stpvssdkg_peer_respond_noise_msg,i+1,ctx->index)) continue;
     // process final step of noise handshake
-    dkg_finish_noise_handshake(ctx->index, ctx->dev, &(*ctx->noise_outs)[i], msg4->data);
+    if(0!=dkg_finish_noise_handshake(ctx->index, ctx->dev, &(*ctx->noise_outs)[i], msg4->data)) return Err_Noise;
   }
   if(ctx->cheater_len>0) return Err_CheatersFound;
 

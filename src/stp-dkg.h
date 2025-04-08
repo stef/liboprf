@@ -76,6 +76,7 @@ typedef enum {
   Err_CheatersFull,
   Err_InvSessionID,
   Err_Share,
+  Err_Noise,
   Err_NoiseEncrypt,
   Err_NoiseDecrypt,
   Err_HMac,
