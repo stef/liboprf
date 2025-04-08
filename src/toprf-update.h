@@ -139,6 +139,8 @@ uint8_t toprf_update_stpstate_n(const TOPRF_Update_STPState *ctx);
 uint8_t toprf_update_stpstate_t(const TOPRF_Update_STPState *ctx);
 size_t toprf_update_stpstate_cheater_len(const TOPRF_Update_STPState *ctx);
 const uint8_t* toprf_update_stpstate_sessionid(const TOPRF_Update_STPState *ctx);
+const uint8_t* toprf_update_stpstate_delta(const TOPRF_Update_STPState *ctx);
+const uint8_t* toprf_update_stpstate_commitments(const TOPRF_Update_STPState *ctx);
 int toprf_update_stpstate_step(const TOPRF_Update_STPState *ctx);
 
 #define toprfupdate_stp_start_msg_SIZE ( sizeof(TOPRF_Update_Message)                          \
@@ -353,6 +355,8 @@ uint8_t toprf_update_peerstate_t(const TOPRF_Update_PeerState *ctx);
 const uint8_t* toprf_update_peerstate_sessionid(const TOPRF_Update_PeerState *ctx);
 const uint8_t* toprf_update_peerstate_lt_sk(const TOPRF_Update_PeerState *ctx);
 const uint8_t* toprf_update_peerstate_share(const TOPRF_Update_PeerState *ctx);
+const uint8_t* toprf_update_peerstate_commitment(const TOPRF_Update_PeerState *ctx);
+const uint8_t* toprf_update_peerstate_commitments(const TOPRF_Update_PeerState *ctx);
 int toprf_update_peerstate_step(const TOPRF_Update_PeerState *ctx);
 
 TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
