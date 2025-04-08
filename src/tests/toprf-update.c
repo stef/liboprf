@@ -655,14 +655,17 @@ int main(const int argc, const char **argv) {
 
   // check if delta is equal kc/kc'
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
+
+  dkg_vss_reconstruct(t, 0, n, k0_shares, k0_commitments, tmp, NULL);
+  uint8_t kc0inv[crypto_scalarmult_ristretto255_SCALARBYTES];
+  if(0!=crypto_core_ristretto255_scalar_invert(kc0inv, tmp)) return 1;
+
   TOPRF_Share kc1_shares[t][2];
   for(unsigned i=0;i<t;i++) memcpy((uint8_t*) kc1_shares[i], (uint8_t*) peers[i].kc1_share, 2*TOPRF_Share_BYTES);
   dkg_vss_reconstruct(t, 0, n, kc1_shares, NULL, tmp, NULL);
-  uint8_t kc1inv[crypto_scalarmult_ristretto255_SCALARBYTES];
-  if(0!=crypto_core_ristretto255_scalar_invert(kc1inv, tmp)) return 1;
-  dkg_vss_reconstruct(t, 0, n, k0_shares, k0_commitments, tmp, NULL);
+
   uint8_t deltakc[crypto_scalarmult_ristretto255_SCALARBYTES];
-  crypto_core_ristretto255_scalar_mul(deltakc, tmp, kc1inv);
+  crypto_core_ristretto255_scalar_mul(deltakc, tmp, kc0inv);
   if(memcmp(stp.delta, deltakc, sizeof deltakc)!=0) {
     dump(stp.delta,  sizeof deltakc, "delta  ");
     dump(deltakc,sizeof deltakc, "deltakc");

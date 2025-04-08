@@ -3809,9 +3809,9 @@ static int stp_step45_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, 
     dump(r, sizeof r, "[!] r  ");
     dkg_vss_reconstruct(ctx->t, 0, ctx->n, k1p_shares, (*ctx->k1p_final_commitments), r1, NULL);
     dump(r1, sizeof r1, "[!] r1 ");
-    uint8_t r1inv[crypto_scalarmult_ristretto255_SCALARBYTES];
-    if(0!=crypto_core_ristretto255_scalar_invert(r1inv, r1)) return Err_InvPoint;
-    crypto_core_ristretto255_scalar_mul(ctx->delta, r, r1inv);
+    uint8_t rinv[crypto_scalarmult_ristretto255_SCALARBYTES];
+    if(0!=crypto_core_ristretto255_scalar_invert(rinv, r)) return Err_InvPoint;
+    crypto_core_ristretto255_scalar_mul(ctx->delta, r1, rinv);
     dump(ctx->delta, crypto_scalarmult_ristretto255_SCALARBYTES, "[!] ∆ ");
   }
 
