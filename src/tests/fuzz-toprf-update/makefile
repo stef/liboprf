@@ -3,7 +3,7 @@ N?=9
 T?=4
 
 includes=-I../.. -I../../noise_xk/include -I../../noise_xk/include/karmel -I../../noise_xk/include/karmel/minimal
-defines=-D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM
+defines=-D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM -DUNIT_TEST -DUNITTEST_CORRUPT
 libs=-lsodium -loprf -loprf-noiseXK
 src=../../dkg-vss.c ../../dkg.c ../../toprf-update.c ../toprf-update.c ../../mpmult.c ../../utils.c ../../toprf.c
 
@@ -48,7 +48,7 @@ fuzz-bin-peer:  $(src)
 fuzz-asan: in/tc0 fuzz-bin fuzz-bin-asan fuzz-complog
 	afl-fuzz -c ./fuzz-complog -i in -o out -- ./fuzz-bin-asan $(N) $(T) $(STEP)
 
-fuzz-asan-peer: in/tc0 fuzz-bin-peer fuzz-bin-asan-peer fuzz-complog-peer
+fuzz-asan-peer: in/tc0p fuzz-bin-peer fuzz-bin-asan-peer fuzz-complog-peer
 	afl-fuzz -c ./fuzz-complog-peer -i in -o out -- ./fuzz-bin-asan-peer $(N) $(T) $(STEP)
 
 fuzz: in/tc0 fuzz-bin fuzz-bin-asan fuzz-complog
