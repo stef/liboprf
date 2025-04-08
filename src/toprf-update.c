@@ -624,7 +624,8 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
                                const TOPRF_Share k0[2],
                                uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES],
                                const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES],
-                               uint8_t (*peers_noise_pks)[][crypto_scalarmult_BYTES],
+                               uint8_t (*peer_noise_pks)[][crypto_scalarmult_BYTES],
+                               uint8_t noise_sk[crypto_scalarmult_SCALARBYTES],
                                Noise_XK_session_t *(*noise_outs)[],
                                Noise_XK_session_t *(*noise_ins)[],
                                TOPRF_Share (*kc1_shares)[][2],
@@ -656,7 +657,8 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
   memcpy((uint8_t*) ctx->kc0_share, (const uint8_t*) k0, sizeof(TOPRF_Share)*2);
   ctx->kc0_commitments = kc0_commitments;
   ctx->sig_pks = sig_pks;
-  ctx->peer_noise_pks = peers_noise_pks;
+  ctx->peer_noise_pks = peer_noise_pks;
+  memcpy(ctx->noise_sk, noise_sk, crypto_scalarmult_SCALARBYTES);
   ctx->noise_outs = noise_outs;
   ctx->noise_ins = noise_ins;
   ctx->kc1_shares = kc1_shares;

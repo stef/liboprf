@@ -474,9 +474,10 @@ int main(const int argc, const char **argv) {
   }
 
   uint8_t peers_noise_pks[n][crypto_scalarmult_BYTES];
+  uint8_t peers_noise_sks[n][crypto_scalarmult_SCALARBYTES];
   for(uint8_t i=0;i<n;i++) {
-    randombytes_buf(peers[i].noise_sk, sizeof peers[i].noise_sk);
-    crypto_scalarmult_base(peers_noise_pks[i], peers[i].noise_sk);
+    randombytes_buf(peers_noise_sks[i], crypto_scalarmult_SCALARBYTES);
+    crypto_scalarmult_base(peers_noise_pks[i], peers_noise_sks[i]);
   }
 
   fprintf(stderr, "[T] allocating memory for peers state..");
@@ -536,7 +537,7 @@ int main(const int argc, const char **argv) {
     // in a real deployment peers do not share the same pks buffers
     if(0!=toprf_update_peer_set_bufs(&peers[i], i+1, n, t, k0_shares[i],
                                      &k0_commitments,
-                                     &lt_pks, &peers_noise_pks,
+                                     &lt_pks, &peers_noise_pks, peers_noise_sks[i],
                                      &noise_outs[i], &noise_ins[i],
                                      &kc1shares[i], &pshares[i],
                                      &kc1_commitments[i], &p_commitments[i],
