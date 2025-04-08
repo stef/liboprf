@@ -778,7 +778,7 @@ static TOPRF_Update_Err peer_step3_handler(TOPRF_Update_PeerState *ctx, const ui
     TOPRF_Update_Message *msg3 = (TOPRF_Update_Message *) wptr;
     uint8_t rname[14];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
-    dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg3->data);
+    if(0!=dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg3->data)) return Err_Noise;
     if(0!=toprf_send_msg(wptr, toprfupdate_peer_ake1_msg_SIZE, toprfupdate_peer_ake1_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return Err_Send;
   }
 
@@ -810,7 +810,7 @@ static TOPRF_Update_Err peer_step5_handler(TOPRF_Update_PeerState *ctx, const ui
     TOPRF_Update_Message *msg4 = (TOPRF_Update_Message *) wptr;
     uint8_t rname[14];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
-    dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg3->data, msg4->data);
+    if(0!=dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg3->data, msg4->data)) return Err_Noise;
     if(0!=toprf_send_msg(wptr, toprfupdate_peer_ake2_msg_SIZE, toprfupdate_peer_ake2_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return Err_Send;
   }
   if(ctx->cheater_len>0) return Err_CheatersFound;
@@ -909,7 +909,7 @@ static TOPRF_Update_Err peer_dkg1_handler(TOPRF_Update_PeerState *ctx, const uin
     TOPRF_Update_Message* msg4 = (TOPRF_Update_Message*) ptr;
     if(peer_recv_msg(ctx,ptr,toprfupdate_peer_ake2_msg_SIZE,toprfupdate_peer_ake2_msg,i+1,ctx->index)) continue;
     // process final step of noise handshake
-    dkg_finish_noise_handshake(ctx->index, ctx->dev, &(*ctx->noise_outs)[i], msg4->data);
+    if(0!=dkg_finish_noise_handshake(ctx->index, ctx->dev, &(*ctx->noise_outs)[i], msg4->data)) return Err_Noise;
   }
   if(ctx->cheater_len>0) return Err_CheatersFound;
 

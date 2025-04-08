@@ -45,6 +45,7 @@ typedef enum {
   Err_InvSessionID,
   Err_VSSShare,
   Err_VSSCommit,
+  Err_Noise,
   Err_NoiseEncrypt,
   Err_NoiseDecrypt,
   Err_HMac,
