@@ -230,3 +230,5 @@ updated_oprfed_test = pyoprf.unblind(r, beta)
 
 print('updated oprf\'("test")', updated_test.hex())
 print('oprf\'("test")        ', updated_oprfed_test.hex())
+
+assert updated_test == updated_oprfed_test
