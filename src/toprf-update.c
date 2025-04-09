@@ -551,10 +551,15 @@ void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint64_t *last_ts) {
+  // todo zero all the items.
   ctx->kc1_complaints = kc1_complaints;
+  memset(ctx->kc1_complaints, 0, sizeof(uint16_t) * ctx->n*ctx->n);
   ctx->p_complaints = p_complaints;
+  memset(ctx->p_complaints, 0, sizeof(uint16_t) * ctx->n*ctx->n);
   ctx->x2_complaints = x2_complaints;
+  memset(ctx->x2_complaints, 0, sizeof(uint16_t) * ctx->n*ctx->n);
   ctx->y2_complaints = y2_complaints;
+  memset(ctx->y2_complaints, 0, sizeof(uint16_t) * ctx->n*ctx->n);
   ctx->cheaters = cheaters;
   memset(*cheaters, 0, cheater_max*sizeof(TOPRF_Update_Cheater));
   ctx->cheater_max = cheater_max;
