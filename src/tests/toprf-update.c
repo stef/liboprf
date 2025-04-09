@@ -431,7 +431,7 @@ int main(const int argc, const char **argv) {
 
   uint8_t k0p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
   uint8_t k1p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
-  TOPRF_Update_Cheater stp_cheaters[t*t - 1];
+  TOPRF_Update_Cheater stp_cheaters[n*n - 1];
   memset(stp_cheaters,0,sizeof(stp_cheaters));
   toprf_update_stp_set_bufs(&stp,
                             stp_kc1_complaints,
@@ -528,7 +528,7 @@ int main(const int argc, const char **argv) {
   uint8_t zk_challenge_nonces[n][n*2][2][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t zk_challenge_commitments[n][dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t zk_challenge_e_i[n][2*dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
-  TOPRF_Update_Cheater peer_cheaters[n][t*t - 1];
+  TOPRF_Update_Cheater peer_cheaters[n][n*n - 1];
   memset(peer_cheaters,0,sizeof(peer_cheaters));
 
   fprintf(stderr, " done\n");
