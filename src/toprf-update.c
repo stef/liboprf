@@ -4341,6 +4341,7 @@ size_t toprf_update_peer_output_size(const TOPRF_Update_PeerState *ctx) {
 
 int toprf_update_stp_next(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   int ret = 0;
+  if(ctx->cheater_max <= ctx->cheater_len) return Err_CheatersFull;
   ctx->prev=ctx->step;
   switch(ctx->step) {
   case TOPRF_Update_STP_Broadcast_NPKs: { ret =  stp_step2_handler(ctx, input, input_len, output, output_len); break;}
@@ -4383,6 +4384,7 @@ int toprf_update_stp_next(TOPRF_Update_STPState *ctx, const uint8_t *input, cons
 
 int toprf_update_peer_next(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   int ret=0;
+  if(ctx->cheater_max <= ctx->cheater_len) return Err_CheatersFull;
   ctx->prev=ctx->step;
   switch(ctx->step) {
   case TOPRF_Update_Peer_Broadcast_NPK_SIDNonce: { ret = peer_step1_handler(ctx, output, output_len) ; break; }
