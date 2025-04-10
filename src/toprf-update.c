@@ -104,9 +104,6 @@ uint8_t toprf_update_peerstate_t(const TOPRF_Update_PeerState *ctx) {
 const uint8_t* toprf_update_peerstate_sessionid(const TOPRF_Update_PeerState *ctx) {
   return ctx->sessionid;
 }
-const uint8_t* toprf_update_peerstate_lt_sk(const TOPRF_Update_PeerState *ctx) {
-  return ctx->sig_sk;
-}
 const uint8_t* toprf_update_peerstate_share(const TOPRF_Update_PeerState *ctx) {
   return (const uint8_t*) &ctx->kc1_share;
 }
