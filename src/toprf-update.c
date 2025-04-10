@@ -1473,12 +1473,12 @@ static TOPRF_Update_Err stp_broadcast_defenses(TOPRF_Update_STPState *ctx, const
   memset(ctr1,0,sizeof(ctr1));
   memset(ctr2,0,sizeof(ctr2));
   for(int i=0;i<ctx->kc1_complaints_len;i++) {
-    const uint8_t peer = (uint8_t) (ctx->kc1_complaints[i] & 0xff)-1;
+    const uint8_t peer = (uint8_t) ((ctx->kc1_complaints[i] & 0xff)-1U);
     if(peer>=ctx->n) return Err_OOB;
     ctr1[peer]++;
   }
   for(int i=0;i<ctx->p_complaints_len;i++) {
-    const uint8_t peer = (uint8_t) (ctx->p_complaints[i] & 0xff)-1;
+    const uint8_t peer = (uint8_t) ((ctx->p_complaints[i] & 0xff)-1U);
     if(peer>=ctx->n) return Err_OOB;
     ctr2[peer]++;
   }
