@@ -791,6 +791,19 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
 size_t toprf_update_stp_input_size(const TOPRF_Update_STPState *ctx);
 
 /**
+   This function calculates the size of the message from each peer to
+   be received by the STP.
+
+   @param [in] ctx: an initialized TOPRF_Update_STPState struct.
+   @param [out] sizes: a array of type size_t with exactly N elements.
+
+   @return 0 on if the sizes differ from peer to peer, otherwise all
+           peers will be sending messages of equal size. In the latter
+           case all items of the sizes array hold the same valid value.
+ */
+int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes);
+
+/**
    This function calculates the size of the buffer needed to hold the
    output from the toprf_update_stp_next() function.
 
