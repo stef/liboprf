@@ -2422,7 +2422,7 @@ static TOPRF_Update_Err disclose_shares(const uint8_t n,
   memset(sent,0,sizeof sent);
   for(unsigned i=0;i<complaints_len;i++) {
     const uint8_t peer = (uint8_t) (complaints[i] & 0xff);
-    if(peer>=n) return Err_OOB;
+    if(peer==0 || peer>=n) return Err_OOB;
     if(sent[peer-1]!=0) continue;
     sent[peer-1]=1;
     memcpy(*wptr, shares[peer-1], TOPRF_Share_BYTES*2);
@@ -2472,7 +2472,7 @@ static TOPRF_Update_Err reconstruct(const uint8_t n, const uint8_t t,
     const uint8_t accused = (uint8_t) (complaints[i] & 0xff);
     const uint8_t accuser = (uint8_t) (complaints[i] >> 8);
 
-    if(accused>=n) return Err_OOB;
+    if(accused == 0 || accused>=n) return Err_OOB;
     if(seen[accused-1]) continue;
     seen[accused-1]=1;
 
@@ -2560,7 +2560,7 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
     const uint8_t accused = (uint8_t) (complaints[i] & 0xff);
     const uint8_t accuser = (uint8_t) (complaints[i] >> 8);
 
-    if(accused>=ctx->n) return Err_OOB;
+    if(accused == 0 || accused>=ctx->n) return Err_OOB;
     if(seen[accused-1]) continue;
     seen[accused-1]=1;
 
@@ -3869,7 +3869,7 @@ void toprf_update_peer_free(TOPRF_Update_PeerState *ctx) {
 
 size_t toprf_update_stp_input_size(const TOPRF_Update_STPState *ctx) {
   size_t sizes[ctx->n];
-  //memset(sizes,0,sizeof sizes);
+  memset(sizes,0,sizeof sizes);
   if(toprf_update_stp_input_sizes(ctx, sizes) == 1) {
     return sizes[0] * ctx->n;
   } else {
