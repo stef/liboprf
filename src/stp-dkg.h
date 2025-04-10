@@ -440,7 +440,7 @@ int stp_dkg_peerstate_step(const STP_DKG_PeerState *ctx);
 
     @param [in] peer_lt_sk: the long-term private signing key of the peer.
 
-    @param [in] nose_sks: the long-term noise secret key of the peer.
+    @param [in] noise_sks: the long-term noise secret key of the peer.
 
     @param [in] msg0: the initiating msg sent from the TP after the TP
                 run tpdkg_tp_start().
@@ -460,7 +460,7 @@ STP_DKG_Err stp_dkg_start_peer(STP_DKG_PeerState *ctx,
 
 /** This function sets all the variable sized buffers in the STP_DKG_PeerState structure.
 
-  The buffer sizes depend on the n and t parameters to the DKG tese
+  The buffer sizes depend on the n and t parameters to the DKG these
   are announced by the STP in msg0, which is an input to the
   tpdkg_start_peer() function, after this tpdkg_start_peer() function
   the peerstate is initialized and can be used to find out the n and t
@@ -550,6 +550,8 @@ size_t stp_dkg_stp_input_size(const STP_DKG_STPState *ctx);
    @return 0 on if the sizes differ from peer to peer, otherwise all
            peers will be sending messages of equal size. In the latter
            case all items of the sizes array hold the same valid value.
+
+   TODO make this private - it is not needed externally
  */
 int stp_dkg_stp_input_sizes(const STP_DKG_STPState *ctx, size_t *sizes);
 
@@ -580,10 +582,10 @@ size_t stp_dkg_stp_output_size(const STP_DKG_STPState *ctx);
    and stp_dkg_stp_output_size():
 
    @code
-    uint8_t tp_out[stp_dkg_tp_output_size(&tp)];
-    uint8_t tp_in[stp_dkg_tp_input_size(&tp)];
-    recv(socket, tp_in, sizeof(tp_in));
-    ret = stp_dkg_stp_next(&tp, tp_in, sizeof(tp_in), tp_out, sizeof tp_out);
+    uint8_t stp_out[stp_dkg_stp_output_size(&tp)];
+    uint8_t stp_in[stp_dkg_stp_input_size(&tp)];
+    recv(socket, stp_in, sizeof(stp_in));
+    ret = stp_dkg_stp_next(&tp, stp_in, sizeof(stp_in), stp_out, sizeof stp_out);
    @endcode
  */
 int stp_dkg_stp_next(STP_DKG_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len);
@@ -686,7 +688,7 @@ size_t stp_dkg_peer_output_size(const STP_DKG_PeerState *ctx);
    @code
    uint8_t peers_out[stp_dkg_peer_output_size(&peer)];
 
-   uint8_t peer_in[stp_dkg_peer_input_size(peers)];
+   uint8_t peer_in[stp_dkg_peer_input_size(&peer)];
    recv(socket, peer_in, sizeof(peer_in));
    ret = stp_dkg_peer_next(&peer,
                            peer_in, sizeof(peer_in),
@@ -697,7 +699,7 @@ int stp_dkg_peer_next(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t
 
 /**
    This function checks if the protocol has finished for the peer or
-   more stp_dk_peer_next() calls are necessary.
+   more stp_dkg_peer_next() calls are necessary.
 
    @return 1 if more steps outstanding
  */
