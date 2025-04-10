@@ -925,10 +925,6 @@ liboprf.toprf_update_peerstate_sessionid.restype = ctypes.POINTER(ctypes.c_uint8
 def tupdate_peerstate_sessionid(ctx):
     ptr = liboprf.toprf_update_peerstate_sessionid(ctx[0])
     return bytes(ptr[i] for i in range(sessionid_SIZE))
-liboprf.toprf_update_peerstate_lt_sk.restype = ctypes.POINTER(ctypes.c_uint8)
-def tupdate_peerstate_lt_sk(ctx):
-    ptr = liboprf.toprf_update_peerstate_lt_sk(ctx[0])
-    return bytes(ptr[i] for i in range(pysodium.crypto_sign_SECRETKEYBYTES))
 liboprf.toprf_update_peerstate_share.restype = ctypes.POINTER(ctypes.c_uint8)
 def tupdate_peerstate_share(ctx):
     ptr = liboprf.toprf_update_peerstate_share(ctx[0])
