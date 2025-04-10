@@ -3862,19 +3862,7 @@ void toprf_update_peer_free(TOPRF_Update_PeerState *ctx) {
   if(ctx->dev!=NULL) Noise_XK_device_free(ctx->dev);
 }
 
-size_t toprf_update_stp_input_size(const TOPRF_Update_STPState *ctx) {
-  size_t sizes[ctx->n];
-  //memset(sizes,0,sizeof sizes);
-  if(toprf_update_stp_input_sizes(ctx, sizes) == 1) {
-    return sizes[0] * ctx->n;
-  } else {
-    size_t result=0;
-    for(int i=0;i<ctx->n;i++) result+=sizes[i];
-    return result;
-  }
-}
-
-int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes) {
+static int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes) {
   const unsigned dealers = ((ctx->t-1)*2 + 1U);
   size_t item=0;
   switch(ctx->step) {
@@ -3984,6 +3972,18 @@ int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes
     sizes[i] = item;
   }
   return 1;
+}
+
+size_t toprf_update_stp_input_size(const TOPRF_Update_STPState *ctx) {
+  size_t sizes[ctx->n];
+  //memset(sizes,0,sizeof sizes);
+  if(toprf_update_stp_input_sizes(ctx, sizes) == 1) {
+    return sizes[0] * ctx->n;
+  } else {
+    size_t result=0;
+    for(int i=0;i<ctx->n;i++) result+=sizes[i];
+    return result;
+  }
 }
 
 size_t toprf_update_stp_output_size(const TOPRF_Update_STPState *ctx) {
