@@ -131,7 +131,7 @@ static void invert(const uint8_t n,
 
 static void genVDMmatrix(const uint8_t indexes[], const uint8_t index_len,
                          uint8_t matrix[index_len][index_len][crypto_core_ristretto255_SCALARBYTES]) {
-  memset(matrix,0,index_len*index_len*crypto_core_ristretto255_SCALARBYTES);
+  memset(matrix,0,index_len*index_len*((unsigned) crypto_core_ristretto255_SCALARBYTES));
   for(uint8_t i=0;i<index_len;i++) {
     uint8_t base[crypto_core_ristretto255_SCALARBYTES]={0};
     base[0]=indexes[i];
@@ -279,7 +279,7 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
 
   // right-hand side of the equation (1)
   // since the RHS has A_i, i:=t+1..2t+1 see p8para3L2
-  for(uint8_t i=0;i<=t;i++) indexes[i]=t+1U+i;
+  for(uint8_t i=0;i<=t;i++) indexes[i]=(uint8_t) (t+1U+i);
   invertedVDMmatrix(t+1,indexes,lambda);
 #ifdef UNIT_TEST
   if(log_file!=NULL && debug) fprintf(log_file,"vdm2\n");
