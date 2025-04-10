@@ -661,6 +661,7 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
   ctx->sig_pks = sig_pks;
   ctx->peer_noise_pks = peer_noise_pks;
   memcpy(ctx->noise_sk, noise_sk, crypto_scalarmult_SCALARBYTES);
+
   ctx->noise_outs = noise_outs;
   ctx->noise_ins = noise_ins;
   ctx->kc1_shares = kc1_shares;
@@ -682,10 +683,15 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
   ctx->zk_challenge_commitments = zk_challenge_commitments;
   ctx->zk_challenge_e_i = zk_challenge_e_i;
   ctx->kc1_complaints = kc1_complaints;
+  memset(ctx->kc1_complaints, 0, sizeof(uint16_t) * n);
   ctx->p_complaints = p_complaints;
+  memset(ctx->p_complaints, 0, sizeof(uint16_t) * n);
   ctx->my_kc1_complaints = my_kc1_complaints;
+  memset(ctx->my_kc1_complaints, 0, n);
   ctx->my_p_complaints = my_p_complaints;
+  memset(ctx->my_p_complaints, 0, n);
   ctx->cheaters = cheaters;
+  memset(cheaters,0,sizeof(TOPRF_Update_Cheater)*cheater_max);
   ctx->cheater_max = cheater_max;
   ctx->last_ts = last_ts;
   for(uint8_t i=0;i<ctx->n;i++) ctx->last_ts[i]=0;
