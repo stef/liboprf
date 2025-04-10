@@ -550,8 +550,6 @@ size_t stp_dkg_stp_input_size(const STP_DKG_STPState *ctx);
    @return 0 on if the sizes differ from peer to peer, otherwise all
            peers will be sending messages of equal size. In the latter
            case all items of the sizes array hold the same valid value.
-
-   TODO make this private - it is not needed externally
  */
 int stp_dkg_stp_input_sizes(const STP_DKG_STPState *ctx, size_t *sizes);
 
