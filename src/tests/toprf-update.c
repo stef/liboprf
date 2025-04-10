@@ -560,6 +560,7 @@ int main(const int argc, const char **argv) {
                                      peer_my_p_complaints[i],
                                      peer_last_ts[i])) {
       fprintf(stderr, "invalid n/t parameters. aborting\n");
+      return 1;
     }
   }
 
