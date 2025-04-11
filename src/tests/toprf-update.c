@@ -401,21 +401,11 @@ int main(const int argc, const char **argv) {
   // variable size, and the struct can only handle one variable size
   // entry...
   // stp needs to store the complaints, with max n==128 this takes max 16KB of ram.
-  uint16_t stp_kc1_complaints[n*n];
-  memset(stp_kc1_complaints,0,sizeof(stp_kc1_complaints));
   uint16_t stp_p_complaints[n*n];
   memset(stp_p_complaints,0,sizeof(stp_p_complaints));
-  uint16_t stp_x2_complaints[n*n];
-  memset(stp_x2_complaints,0,sizeof(stp_x2_complaints));
   uint16_t stp_y2_complaints[n*n];
   memset(stp_y2_complaints,0,sizeof(stp_y2_complaints));
   uint64_t last_ts[n];
-  uint8_t stp_kc1_commitments_hashes[n][toprf_update_commitment_HASHBYTES];
-  memset(stp_kc1_commitments_hashes, 0, sizeof stp_kc1_commitments_hashes);
-  uint8_t stp_kc1_share_macs[n*n][crypto_auth_hmacsha256_BYTES];
-  memset(stp_kc1_share_macs, 0, sizeof stp_kc1_share_macs);
-  uint8_t stp_kc1_commitments[n*n][crypto_core_ristretto255_BYTES];
-  memset(stp_kc1_commitments, 0, sizeof stp_kc1_commitments);
 
   uint8_t stp_p_commitments_hashes[n][toprf_update_commitment_HASHBYTES];
   memset(stp_p_commitments_hashes, 0, sizeof stp_p_commitments_hashes);
@@ -425,34 +415,25 @@ int main(const int argc, const char **argv) {
   memset(stp_p_commitments, 0, sizeof stp_p_commitments);
 
   uint8_t stp_k0p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
-  uint8_t stp_k1p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
   uint8_t stp_zk_challenge_commitments[dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t stp_zk_challenge_e_i[2*dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
 
   uint8_t k0p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
-  uint8_t k1p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
   TOPRF_Update_Cheater stp_cheaters[n*n - 1];
   memset(stp_cheaters,0,sizeof(stp_cheaters));
   toprf_update_stp_set_bufs(&stp,
-                            stp_kc1_complaints,
                             stp_p_complaints,
-                            stp_x2_complaints,
                             stp_y2_complaints,
                             &stp_cheaters,
                             sizeof(stp_cheaters) / sizeof(TOPRF_Update_Cheater),
-                            &stp_kc1_commitments_hashes,
-                            &stp_kc1_share_macs,
                             &stp_p_commitments_hashes,
                             &stp_p_share_macs,
-                            &stp_kc1_commitments,
                             &stp_p_commitments,
                             &k0_commitments,
                             &stp_k0p_commitments,
-                            &stp_k1p_commitments,
                             &stp_zk_challenge_commitments,
                             &stp_zk_challenge_e_i,
                             &k0p_final_commitments,
-                            &k1p_final_commitments,
                             last_ts);
 
   TOPRF_Update_PeerState peers[n];
@@ -488,19 +469,6 @@ int main(const int argc, const char **argv) {
   Noise_XK_session_t *noise_ins[n][n];
   memset(noise_ins, 0, sizeof noise_ins);
 
-  TOPRF_Share kc1shares[n][n][2];
-  memset(kc1shares, 0, sizeof kc1shares);
-  uint8_t kc1_commitments[n][n*n][crypto_core_ristretto255_BYTES];
-  memset(kc1_commitments, 0, sizeof kc1_commitments);
-  uint8_t kc1_commitments_hashes[n][n][toprf_update_commitment_HASHBYTES];
-  memset(kc1_commitments_hashes, 0, sizeof kc1_commitments_hashes);
-  uint8_t peers_kc1_share_macs[n][n*n][crypto_auth_hmacsha256_BYTES];
-  memset(peers_kc1_share_macs, 0, sizeof peers_kc1_share_macs);
-  uint16_t peer_kc1_complaints[n][n*n];
-  memset(peer_kc1_complaints, 0, sizeof peer_kc1_complaints);
-  uint8_t peer_my_kc1_complaints[n][n];
-  memset(peer_my_kc1_complaints, 0, sizeof peer_my_kc1_complaints);
-
   TOPRF_Share pshares[n][n][2];
   memset(pshares, 0, sizeof pshares);
   uint8_t p_commitments[n][n*n][crypto_core_ristretto255_BYTES];
@@ -514,7 +482,7 @@ int main(const int argc, const char **argv) {
   uint8_t peer_my_p_complaints[n][n];
   memset(peer_my_p_complaints, 0, sizeof peer_my_p_complaints);
 
-  uint8_t encrypted_shares[n][n][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2];
+  uint8_t encrypted_shares[n][n][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE];
   memset(encrypted_shares, 0, sizeof encrypted_shares);
 
   uint64_t peer_last_ts[n][n];
@@ -522,12 +490,10 @@ int main(const int argc, const char **argv) {
   uint8_t lambdas[n][dealers][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share k0p_shares[n][dealers][2];
   uint8_t k0p_commitments[n][dealers*(n+1)][crypto_core_ristretto255_BYTES];
-  TOPRF_Share k1p_shares[n][dealers][2];
-  uint8_t k1p_commitments[n][dealers*(n+1)][crypto_core_ristretto255_BYTES];
-  uint8_t zk_challenge_nonce_commitments[n][n*2][crypto_scalarmult_ristretto255_BYTES];
-  uint8_t zk_challenge_nonces[n][n*2][2][crypto_scalarmult_ristretto255_SCALARBYTES];
-  uint8_t zk_challenge_commitments[n][dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
-  uint8_t zk_challenge_e_i[n][2*dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t zk_challenge_nonce_commitments[n][n][crypto_scalarmult_ristretto255_BYTES];
+  uint8_t zk_challenge_nonces[n][n][2][crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t zk_challenge_commitments[n][dealers][3][crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t zk_challenge_e_i[n][dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
   TOPRF_Update_Cheater peer_cheaters[n][n*n - 1];
   memset(peer_cheaters,0,sizeof(peer_cheaters));
 
@@ -539,24 +505,20 @@ int main(const int argc, const char **argv) {
                                      &k0_commitments,
                                      &lt_pks, &peers_noise_pks, peers_noise_sks[i],
                                      &noise_outs[i], &noise_ins[i],
-                                     &kc1shares[i], &pshares[i],
-                                     &kc1_commitments[i], &p_commitments[i],
-                                     &kc1_commitments_hashes[i], &p_commitments_hashes[i],
-                                     &peers_kc1_share_macs[i], &peers_p_share_macs[i],
+                                     &pshares[i],
+                                     &p_commitments[i],
+                                     &p_commitments_hashes[i],
+                                     &peers_p_share_macs[i],
                                      &encrypted_shares[i],
                                      &peer_cheaters[i], sizeof(peer_cheaters) / sizeof(TOPRF_Update_Cheater) / n,
                                      &lambdas[i],
                                      &k0p_shares[i],
                                      &k0p_commitments[i],
-                                     &k1p_shares[i],
-                                     &k1p_commitments[i],
                                      &zk_challenge_nonce_commitments[i],
                                      &zk_challenge_nonces[i],
                                      &zk_challenge_commitments[i],
                                      &zk_challenge_e_i[i],
-                                     peer_kc1_complaints[i],
                                      peer_p_complaints[i],
-                                     peer_my_kc1_complaints[i],
                                      peer_my_p_complaints[i],
                                      peer_last_ts[i])) {
       fprintf(stderr, "invalid n/t parameters. aborting\n");
@@ -655,18 +617,19 @@ int main(const int argc, const char **argv) {
   }
 
   // check if delta is equal kc/kc'
-  uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t kc0[crypto_scalarmult_ristretto255_SCALARBYTES];
+  uint8_t kc1[crypto_scalarmult_ristretto255_SCALARBYTES];
 
-  dkg_vss_reconstruct(t, 0, n, k0_shares, k0_commitments, tmp, NULL);
+  dkg_vss_reconstruct(t, 0, n, k0_shares, k0_commitments, kc0, NULL);
   uint8_t kc0inv[crypto_scalarmult_ristretto255_SCALARBYTES];
-  if(0!=crypto_core_ristretto255_scalar_invert(kc0inv, tmp)) return 1;
+  if(0!=crypto_core_ristretto255_scalar_invert(kc0inv, kc0)) return 1;
 
   TOPRF_Share kc1_shares[t][2];
-  for(unsigned i=0;i<t;i++) memcpy((uint8_t*) kc1_shares[i], (uint8_t*) peers[i].kc1_share, 2*TOPRF_Share_BYTES);
-  dkg_vss_reconstruct(t, 0, n, kc1_shares, NULL, tmp, NULL);
+  for(unsigned i=0;i<t;i++) memcpy((uint8_t*) kc1_shares[i], (uint8_t*) peers[i].k0p_share, 2*TOPRF_Share_BYTES);
+  dkg_vss_reconstruct(t, 0, n, kc1_shares, NULL, kc1, NULL);
 
   uint8_t deltakc[crypto_scalarmult_ristretto255_SCALARBYTES];
-  crypto_core_ristretto255_scalar_mul(deltakc, tmp, kc0inv);
+  crypto_core_ristretto255_scalar_mul(deltakc, kc1, kc0inv);
   if(memcmp(stp.delta, deltakc, sizeof deltakc)!=0) {
     dump(stp.delta,  sizeof deltakc, "delta  ");
     dump(deltakc,sizeof deltakc, "deltakc");

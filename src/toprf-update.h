@@ -116,9 +116,6 @@ typedef enum {
          cheaters and protocol violators at the end of a failed
          protocol run.
 
-    @var TOPRF_Update_STPState:kc1_commitments contains the
-         commitments to the updated OPRF key
-
     @var TOPRF_Update_STPState:delta contains the final public delta
          value, which can be applied to previous results of the OPRF
          with the old key, to update those results to the new key.
@@ -136,14 +133,6 @@ typedef struct {
   uint64_t ts_epsilon;
   const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES];
 
-  uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
-  uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES];
-  uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES];
-  uint16_t kc1_complaints_len;
-  uint16_t *kc1_complaints;
-  uint16_t *x2_complaints;
-  uint16_t x2_complaints_len;
-
   uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
   uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES];
   uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
@@ -154,7 +143,6 @@ typedef struct {
 
   uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES];
   uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES];
-  uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES];
   uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES];
 
@@ -162,7 +150,6 @@ typedef struct {
   TOPRF_Update_Cheater (*cheaters)[];
   size_t cheater_max;
   uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES];
-  uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES];
   uint8_t delta[crypto_scalarmult_ristretto255_BYTES];
   crypto_generichash_state transcript_state;
   uint8_t transcript[crypto_generichash_BYTES];
@@ -272,47 +259,33 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
    These can be allocated on the stack as follows:
 
    @code
-    uint16_t stp_kc1_complaints[n*n];
     uint16_t stp_p_complaints[n*n];
-    uint16_t stp_x2_complaints[n*n];
     uint16_t stp_y2_complaints[n*n];
     uint64_t last_ts[n];
-    uint8_t stp_kc1_commitments_hashes[n][toprf_update_commitment_HASHBYTES];
-    uint8_t stp_kc1_share_macs[n*n][crypto_auth_hmacsha256_BYTES];
-    uint8_t stp_kc1_commitments[n*n][crypto_core_ristretto255_BYTES];
 
     uint8_t stp_p_commitments_hashes[n][toprf_update_commitment_HASHBYTES];
     uint8_t stp_p_share_macs[n*n][crypto_auth_hmacsha256_BYTES];
     uint8_t stp_p_commitments[n*n][crypto_core_ristretto255_BYTES];
 
     uint8_t stp_k0p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
-    uint8_t stp_k1p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
-    uint8_t stp_zk_challenge_commitments[dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
-    uint8_t stp_zk_challenge_e_i[2*dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
+    uint8_t stp_zk_challenge_commitments[dealers][3][crypto_scalarmult_ristretto255_SCALARBYTES];
+    uint8_t stp_zk_challenge_e_i[dealers][crypto_scalarmult_ristretto255_SCALARBYTES];
 
     uint8_t k0p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
-    uint8_t k1p_final_commitments[n][crypto_scalarmult_ristretto255_BYTES];
     TOPRF_Update_Cheater stp_cheaters[t*t - 1];
     toprf_update_stp_set_bufs(&stp,
-                              stp_kc1_complaints,
                               stp_p_complaints,
-                              stp_x2_complaints,
                               stp_y2_complaints,
                               &stp_cheaters,
                               sizeof(stp_cheaters) / sizeof(TOPRF_Update_Cheater),
-                              &stp_kc1_commitments_hashes,
-                              &stp_kc1_share_macs,
                               &stp_p_commitments_hashes,
                               &stp_p_share_macs,
-                              &stp_kc1_commitments,
                               &stp_p_commitments,
                               &k0_commitments,
                               &stp_k0p_commitments,
-                              &stp_k1p_commitments,
                               &stp_zk_challenge_commitments,
                               &stp_zk_challenge_e_i,
                               &k0p_final_commitments,
-                              &k1p_final_commitments,
                               last_ts);
    @endcode
 
@@ -322,24 +295,17 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
 
  */
 void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
-                               uint16_t kc1_complaints[],
                                uint16_t p_complaints[],
-                               uint16_t x2_complaints[],
                                uint16_t y2_complaint[],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
-                               uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
-                               uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
                                uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                                uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
-                               uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
-                               uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
-                               uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint64_t *last_ts);
 
 /** @enum TOPRF-Update protocol steps for the peers
@@ -358,8 +324,8 @@ typedef enum {
   TOPRF_Update_Peer_Finish_DKG,
   TOPRF_Update_Peer_Confirm_Transcripts,
   TOPRF_Update_Peer_Rcv_Mult_CHashes_Send_Commitments,
-  TOPRF_Update_Peer_Send_K1P_Shares,
-  TOPRF_Update_Peer_Recv_K1P_Shares,
+  TOPRF_Update_Peer_Send_K0P_Shares,
+  TOPRF_Update_Peer_Recv_K0P_Shares,
   TOPRF_Update_Peer_Handle_Mult_Share_Complaints,
   TOPRF_Update_Peer_Defend_Mult_Accusations,
   TOPRF_Update_Peer_Check_Mult_Shares,
@@ -376,7 +342,7 @@ typedef enum {
   TOPRF_Update_Peer_Final_VSPS_Checks,
   TOPRF_Update_Peer_Disclose_VSPS_Cheaters,
   TOPRF_Update_Peer_Reconstruct_VSPS_Shares,
-  TOPRF_Update_Peer_Send_k0p_k1p_Share,
+  TOPRF_Update_Peer_Send_k0p_Share,
   TOPRF_Update_Peer_Final_OK,
   TOPRF_Update_Peer_Done
 } TOPRF_Update_Peer_Steps;
@@ -478,11 +444,6 @@ typedef struct {
          cheaters and protocol violators at the end of a failed
          protocol run.
 
-    @var kc1_share this field contains the peers share of the new -
-         updated - oprf key.
-
-    @var kc1_commitment this field cotains the peers commitment to the
-         share of the new - updated - OPRF key.
 */
 typedef struct {
   TOPRF_Update_Peer_Steps step;
@@ -506,18 +467,7 @@ typedef struct {
   Noise_XK_session_t *(*noise_outs)[];
   Noise_XK_session_t *(*noise_ins)[];
 
-  uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2];
-
-  TOPRF_Share (*kc1_shares)[][2];
-  uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES];
-  uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES];
-  uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES];
-  uint16_t kc1_complaints_len;
-  uint16_t *kc1_complaints;
-  uint8_t my_kc1_complaints_len;
-  uint8_t *my_kc1_complaints;
-  TOPRF_Share kc1_share[2];
-  uint8_t kc1_commitment[crypto_core_ristretto255_BYTES];
+  uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE];
 
   TOPRF_Share (*p_shares)[][2];
   uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES];
@@ -528,26 +478,21 @@ typedef struct {
   uint8_t my_p_complaints_len;
   uint8_t *my_p_complaints;
   TOPRF_Share p_share[2];
-  uint8_t p_commitment[crypto_core_ristretto255_BYTES];
 
   uint8_t (*lambdas)[][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share (*k0p_shares)[][2];
   uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES];
   uint8_t k0p_tau[crypto_core_ristretto255_SCALARBYTES];
 
-  TOPRF_Share (*k1p_shares)[][2];
-  uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES];
-  uint8_t k1p_tau[crypto_core_ristretto255_SCALARBYTES];
-
-  uint8_t zk_chal_nonce[2][2][crypto_core_ristretto255_SCALARBYTES];
+  uint8_t zk_chal_nonce[2][crypto_core_ristretto255_SCALARBYTES];
   uint8_t (*zk_challenge_nonces)[][2][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t (*zk_challenge_nonce_commitments)[][crypto_scalarmult_ristretto255_BYTES];
   uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES];
-  TOPRF_Update_ZK_params zk_params[2];
+  TOPRF_Update_ZK_params zk_params;
 
   TOPRF_Share k0p_share[2];
-  TOPRF_Share k1p_share[2];
+  uint8_t k0p_commitment[crypto_core_ristretto255_BYTES];
 
   size_t cheater_len;
   TOPRF_Update_Cheater (*cheaters)[];
@@ -686,14 +631,6 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
   Noise_XK_session_t *noise_outs[n];
   Noise_XK_session_t *noise_ins[n];
 
-  TOPRF_Share kc1shares[n][2];
-  uint8_t kc1_commitments[n*n][crypto_core_ristretto255_BYTES];
-  uint8_t kc1_commitments_hashes[n][toprf_update_commitment_HASHBYTES];
-  uint8_t peers_kc1_share_macs[n*n][crypto_auth_hmacsha256_BYTES];
-
-  uint16_t peer_kc1_complaints[n*n];
-  uint8_t peer_my_kc1_complaints[n];
-
   TOPRF_Share pshares[n][2];
   uint8_t p_commitments[n*n][crypto_core_ristretto255_BYTES];
   uint8_t p_commitments_hashes[n][toprf_update_commitment_HASHBYTES];
@@ -701,14 +638,12 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
   uint16_t peer_p_complaints[n*n];
   uint8_t peer_my_p_complaints[n];
 
-  uint8_t encrypted_shares[n][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2];
+  uint8_t encrypted_shares[n][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE];
 
   uint64_t peer_last_ts[n];
   uint8_t lambdas[dealers][crypto_core_ristretto255_SCALARBYTES];
   TOPRF_Share k0p_shares[dealers][2];
   uint8_t k0p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
-  TOPRF_Share k1p_shares[dealers][2];
-  uint8_t k1p_commitments[dealers*(n+1)][crypto_core_ristretto255_BYTES];
   uint8_t zk_challenge_nonce_commitments[n*2][crypto_scalarmult_ristretto255_BYTES];
   uint8_t zk_challenge_nonces[n*2][2][crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t zk_challenge_commitments[dealers*2][3][crypto_scalarmult_ristretto255_SCALARBYTES];
@@ -719,24 +654,20 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
                                    &k0_commitments,
                                    &lt_pks, &peers_noise_pks, noise_sk,
                                    &noise_outs, &noise_ins,
-                                   &kc1shares, &pshares,
-                                   &kc1_commitments, &p_commitments,
-                                   &kc1_commitments_hashes, &p_commitments_hashes,
-                                   &peers_kc1_share_macs, &peers_p_share_macs,
+                                   &pshares,
+                                   &p_commitments,
+                                   &p_commitments_hashes,
+                                   &peers_p_share_macs,
                                    &encrypted_shares,
                                    &peer_cheaters, sizeof(peer_cheaters) / sizeof(TOPRF_Update_Cheater) / n,
                                    &lambdas,
                                    &k0p_shares,
                                    &k0p_commitments,
-                                   &k1p_shares,
-                                   &k1p_commitments,
                                    &zk_challenge_nonce_commitments,
                                    &zk_challenge_nonces,
                                    &zk_challenge_commitments,
                                    &zk_challenge_e_i,
-                                   peer_kc1_complaints,
                                    peer_p_complaints,
-                                   peer_my_kc1_complaints,
                                    peer_my_p_complaints,
                                    peer_last_ts)) return 1;
   @endcode
@@ -751,27 +682,21 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
                                uint8_t noise_sk[crypto_scalarmult_BYTES],
                                Noise_XK_session_t *(*noise_outs)[],
                                Noise_XK_session_t *(*noise_ins)[],
-                               TOPRF_Share (*kc1_shares)[][2],
                                TOPRF_Share (*p_shares)[][2],
-                               uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
-                               uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                                uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
-                               uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
                                uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
-                               uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2],
+                               uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE],
                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
                                uint8_t (*lambdas)[][crypto_core_ristretto255_SCALARBYTES],
                                TOPRF_Share (*k0p_shares)[][2],
                                uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
-                               TOPRF_Share (*k1p_shares)[][2],
-                               uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
                                uint8_t (*zk_challenge_nonce_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint8_t (*zk_challenge_nonces)[][2][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
-                               uint16_t *kc1_complaints, uint16_t *p_complaints,
-                               uint8_t *my_kc1_complaints, uint8_t *my_p_complaints,
+                               uint16_t *p_complaints,
+                               uint8_t *my_p_complaints,
                                uint64_t *last_ts);
 
 /**

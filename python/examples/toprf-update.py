@@ -167,10 +167,9 @@ for i in range(n):
 
 for i in range(n):
     assert(pyoprf.tupdate_peerstate_sessionid(peers[i]) == pyoprf.tupdate_stpstate_sessionid(stp))
-    assert(sig_sks[i+1] == pyoprf.tupdate_peerstate_lt_sk(peers[i]))
 
 peer_msgs = []
-while pyoprf.tupdate_stp_not_done(stp):
+while pyoprf.tupdate_peer_not_done(peers[0]):
     peer_msgs = []
     while(len(b''.join(peer_msgs))==0 and pyoprf.tupdate_peer_not_done(peers[0])):
         for i in range(n):
@@ -184,20 +183,21 @@ while pyoprf.tupdate_stp_not_done(stp):
                 peer_msgs.append(out)
                 #print(f"peer[{i+1}] -> tp {peer_msgs[-1].hex()}")
         stp_out = ''
-    ret, sizes = pyoprf.tupdate_stp_input_sizes(stp)
-    # peer_msgs = (recv(size) for size in sizes)
-    msgs = b''.join(peer_msgs)
+    if pyoprf.tupdate_stp_not_done(stp):
+        ret, sizes = pyoprf.tupdate_stp_input_sizes(stp)
+        # peer_msgs = (recv(size) for size in sizes)
+        msgs = b''.join(peer_msgs)
 
-    cur_step = pyoprf.tupdate_stpstate_step(stp)
-    try:
-      stp_out = pyoprf.tupdate_stp_next(stp, msgs)
-      #print(f"tp: msg[{tp[0].step}]: {tp_out.raw.hex()}")
-    except Exception as e:
-      #cheaters, cheats = pyoprf.stp_dkg_get_cheaters(stp)
-      #print(f"Warning during the distributed key generation the peers misbehaved: {sorted(cheaters)}")
-      #for k, v in cheats:
-      #    print(f"\tmisbehaving peer: {k} was caught: {v}")
-      raise ValueError(f"{e} | tp step {cur_step}")
+        cur_step = pyoprf.tupdate_stpstate_step(stp)
+        try:
+          stp_out = pyoprf.tupdate_stp_next(stp, msgs)
+          #print(f"tp: msg[{tp[0].step}]: {tp_out.raw.hex()}")
+        except Exception as e:
+          #cheaters, cheats = pyoprf.stp_dkg_get_cheaters(stp)
+          #print(f"Warning during the distributed key generation the peers misbehaved: {sorted(cheaters)}")
+          #for k, v in cheats:
+          #    print(f"\tmisbehaving peer: {k} was caught: {v}")
+          raise ValueError(f"{e} | tp step {cur_step}")
 
 delta = pyoprf.tupdate_stpstate_delta(stp)
 print("delta", delta.hex())

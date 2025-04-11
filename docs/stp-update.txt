@@ -26,7 +26,7 @@ The long-term signing keys of peers MUST be known by all parties
 before the start of the protocol.
 
 This protocol is based on the threshold updatable OPRF as described in
-section 6.2 of [JKR18].
+section 6.2 of [JKR19].
 
 The basic building blocks for this protocol are the FT-Joint-DL-VSS
 protocol for the DKGs as specified in Appendix H figure 7 of [GRR98],
@@ -39,24 +39,23 @@ multiplication is based on the FT-Mult protocol shown in Fig. 6 from
 The update protocol from old key kc to new key kc' works as follows
 (quote from the JKR paper):
 
-Servers S1,..,Sn secret-share keys kc and kc′ in (n, t)-threshold
-Shamir secret-sharing, servers S1,.., Sn first generate a joint
-(n,t)-threshold sharing ρ1,.., ρn of a secret value ρ which is
-randomly chosen in Zq. Then they run the protocol FT-Mult(kc, ρ) and
-FT-Mult(kc′, ρ), generating (n, t) sharings (r1,.., rn) and
-(r′1,..,r′n) of the products ρ·kc and ρ·kc′, respectively. Finally,
-each server Si sends to the client the shares ri, r′i, and the client
-reconstructs r = ρ·kc and r′ = ρ·kc′ and computes ∆= r/r′.
+The distributed update protocol assumes that n servers S1,...,Sn have
+a sharing (k1,..., kn) of a key k. To produce a new key k′ the servers
+jointly generate a sharing ρ1,...,ρn of a random secret ρ ∈Zq and run
+distributed multiplication FT-Mult(kc,ρ) to generate shares
+k′1,...,k′n of the new key defined as k′ = ρ · k. Finally, each server
+Si sends to clients its share ρi from which the recipient reconstructs
+ρ and sets ∆:= ρ [= k′/k].
 
 ------<=[ Roles                                         ]=>-----------
 
 There is three roles in this protocol:
 
- - semi-trusted party orchestrating the communication between all
-   other participants.
- - dealers: exactly 2t+1 participants (having shares of both kc, kc'
-   and p) are acting as dealers
- - all participants
+ - semi-trusted party (STP) orchestrating the communication between
+   all other participants.
+ - dealers: exactly 2t+1 participants (having shares of both kc and p)
+   are acting as dealers
+ - all participants (peers and STP)
 
 ------<=[ Prototocol Phases                             ]=>-----------
 
@@ -74,19 +73,17 @@ corrective phases.
    channels.
 
 2. execute STP-DKG for all peers that hold a share of kc, calculating
-   sharing of new key kc' and in parallel also a sharing of ρ, if a
-   fast-track VSPS check fails disqualify the cheaters, abort if less
-   than 2t+1 peers remain in the intersection of the two DKGs which
-   qualify as dealers. Abort if some other hard-fail occurs during the
-   DKG.
+   sharing of ρ, if a fast-track VSPS check fails disqualify the
+   cheaters, abort if less than 2t+1 peers remain in the intersection
+   of the two DKGs which qualify as dealers. Abort if some other
+   hard-fail occurs during the DKG.
 
 3. DKG dealers defend against complaints by revealing contested
    shares. Based on this peers disqualify any misbehaving peers from
    contributing to the result of the DKG.
 
 4. execute the FT-Mult protocol, to calculate FT-Mult(kc, ρ),
-   generating sharings of r and in parallel calculate FT-Mult(kc`, ρ),
-   generating sharings of r'.
+   generating sharings of kc'.
 
 5. Verify the commitments matching the shares of step 2, if there is
    failures to verify run a recovery procedure to correct the failing
@@ -106,10 +103,9 @@ corrective phases.
 9. Recovery of λ_iα_iβ_i for any dealer who fails the VSPS check and
    deterministically re-share the recovered secret.
 
-10. Finalization of computation: parties send their r and r` shares to
-   the STP which reconstructs r = ρ·kc and r′ = ρ·kc′ and computes ∆=
-   r/r′.Parties delete their r and r` shares and replace their kc
-   share with their kc` share.
+10. Finalization of computation: parties send their ρ_i shares to the
+   STP which reconstructs ρ and computes ∆=1/p.Parties replace their
+   kc share with their kc` share.
 
 ------<=[ Simplified API                                ]=>-----------
 
@@ -130,8 +126,8 @@ protocol, reducing opportunities for errors and provides strict
 security. It also allows full abstraction of the underlying
 communication media.
 
-The reference implementation in stp-update.c follows this schema for both
-the STP and the peers.
+The reference implementation in toprf-update.c follows this schema for
+both the STP and the peers.
 
 ------<=[ Protocol transcript                           ]=>-----------
 
@@ -169,11 +165,6 @@ update_ts(state,msg)
     state = hash_update(state, msg)
     return state
 ```
-
-The sub-protocols STP-DKG and FT-MULT have their own transcript, which
-they verify at the end or their respective runs. The global transcript
-hashes the final transcript of each sub-protocol run into its own
-state.
 
 ------<=[ Session id                                    ]=>-----------
 
@@ -483,19 +474,18 @@ handshake2 answer to each peer.
 STP just like in step 4. routes all P2P messages from all peers to the
 correct recipients of the messages.
 
-------<=[ 7. Peers conclude handshakes, start kc'&p DKG ]=>-----------
+------<=[ 7. Peers conclude handshakes, start p DKG     ]=>-----------
 
 This step concludes the Initialization phase and starts the DKG phase.
 
 The peers receive the 3rd and final message of the Noise handshakes,
 completing the setup of these Noise-protected peer-to-peer channels.
 
-------<=[ Phase 2 - STP DKG of kc' and p                ]=>-----------
+------<=[ Phase 2 - STP DKG of p                        ]=>-----------
 
 The peers then start the DKG phase during which they collectively
-generate the new shared key kc' and the shared p blinding
-factor. These two values can be generated in parallel. The underlying
-algorithm is FT-Joint-DL-VSS from fig 7 in Appendix H of [GRR98].
+generate the shared delta p factor. The underlying algorithm is
+FT-Joint-DL-VSS from fig 7 in Appendix H of [GRR98].
 
 1. Player P_i chooses a random value r_i and shares it using the DL-VSS
    protocol, Denote by α_i,j ,ρ_i,j the share player P_i gives to player P_j. The
@@ -503,27 +493,26 @@ algorithm is FT-Joint-DL-VSS from fig 7 in Appendix H of [GRR98].
 
 Since we might be forced to disclose the shares in case the peer gets
 accused with cheating, but we don't want to reveal more information
-than necessary we derive two dedicated keys for each of the shares,
-one for kc' and the other for the p value to be jointly
-shared/generated. The key for each of these shares is generated in the
-following way:
+than necessary we derive a dedicated key for the shares of the p value
+to be shared/generated. The key for each of these shares is generated
+in the following way:
 
 We extract the shared key from the noise session. And run it through a
 
 ```
-share_key = HKDF-expand("key for encryption of [] share for []", noise_key)
+share_key = HKDF-expand("key for encryption of p share for []", noise_key)
 ```
 
-Here the first [] is replaced by either "kc1" or "p" and the second []
-is replaced by the index of the peer who is the recipient of this share.
+Here the [] is replaced by the index of the peer who is the recipient
+of this share.
 
 Encryption of the shares is a simple XSalsa20 stream cipher with the
 share_key, and for this step an all-zero nonce. Instead of the usual
 poly1305 MAC, which is not key-committing (and thus would allow a peer
 to cheat) we calculate an HMAC over the ciphertext with the share_key.
 
-The shares α_i,j ,ρ_i,j for the kc' and the p DKG respectively are
-encrypted using the above specified procedure.
+The shares α_i,j ,ρ_i,j for the p DKG are encrypted using the above
+specified procedure.
 
 The encrypted shares and their commitments 𝓐_i,j are stored by the
 peer for later distribution.
@@ -559,15 +548,13 @@ In this case the STP keeps a copy for later of the broadcast
 commitment hashes and of the MACs of the encrypted shares.
 
 ```
-kc1_C_hashes = []
 p_C_hashes = []
-kc1_hmacs = []
 p_hmacs = []
 msgs = []
 for i in 1..N
    msg_6 = recv(i)
    data = recv_msg(6, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_6)
-   kc1_C_hashes[i], kc1_hmacs[i], p_C_hashes[i], p_hmacs[i] = data
+   p_C_hashes[i], p_hmacs[i] = data
    msgs = msgs | msg_6
 
 msg_7 = send_msg(7, 0, 0xff, stp_sign_sk, session_id, msgs)
@@ -580,25 +567,22 @@ broadcast(msg_7)
 ------<=[ 9. Peers receive commitment hashes & HMACs    ]=>-------
 
 The peers receive all C_i commitment hashes and share-HMACs and for
-both the kc' and p DKGs and broadcast their respective 𝓐 commitment
-vectors:
+the p DKGs and broadcast their respective 𝓐 commitment vectors:
 
 ```
 msg_7 = recv()
 msgs = recv_msg(7, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_7)
 state = update_ts(state, msg_7)
 
-Kc1_C_hashes = []
-Kc1_share_macs = []
 p_C_hashes = []
 p_share_macs = []
 for i in 1..N
    msg_6 = msgs[i]
    data = = recv_msg(6, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_6)
-   KC1_C_hashes[i], kc1_share_macs[i], p_C_hashes[i], p_share_macs[i] = data
+   p_C_hashes[i], p_share_macs[i] = data
    msgs = msgs | msg_6
 
-msg_8 = send_msg(8, peerid, 0xff, peer_sign_sk, session_id, {kc1_A, p_A})
+msg_8 = send_msg(8, peerid, 0xff, peer_sign_sk, session_id, p_A)
 ```
 
 ------<=[ 12. STP broadcasts all commitments            ]=>-------
@@ -618,27 +602,17 @@ sharing. These checks are informational, and should guide the operator
 in detecting and deterring cheaters.
 
 ```
-kc1_commitments[][]
 p_commitments[][]
 msgs = []
 for i in 1..N
    msg_8 = recv(i)
    data = recv_msg(8, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_8)
-   kc1_commitments[i], p_commitments[i] = data
+   p_commitments[i] = data
    msgs = msgs | msg_6
-   if kc1_C_hashes != hash(kc1_commitments[i])
-      report(i)
    if p_C_hashes != hash(p_commitments[i])
       report(i)
 
 C = []
-for i in 1..n
-   C[i] = sum(kc1_commitments[j][i] for j in 1..n)
-
-if vsps(C) fails:
-   for i..n
-      if vsps(kc1_commitments[i]) fails report(i)
-
 for i in 1..n
    C[i] = sum(p_commitments[j][i] for j in 1..n)
 
@@ -655,8 +629,8 @@ broadcast(msg_9)
 
 ------<=[ 11. Peers receive commitments, send shares    ]=>-------
 
-The peers receive the broadcast commitments of all dealers for both
-DKGs, they check the commitment hashes and abort if they don't match,
+The peers receive the broadcast commitments of all dealers for the
+DKG, they check the commitment hashes and abort if they don't match,
 otherwise they store the commitments for the next step.
 
 Peers privately send the encrypted shares to each recipient.
@@ -666,19 +640,16 @@ msg_9 = recv()
 msgs = recv_msg(9, 0, 0xff, ref_ts, stp_sign_pk, session_id, msg_9)
 state = update_ts(state, msg_9)
 
-kc1_commitments = [][]
 p_commitments = [][]
 for i in 1..N
    msg_8 = msgs[i]
    data = recv_msg(8, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_8)
-   kc1_commitments[i], p_commitments[i] = data
-   assert kc1_C_hashes[i] == hash(kc1_commitments[i])
+   p_commitments[i] = data
    assert p_C_hashes[i] == hash(p_commitments[i])
 
 msg_10s = []
 for i in 1..N
-   data = kc1_encrypted_shares[i], p_encrypted_shares[i]
-   msg = send_msg(9, peerid, i, peer_sign_sk, session_id, data)
+   msg = send_msg(9, peerid, i, peer_sign_sk, session_id, p_encrypted_shares[i])
    send(msg)
 ```
 
@@ -709,22 +680,17 @@ s = []
 for i in 1..N
    msg = recv()
    pkt = recv_msg(9, i, peerid, ref_ts, peer_sign_pks[i], session_id, msg)
-   final_noise_handshake, kc1_encrypted_share, p_encrypted_share = pkt
+   final_noise_handshake, p_encrypted_share = pkt
    recv_session[i] = noise_session_decrypt(recv_session[i], final_noise_handshake)
-   key=derive_key(recv_session[i], "kc1", i)
-   kc1_α[i,peerid],kc1_ρ[i,peerid] = share_decrypt(key, kc1_encrypted_share)
-   key=derive_key(recv_session[i], "p", i)
+   key=derive_key(recv_session[i], i)
    p_α[i,peerid],p_ρ[i,peerid] = share_decrypt(p_encrypted_share)
 
-kc1_complaints = []
 p_complaints = []
 for i in 1..N
-   if kc1_commitment[i,peerid] != g^(kc1_α[i,peerid])*h^(kc1_ρ[i,peerid])
-      kc1_complaints = kc1_complaints | i
    if p_commitment[i,peerid] != g^(p_α[i,peerid])*h^(p_ρ[i,peerid])
       p_complaints = p_complaints | i
 
-data = len(kc1_complaints) | kc1_complaints | len(p_complaints) | p_complaints
+data = len(p_complaints) | p_complaints
 msg = send_msg(10, peerid, 0xff, peer_sign_sk, session_id, data)
 send(msg)
 
@@ -742,16 +708,13 @@ protocol must be aborted and new peers must be chosen in case a rerun
 is initiated.
 
 ```
-kc1_complaints = []
 p_complaints = []
 msgs = []
 for i in 1..N
    msg_10 = recv(i)
    data = recv_msg(10, i, 0xff, ref_ts, peer_sign_pks[i], session_id, msg_10)
-   kc1_complaints_i, p_complaints_i = data
-   assert(len(kc1_complaints_i) < t)
+   p_complaints_i = data
    assert(len(p_complaints_i) < t)
-   kc1_complaints = kc1_complaints | kc1_complaints_i
    p_complaints = p_complaints | p_complaints_i
    msgs = msgs | msg_10
 
@@ -795,13 +758,7 @@ defenses = []
 for i in 1..N
    msg = msgs[i]
    data = recv_msg(10, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg)
-   kc1_complaints_len, kc1_complaints, p_complaints_len, p_complaints = data
-
-   for k in 0..kc1_complaints_len
-      if kc1_complaints[k] == peerid
-          # complaint about current peer, publish key used to encrypt α_i,j , ρ_i,j
-          derive_key(send_session[i].key, "kc1", i)
-          defenses = defenses | {i, key, kc1_encrypted_shares[i]}
+   p_complaints_len, p_complaints = data
 
    for k in 0..p_complaints_len
       if p_complaints[k] == peerid
@@ -810,7 +767,7 @@ for i in 1..N
           defenses = defenses | {i, key, p_encrypted_shares[i]}
 
 if len(keys) > 0
-   msg_12 = send_msg(12, peer, 0xff, peer_sign_sk, session_id, keys)
+   msg_12 = send_msg(12, peer, 0xff, peer_sign_sk, session_id, defenses)
    send(msg_12)
 ```
 
@@ -838,19 +795,9 @@ for i in 1..N
         continue
 
     msg = recv(i)
-    data = recv_msg(12, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg)
-    kc1_defenses, p_defenses = data
+    p_defenses = recv_msg(12, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg)
     msgs = msgs | msg
-    assert(len(kc1_defenses) == len(kc1_complaints[i]))
     assert(len(p_defenses) == len(p_complaints[i]))
-    for j, key, encrypted_share in kc1_defenses
-       assert j==i
-       if kc1_hmacs[i][peerid] == hmac(key, encrypted_share)
-           report(i)
-       s,r=decrypt(key, encrypted_share]) or report(i)
-       if kc1_commitments[i][peerid] != g^s * h^r
-           report(i)
-
     for j, key, encrypted_share in p_defenses
        assert j==i
        if p_hmacs[i][peerid] == hmac(key, encrypted_share)
@@ -873,7 +820,7 @@ then they directly skip to the final phase in the next step.
 ------<=[ 20. Peers VSPS check, calculate shares and finish   ]=>-------
 
 Players verify the VSPS property of the sum of the shared secrets by
-running VSPS-Check on 𝓐_i,..,𝓐_n for both kc' and p where
+running VSPS-Check on 𝓐_i,..,𝓐_n for p where
 
            𝓐_j = Π 𝓐_i,j
                  i
@@ -887,19 +834,11 @@ is less than t. If this fails the protocol aborts.
 The shares dealt by the qualified peers are summed, creating the final
 share. The commitment for this final share is calculated.
 
-To finalize the 2nd phase before concluding the two DKGs of kc' and p,
-we compare the transcript hashes of all peers. Thus each peer
-broadcasts their own together with the final commitments to all
-parties.
+To finalize the 2nd phase before concluding the DKG of p, we compare
+the transcript hashes of all peers. Thus each peer broadcasts their
+own together with the final commitments to all parties.
 
 ```
-kc1_C = []
-for i in 1..n
-   kc1_C[i] = sum(kc1_commitments[j][i] for j in 1..n if peer[i] is qualified)
-if vsps(kc1_C) fails:
-   for i in 1..n
-      if vsps(kc1_commitments[i]) fails disqualify(kc1,i)
-
 p_C = []
 for i in 1..n
    p_C[i] = sum(p_commitments[j][i] for j in 1..n if peer[i] is qualified)
@@ -907,21 +846,16 @@ if vsps(p_C) fails:
    for i in 1..n
       if vsps(p_commitments[i]) fails disqualify(p,i)
 
-kc1_s = 0, kc1_r = 0
 p_s = 0, p_r = 0
 for i in 1..n
-   if i is not disqualfied(kc1):
-     kc1_s += kc1_shares[i]_s
-     kc1_r += kc1_shares[i]_r
    if i is not disqualfied(p):
      p_s += p_shares[i]_s
      p_r += p_shares[i]_r
 
-kc1_C = g^kc1_s * h^kc1_r
 p_C = g^p_s * h^p_r
 
 transcript = final_ts(state)
-msg_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, {transcript, C})
+msg_20 = send_msg(20, peerid, 0, peer_sign_sk, session_id, {transcript, p_C})
 send(msg_20)
 ```
 
@@ -935,18 +869,14 @@ does a final VSPS check on the commitments seen.
 transcript = final_ts(state)
 
 msgs = []
-kc1_commitments = []
 p_commitments = []
 for i in 1..N
     msg = recv(i)
     data = recv_msg(20, i, 0xff, ref_ts, peers_sign_pks[i], session_id, msg)
-    ts, kc1_commitments[i], p_commitments[i] = data
+    ts, p_commitments[i] = data
     if ts != transcript
        report transcript mismatch
     msgs = msgs | msg
-
-if vsps(kc1_commitments) fails:
-    report failure
 
 if vsps(p_commitments) fails:
     report failure
@@ -959,20 +889,20 @@ broadcast(msg_14)
 All peers receive the broadcasts transcripts and commitments, they run
 the same check as the STP in the previous step and abort if any of
 these fails. Otherwise the protocol continues with the FT-Mult phase
-of calculating kc*p and kc'*p.
+of calculating kc'=kc*p.
 
 ------<=[ Phase 4 - FT-Mult                             ]=>-----------
 
-In this phase we calculate the product of the original key kc with p
-and the new key kc' with p in parallel.
+In this phase we calculate the product (kc') of the original key kc
+with p.
 
 All the peers pre-compute the inverted Vandermonde matrix based on the
 indices of the dealers for the multiplications, and cache its first
 row in their internal state.
 
-Peers start their FT-MULT computations of kc*p and kc'*p in parallel,
-In the following section we describe the steps for one FT-MULT
-calculation, we use the following notation:
+Peers start their FT-MULT computation of kc*p. In the following
+section we describe the steps for one FT-MULT calculation, we use the
+following notation:
 
  - a share of α: α_i = 𝑓_α(i), one of the values to multiply
  - a share of β: β_i = 𝑓_β(i), the other value to multiply
@@ -1011,8 +941,8 @@ public information:
 𝓒_i0 = g^(c_i0) * h^(τ_i0) for i := 1..n
 
 Dealers broadcast their a hash of their 𝓒_i0, 𝓒_ij commitments for
-each of their sharings for kc*p and kc'*p, and the HMACs for each of
-the shares to all peers.
+each of their sharings for kc*p, and the HMACs for each of the shares
+to all peers.
 
 ------<=[ 23. STP broadcasts commitment hashes and HMACs   ]=>-----------
 
@@ -1026,7 +956,7 @@ an internal state for later.
 
 Dealers broadcast their commitments.
 
-------<=[ 25. STP broadcasts 𝓒_i0, 𝓒_ij for kc*p and kc'*p ]=>-----------
+------<=[ 25. STP broadcasts 𝓒_i0, 𝓒_ij for kc*p           ]=>-----------
 
 STP does the regular broadcasting procedure. STP verifies the
 commitment hashes received in the previous step against commitments,
@@ -1039,8 +969,8 @@ them and just continues.
 Peers receive all commitments and verify them against the commitment
 hashes. If this fails, they abort.
 
-Dealers send the shares c_ij, τ_ij for both kc*p and kc'p to the
-corresponding peers via noise protected channel.
+Dealers send the shares c_ij, τ_ij for both kc*p to the corresponding
+peers via noise protected channel.
 
 ------<=[ 27. STP standard p2p routing shares           ]=>-----------
 
@@ -1169,9 +1099,6 @@ GRR98:
 Each per chooses a challenge e_j,r_j ∈ Z_q, broadcasts a commitment
 
       𝓒_ej = g^e_j * h^r_j
-
-Note for each kc*p and kc'*p separate values are generated and
-broadcast.
 
 ------<=[ 36. STP broadcasts 𝓒_ej commitments           ]=>-----------
 
@@ -1318,15 +1245,15 @@ Otherwise the peers broadcast their final 𝓒_i commitment.
 
 STP does the regular broadcasting procedure. However STP keeps a copy
 of each of the final commitments, for later verification of the final
-reconstruction of kc*p and kc'*p. STP also runs a fast-track VSPS
-check on all the commitments, depending on the result of this deciding
-on the next step of the protocol regular or reconstruction.
+reconstruction of p. STP also runs a fast-track VSPS check on all the
+commitments, depending on the result of this deciding on the next step
+of the protocol regular or reconstruction.
 
 ------<=[ 49. Peers receive 𝓒_i, run VSPS on them       ]=>-----------
 
-players run a VSPS Check on 𝓒_i for both kc*p and kc'*p, if any of
-them fails peers run a VSPS Check on every dealers sharing,
-identifying the one that fails the VSPS check.
+players run a VSPS Check on 𝓒_i for both kc*p, if it fails peers run a
+VSPS Check on every dealers sharing, identifying the one that fails
+the VSPS check.
 
 If the fast-track VSPS checks succeed on the final commitments the
 protocol continues with the regular final phase, otherwise the
@@ -1361,13 +1288,11 @@ a polynomial with the constant term being the secret and the other
 coefficients being derived by using HKDF-expand(info, prk), where the
 prk is the current sessionid and the info parameter is either
 
-  "kXp lambda * a * b re-sharing"
+  "k0p lambda * a * b re-sharing"
 or
-  "kXp blind re-sharing"
+  "k0p blind re-sharing"
 
-for the secret and the blinding factor respectively. The X is replace
-with either 0 or 1 depending on which multiplication we are
-re-sharing.
+for the secret and the blinding factor respectively.
 
 This deterministic re-sharing is used so that all parties in the
 protocol can create the same re-sharing without any party having
@@ -1389,20 +1314,16 @@ This phase concludes the update of the TOPRF secret.
 
 ------<=[ 54. Peers send their final shares to STP      ]=>-----------
 
-The peers send their kc*p and kc'*p shares to the STP.
+The peers send their shares of p to the STP.
 
 ------<=[ 55. STP receives results and calculates delta ]=>-----------
 
 The STP receives all shares from peers, runs a VSPS check on their
 commitments, aborts if these fail. It also verifies the commitments of
 these shares, again, aborts if these fail. Otherwise reconstructs from
-them the values
+them the value:
 
-  r = ρ·kc and r′ = ρ·kc′
-
-and computes:
-
-  ∆= r/r′
+  ∆ = ρ
 
 Finally the STP sends out a message of one byte of value 0 to all
 peers indicating the success of the protocol.
@@ -1412,7 +1333,8 @@ The protocol finishes for the STP.
 ------<=[ 44. Peers complete the protocol               ]=>-----------
 
 If the received message from STP is 0, they replace the share (and
-commitment) for the old kc with the new share (and commitment) for kc'.
+commitment) for the old kc with the new share (and commitment) for
+kc'=(ρ·kc).
 
 Otherwise they keep the old kc.
 
@@ -1432,8 +1354,8 @@ fact-track multiparty computations with applications to threshold
 cryptography" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages
 101–111. ACM, June / July 1998
 
-[JKR18] "Threshold Partially-Oblivious PRFs with Applications to Key
-Management", by Stanislaw Jarecki, Hugo Krawczyk, and Jason Resch.
+[JKR19] "Updatable Oblivious Key Management for Storage Systems", by
+Stanislaw Jarecki, Hugo Krawczyk, and Jason Resch.
 
 [RFC9497] Oblivious Pseudorandom Functions (OPRFs) Using Prime-Order
 Groups https://www.rfc-editor.org/rfc/rfc9497.html

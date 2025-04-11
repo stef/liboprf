@@ -749,24 +749,17 @@ class Cheater(ctypes.Structure):
 # also wraps conveniently:
 #
 # void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
-#                                uint16_t kc1_complaints[],
 #                                uint16_t p_complaints[],
-#                                uint16_t x2_complaints[],
 #                                uint16_t y2_complaints[],
 #                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
-#                                uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
-#                                uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
 #                                uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
 #                                uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
-#                                uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
 #                                uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
 #                                uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES],
 #                                uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
-#                                uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
 #                                uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES],
 #                                uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
 #                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
-#                                uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
 #                                uint64_t *last_ts);
 
 def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk, k0_commitments):
@@ -798,69 +791,51 @@ def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk, k0_co
                                            ctypes.c_size_t(len(msg.raw)), msg))
 
     k0_commitments = ctypes.create_string_buffer(b''.join(k0_commitments))
-    kc1_complaints = (ctypes.c_uint16 * n*n)()
     p_complaints = (ctypes.c_uint16 * n*n)()
-    x2_complaints = (ctypes.c_uint16 * n*n)()
     y2_complaints = (ctypes.c_uint16 * n*n)()
     cheaters = (Cheater * (t*t - 1))()
-    kc1_commitments_hashes = ctypes.create_string_buffer(n*tupdate_commitment_HASHBYTES)
-    kc1_share_macs = ctypes.create_string_buffer(n*n*pysodium.crypto_auth_hmacsha256_BYTES)
-    kc1_commitments = ctypes.create_string_buffer(n*n*pysodium.crypto_core_ristretto255_BYTES)
     p_commitments_hashes = ctypes.create_string_buffer(n*tupdate_commitment_HASHBYTES)
     p_share_macs = ctypes.create_string_buffer(n*n*pysodium.crypto_auth_hmacsha256_BYTES)
     p_commitments = ctypes.create_string_buffer(n*n*pysodium.crypto_core_ristretto255_BYTES)
     k0p_commitments = ctypes.create_string_buffer(dealers*(n+1)*pysodium.crypto_core_ristretto255_BYTES)
-    k1p_commitments = ctypes.create_string_buffer(dealers*(n+1)*pysodium.crypto_core_ristretto255_BYTES)
     zk_challenge_commitments = ctypes.create_string_buffer(dealers*2*3*pysodium.crypto_core_ristretto255_SCALARBYTES)
     zk_challenge_e_i = ctypes.create_string_buffer(2*dealers*pysodium.crypto_core_ristretto255_SCALARBYTES)
     k0p_final_commitments = ctypes.create_string_buffer(n*pysodium.crypto_core_ristretto255_BYTES)
-    k1p_final_commitments = ctypes.create_string_buffer(n*pysodium.crypto_core_ristretto255_BYTES)
     last_ts = (ctypes.c_uint64 * n)()
 
     liboprf.toprf_update_stp_set_bufs(state
-#                                uint16_t kc1_complaints[], uint16_t p_complaints[],
-                              ,kc1_complaints, p_complaints
+#                                uint16_t p_complaints[],
+                              ,p_complaints
 #                                uint16_t x2_complaints[], uint16_t y2_complaints[],
-                              ,x2_complaints, y2_complaints
+                              ,y2_complaints
 #                                TOPRF_Update_Cheater (*cheaters)[], const size_t cheater_max,
                               ,ctypes.byref(cheaters), ctypes.c_size_t(len(cheaters))
-#                                uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
-                              ,ctypes.byref(kc1_commitments_hashes)
-#                                uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
-                              ,ctypes.byref(kc1_share_macs)
 #                                uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                               ,ctypes.byref(p_commitments_hashes)
 #                                uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
                               ,ctypes.byref(p_share_macs)
-#                                uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
-                              ,ctypes.byref(kc1_commitments)
 #                                uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
                               ,ctypes.byref(p_commitments)
 #                                uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES],
                               ,ctypes.byref(k0_commitments)
 #                                uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
                               ,ctypes.byref(k0p_commitments)
-#                                uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
-                              ,ctypes.byref(k1p_commitments)
 #                                uint8_t (*zk_challenge_commitments)[][3][crypto_scalarmult_ristretto255_SCALARBYTES],
                               ,ctypes.byref(zk_challenge_commitments)
 #                                uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
                               ,ctypes.byref(zk_challenge_e_i)
 #                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                               ,ctypes.byref(k0p_final_commitments)
-#                                uint8_t (*k1p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
-                              ,ctypes.byref(k1p_final_commitments)
 #                                uint64_t *last_ts);
                               ,ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
-    ctx = (state, cheaters, kc1_complaints, p_complaints, x2_complaints, y2_complaints,
-           kc1_commitments_hashes, kc1_share_macs,
+    ctx = (state, cheaters, p_complaints, y2_complaints,
            p_commitments_hashes, p_share_macs,
-           kc1_commitments, p_commitments,
-           k0p_commitments, k1p_commitments,
+           p_commitments,
+           k0p_commitments,
            zk_challenge_commitments, zk_challenge_e_i,
-           k0p_final_commitments, k1p_final_commitments,
+           k0p_final_commitments,
            last_ts, b)
 
     return ctx, msg.raw
@@ -1018,28 +993,20 @@ def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_sk, noise_pks, k0 = N
 
     noise_outs = (ctypes.c_void_p * n)()
     noise_ins = (ctypes.c_void_p * n)()
-    kc1_shares = ctypes.create_string_buffer(n * TOPRF_Share_BYTES * 2)
     p_shares = ctypes.create_string_buffer(n * TOPRF_Share_BYTES * 2)
-    kc1_commitments = ctypes.create_string_buffer(n * n * pysodium.crypto_core_ristretto255_BYTES)
     p_commitments = ctypes.create_string_buffer(n * n * pysodium.crypto_core_ristretto255_BYTES)
-    kc1_commitment_hashes = ctypes.create_string_buffer(n * tupdate_commitment_HASHBYTES)
     p_commitment_hashes = ctypes.create_string_buffer(n * tupdate_commitment_HASHBYTES)
-    kc1_share_macs = ctypes.create_string_buffer(n * n * pysodium.crypto_auth_hmacsha256_BYTES)
     p_share_macs = ctypes.create_string_buffer(n * n * pysodium.crypto_auth_hmacsha256_BYTES)
-    encrypted_shares = ctypes.create_string_buffer(n * (noise_xk_handshake3_SIZE + TOPRF_Share_BYTES * 4))
+    encrypted_shares = ctypes.create_string_buffer(n * (noise_xk_handshake3_SIZE + TOPRF_Share_BYTES * 2))
     cheaters = (Cheater * (t*t - 1))()
     lambdas = ctypes.create_string_buffer(dealers * pysodium.crypto_core_ristretto255_SCALARBYTES)
     k0p_shares = ctypes.create_string_buffer(dealers * TOPRF_Share_BYTES * 2)
     k0p_commitments = ctypes.create_string_buffer(dealers * (n+1) * pysodium.crypto_core_ristretto255_BYTES)
-    k1p_shares = ctypes.create_string_buffer(dealers * TOPRF_Share_BYTES * 2)
-    k1p_commitments = ctypes.create_string_buffer(dealers * (n+1) * pysodium.crypto_core_ristretto255_BYTES)
-    zk_challenge_nonce_commitments = ctypes.create_string_buffer(n * 2 * pysodium.crypto_core_ristretto255_BYTES)
-    zk_challenge_nonces = ctypes.create_string_buffer(n * 4 * pysodium.crypto_core_ristretto255_SCALARBYTES)
-    zk_challenge_commitments = ctypes.create_string_buffer(dealers * 2 * 3 * pysodium.crypto_core_ristretto255_SCALARBYTES)
-    zk_challenge_e_i = ctypes.create_string_buffer(dealers * 2 * pysodium.crypto_core_ristretto255_SCALARBYTES)
-    kc1_complaints = (ctypes.c_uint16 * n*n)()
+    zk_challenge_nonce_commitments = ctypes.create_string_buffer(n * pysodium.crypto_core_ristretto255_BYTES)
+    zk_challenge_nonces = ctypes.create_string_buffer(n * 2 * pysodium.crypto_core_ristretto255_SCALARBYTES)
+    zk_challenge_commitments = ctypes.create_string_buffer(dealers * 3 * pysodium.crypto_core_ristretto255_SCALARBYTES)
+    zk_challenge_e_i = ctypes.create_string_buffer(dealers * pysodium.crypto_core_ristretto255_SCALARBYTES)
     p_complaints = (ctypes.c_uint16 * n*n)()
-    kc1_my_complaints = ctypes.create_string_buffer(n)
     p_my_complaints = ctypes.create_string_buffer(n)
     last_ts = (ctypes.c_uint64 * n)()
 
@@ -1062,20 +1029,12 @@ def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_sk, noise_pks, k0 = N
                                        ,noise_outs
                                        # Noise_XK_session_t *(*noise_ins)[],
                                        ,noise_ins
-                                       # TOPRF_Share (*kc1_shares)[][2],
-                                       ,ctypes.byref(kc1_shares)
                                        # TOPRF_Share (*p_shares)[][2],
                                        ,ctypes.byref(p_shares)
-                                       # uint8_t (*kc1_commitments)[][crypto_core_ristretto255_BYTES],
-                                       ,ctypes.byref(kc1_commitments)
                                        # uint8_t (*p_commitments)[][crypto_core_ristretto255_BYTES],
                                        ,ctypes.byref(p_commitments)
-                                       # uint8_t (*kc1_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
-                                       ,ctypes.byref(kc1_commitment_hashes)
                                        # uint8_t (*p_commitments_hashes)[][toprf_update_commitment_HASHBYTES],
                                        ,ctypes.byref(p_commitment_hashes)
-                                       # uint8_t (*kc1_share_macs)[][crypto_auth_hmacsha256_BYTES],
-                                       ,ctypes.byref(kc1_share_macs)
                                        # uint8_t (*p_share_macs)[][crypto_auth_hmacsha256_BYTES],
                                        ,ctypes.byref(p_share_macs)
                                        # uint8_t (*encrypted_shares)[][noise_xk_handshake3_SIZE + toprf_update_encrypted_shares_SIZE*2],
@@ -1088,10 +1047,6 @@ def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_sk, noise_pks, k0 = N
                                        ,ctypes.byref(k0p_shares)
                                        # uint8_t (*k0p_commitments)[][crypto_core_ristretto255_BYTES],
                                        ,ctypes.byref(k0p_commitments)
-                                       # TOPRF_Share (*k1p_shares)[][2],
-                                       ,ctypes.byref(k1p_shares)
-                                       # uint8_t (*k1p_commitments)[][crypto_core_ristretto255_BYTES],
-                                       ,ctypes.byref(k1p_commitments)
                                        # uint8_t (*zk_challenge_nonce_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                        ,ctypes.byref(zk_challenge_nonce_commitments)
                                        # uint8_t (*zk_challenge_nonces)[][2][crypto_scalarmult_ristretto255_SCALARBYTES],
@@ -1100,27 +1055,26 @@ def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_sk, noise_pks, k0 = N
                                        ,ctypes.byref(zk_challenge_commitments)
                                        # uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
                                        ,ctypes.byref(zk_challenge_e_i)
-                                       # uint16_t *kc1_complaints, uint16_t *p_complaints,
-                                       ,kc1_complaints, p_complaints
-                                       # uint8_t *my_kc1_complaints, uint8_t *my_p_complaints,
-                                       ,kc1_my_complaints, p_my_complaints
+                                       # uint16_t *p_complaints,
+                                       ,p_complaints
+                                       #uint8_t *my_p_complaints,
+                                       ,p_my_complaints
                                        # uint64_t *last_ts);
                                        ,ctypes.byref(last_ts))
 
     # we need to keep these arrays around, otherwise the gc eats them up.
     ctx = (ctx[0], noise_pks, noise_outs, noise_ins,
            k0_commitments, sig_pks,
-           kc1_shares, p_shares,
-           kc1_commitments, p_commitments,
-           kc1_commitment_hashes, p_commitment_hashes,
-           kc1_share_macs, p_share_macs,
+           p_shares,
+           p_commitments,
+           p_commitment_hashes,
+           p_share_macs,
            encrypted_shares,
            cheaters,
            lambdas,
            k0p_shares, k0p_commitments,
-           k1p_shares, k1p_commitments,
            zk_challenge_nonce_commitments, zk_challenge_nonces, zk_challenge_commitments, zk_challenge_e_i,
-           kc1_complaints, p_complaints, kc1_my_complaints, p_my_complaints,
+           p_complaints, p_my_complaints,
            last_ts, ctx[1])
     return ctx
 
