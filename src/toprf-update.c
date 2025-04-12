@@ -296,7 +296,6 @@ static TOPRF_Update_Err unwrap_envelope(TOPRF_Update_PeerState *ctx, const uint8
   return Err_OK;
 }
 
-// todo test this
 static void handle_complaints(const uint8_t n,
                               const uint8_t accuser,
                               const uint8_t fails_len, const uint8_t fails[],
@@ -531,7 +530,6 @@ void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
                                uint8_t (*zk_challenge_e_i)[][crypto_scalarmult_ristretto255_SCALARBYTES],
                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
                                uint64_t *last_ts) {
-  // todo zero all the items.
   ctx->p_complaints = p_complaints;
   memset(ctx->p_complaints, 0, sizeof(uint16_t) * ctx->n*ctx->n);
   ctx->y2_complaints = y2_complaints;
@@ -1878,10 +1876,6 @@ static TOPRF_Update_Err stp_mult_com_handler(TOPRF_Update_STPState *ctx, const u
   }
 
   ret = stp_vsps_check(ctx, "k0p", dealers, ctx->n+1, ctx->k0p_commitments);
-  if(Err_OK!=ret) {
-    ctx->step=step;
-    return ret;
-  }
 
   ctx->step=step;
   return ret;
