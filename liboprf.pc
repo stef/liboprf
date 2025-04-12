@@ -2,7 +2,7 @@ prefix=/usr
 includedir=${prefix}/include
 
 Name: liboprf
-Description: Implementation of the OPAQUE protocol
-Version: 1.0.0
+Description: implementation of OPRF (RFC9497) including (updatable) threshold variant
+Version: 0.7.1
 Cflags: -I${includedir}/oprf -I${includedir}/oprf/noiseXK/ -I${includedir}/oprf/noiseXK/karmel -I${includedir}/oprf/karmel/minimal
 Libs: -loprf
