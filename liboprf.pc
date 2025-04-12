@@ -1,0 +1,8 @@
+prefix=/usr
+includedir=${prefix}/include
+
+Name: liboprf
+Description: Implementation of the OPAQUE protocol
+Version: 1.0.0
+Cflags: -I${includedir}/oprf -I${includedir}/oprf/noiseXK/ -I${includedir}/oprf/noiseXK/karmel -I${includedir}/oprf/karmel/minimal
+Libs: -loprf
