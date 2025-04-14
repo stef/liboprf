@@ -51,7 +51,11 @@ void fail(const char* msg, ...) {
 }
 
 #ifndef htonll
+#ifdef __WIN32__
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 uint64_t htonll(uint64_t n) {
 #if __BYTE_ORDER == __BIG_ENDIAN
     return n;
