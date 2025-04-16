@@ -563,6 +563,8 @@ int toprf_update_peerstate_step(const TOPRF_Update_PeerState *ctx);
 
     @param [in] lt_sk: the long-term private signing key of the peer.
 
+    @param [in] noise_sk: the Noise XK private key of the peer.
+
     @param [in] msg0: the initiating msg sent from the TP after the TP
                 run tpdkg_tp_start().
 
@@ -623,8 +625,6 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
               peers, in the order of the indexes off the shares of k0.
               Peers that hold no k0 shares can be listed in arbitrary
               order following those with shares.
-
-  @param [in] noise_sk: the Noise XK private key of the peer.
 
   If you want you can allocate all the buffers on the stack like this:
 
