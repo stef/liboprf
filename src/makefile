@@ -83,6 +83,10 @@ noise_xk/liboprf-noiseXK.$(SOEXT):
 noise_xk/liboprf-noiseXK.$(STATICEXT):
 	make -C noise_xk all
 
+liboprf.pc:
+	echo "prefix=$(PREFIX)" >liboprf.pc
+	cat ../liboprf.pc >>liboprf.pc
+
 clean:
 	rm -f *.o liboprf.$(SOEXT) liboprf.$(STATICEXT) liboprf-corrupt-dkg.$(SOEXT)
 	make -C tests clean
@@ -92,18 +96,24 @@ install: install-oprf install-noiseXK
 
 install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
 	$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) \
+	$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc \
 	$(DESTDIR)$(PREFIX)/include/oprf/oprf.h \
 	$(DESTDIR)$(PREFIX)/include/oprf/toprf.h \
+	$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h \
 	$(DESTDIR)$(PREFIX)/include/oprf/dkg.h \
 	$(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h \
-	$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h
+	$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h \
+	$(DESTDIR)$(PREFIX)/include/oprf/utils.h
 
 install-noiseXK:
 	make -C noise_xk install
 
 uninstall: uninstall-oprf uninstall-noiseXK
 
-uninstall-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h $(PREFIX)/include/oprf/dkg.h
+uninstall-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) \
+                $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h \
+					 $(PREFIX)/include/oprf/dkg.h $(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h \
+					 $(DESTDIR)$(PREFIX)/include/oprf/utils.h
 	rm $^
 	rmdir $(PREFIX)/include/oprf/
 
@@ -119,11 +129,19 @@ $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
 	mkdir -p $(DESTDIR)$(PREFIX)/lib
 	cp $< $@
 
+$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc: liboprf.pc
+	mkdir -p $(DESTDIR)$(PREFIX)/lib/pkgconfig
+	cp $< $@
+
 $(DESTDIR)$(PREFIX)/include/oprf/oprf.h: oprf.h
 	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/toprf.h: toprf.h
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
+	cp $< $@
+
+$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h: toprf-update.h
 	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
@@ -136,6 +154,10 @@ $(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h: tp-dkg.h
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h: stp-dkg.h
+	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
+	cp $< $@
+
+$(DESTDIR)$(PREFIX)/include/oprf/utils.h: utils.h
 	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
 	cp $< $@
 
