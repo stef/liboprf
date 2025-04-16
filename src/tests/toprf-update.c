@@ -437,11 +437,19 @@ int main(const int argc, const char **argv) {
                             last_ts);
 
   TOPRF_Update_PeerState peers[n];
+
+  uint8_t peers_noise_pks[n][crypto_scalarmult_BYTES];
+  uint8_t peers_noise_sks[n][crypto_scalarmult_SCALARBYTES];
+  for(uint8_t i=0;i<n;i++) {
+    randombytes_buf(peers_noise_sks[i], crypto_scalarmult_SCALARBYTES);
+    crypto_scalarmult_base(peers_noise_pks[i], peers_noise_sks[i]);
+  }
+
   for(uint8_t i=0;i<n;i++) {
     uint8_t pkid[toprf_keyid_SIZE];
     uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES];
     ret = toprf_update_start_peer(&peers[i], dkg_freshness_TIMEOUT,
-                                  lt_sks[i+1],
+                                  lt_sks[i+1], peers_noise_sks[i],
                                   (DKG_Message*) msg0,
                                   pkid, stp_ltpk);
     if(0!=ret) return ret;
@@ -452,13 +460,6 @@ int main(const int argc, const char **argv) {
     // copy stp_ltpk to lt_pks[0] if authorized STPs is a list
     // load share referenced by pkid.
     // set self/peer idx to the index of the loaded share.
-  }
-
-  uint8_t peers_noise_pks[n][crypto_scalarmult_BYTES];
-  uint8_t peers_noise_sks[n][crypto_scalarmult_SCALARBYTES];
-  for(uint8_t i=0;i<n;i++) {
-    randombytes_buf(peers_noise_sks[i], crypto_scalarmult_SCALARBYTES);
-    crypto_scalarmult_base(peers_noise_pks[i], peers_noise_sks[i]);
   }
 
   fprintf(stderr, "[T] allocating memory for peers state..");
@@ -503,7 +504,7 @@ int main(const int argc, const char **argv) {
     // in a real deployment peers do not share the same pks buffers
     if(0!=toprf_update_peer_set_bufs(&peers[i], i+1, n, t, k0_shares[i],
                                      &k0_commitments,
-                                     &lt_pks, &peers_noise_pks, peers_noise_sks[i],
+                                     &lt_pks, &peers_noise_pks,
                                      &noise_outs[i], &noise_ins[i],
                                      &pshares[i],
                                      &p_commitments[i],

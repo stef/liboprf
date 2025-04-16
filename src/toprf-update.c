@@ -551,11 +551,12 @@ void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
 }
 
 TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
-                            const uint64_t ts_epsilon,
-                            const uint8_t lt_sk[crypto_sign_SECRETKEYBYTES],
-                            const TOPRF_Update_Message *msg0,
-                            uint8_t keyid[toprf_keyid_SIZE],
-                            uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]) {
+                                         const uint64_t ts_epsilon,
+                                         const uint8_t lt_sk[crypto_sign_SECRETKEYBYTES],
+                                         const uint8_t noise_sk[crypto_scalarmult_SCALARBYTES],
+                                         const TOPRF_Update_Message *msg0,
+                                         uint8_t keyid[toprf_keyid_SIZE],
+                                         uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]) {
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] init1 start peer\x1b[0m\n");
   //dkg_dump_msg((const uint8_t*) msg0, toprfupdate_stp_start_msg_SIZE, msg0->from);
 
@@ -578,6 +579,7 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
   ctx->my_p_complaints_len = 0;
   ctx->cheater_len = 0;
   memcpy(ctx->sig_sk, lt_sk, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->noise_sk, noise_sk, crypto_scalarmult_SCALARBYTES);
 
   crypto_generichash_init(&ctx->transcript_state, NULL, 0, crypto_generichash_BYTES);
   crypto_generichash_update(&ctx->transcript_state, (const uint8_t*) "toprf update session transcript", 31);
@@ -597,7 +599,6 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
                                uint8_t (*kc0_commitments)[][crypto_core_ristretto255_BYTES],
                                const uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                                uint8_t (*peer_noise_pks)[][crypto_scalarmult_BYTES],
-                               uint8_t noise_sk[crypto_scalarmult_SCALARBYTES],
                                Noise_XK_session_t *(*noise_outs)[],
                                Noise_XK_session_t *(*noise_ins)[],
                                TOPRF_Share (*p_shares)[][2],
@@ -624,7 +625,6 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
   ctx->kc0_commitments = kc0_commitments;
   ctx->sig_pks = sig_pks;
   ctx->peer_noise_pks = peer_noise_pks;
-  memcpy(ctx->noise_sk, noise_sk, crypto_scalarmult_SCALARBYTES);
 
   ctx->noise_outs = noise_outs;
   ctx->noise_ins = noise_ins;

@@ -945,9 +945,11 @@ def tupdate_stpstate_step(ctx):
 #                             const TOPRF_Update_Message *msg0,
 #                             uint8_t keyid[toprf_keyid_SIZE],
 #                             uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]);
-def tupdate_peer_start(ts_epsilon, peer_lt_sk, msg0):
+def tupdate_peer_start(ts_epsilon, peer_lt_sk, noise_sk, msg0):
     if len(peer_lt_sk) != pysodium.crypto_sign_SECRETKEYBYTES:
         raise ValueError(f"peer long-term secret key has invalid size, must be {pysodium.crypto_sign_SECRETKEYBYTES}")
+    if len(noise_sk) != pysodium.crypto_scalarmult_SCALARBYTES:
+        raise ValueError(f"peer long-term secret noise key has invalid size, must be {pysodium.crypto_scalarmult_SCALARBYTES}")
 
     b = ctypes.create_string_buffer(liboprf.toprf_update_peerstate_size()+32)
     b_addr = ctypes.addressof(b)
@@ -959,11 +961,13 @@ def tupdate_peer_start(ts_epsilon, peer_lt_sk, msg0):
     keyid = ctypes.create_string_buffer(tupdate_keyid_SIZE)
     stp_ltpk = ctypes.create_string_buffer(pysodium.crypto_sign_PUBLICKEYBYTES)
 
-    __check(liboprf.toprf_update_start_peer(state, ctypes.c_uint64(ts_epsilon), peer_lt_sk, msg0, keyid, stp_ltpk))
+    __check(liboprf.toprf_update_start_peer(state, ctypes.c_uint64(ts_epsilon), peer_lt_sk,
+                                            noise_sk,
+                                            msg0, keyid, stp_ltpk))
 
     return (state, b), keyid.raw, stp_ltpk.raw
 
-def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_sk, noise_pks, k0 = None, k0_commitments = None):
+def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_pks, k0 = None, k0_commitments = None):
     dealers = (t-1)*2 + 1
     if k0 is not None:
         if len(k0) != TOPRF_Share_BYTES * 2:
@@ -1024,7 +1028,6 @@ def tupdate_peer_set_bufs(ctx, n, t, index, sig_pks, noise_sk, noise_pks, k0 = N
                                        ,ctypes.byref(sig_pks)
                                        # uint8_t (*peers_noise_pks)[][crypto_scalarmult_BYTES],
                                        ,ctypes.byref(noise_pks)
-                                       ,noise_sk
                                        # Noise_XK_session_t *(*noise_outs)[],
                                        ,noise_outs
                                        # Noise_XK_session_t *(*noise_ins)[],

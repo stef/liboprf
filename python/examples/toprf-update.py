@@ -158,10 +158,10 @@ for s,p in zip(noise_sks, noise_pks):
 
 peers=[]
 for i in range(n):
-    ctx, keyid, stp_pub = pyoprf.tupdate_peer_start(ts_epsilon, sig_sks[i+1], msg0)
+    ctx, keyid, stp_pub = pyoprf.tupdate_peer_start(ts_epsilon, sig_sks[i+1], noise_sks[i], msg0)
     #print(keyid.hex(), stp_pub.hex())
     # based on keyid load the relevant parameters: n, t, share, commitment.
-    ctx = pyoprf.tupdate_peer_set_bufs(ctx, n, t, i+1, sig_pks, noise_sks[i], noise_pks, k0shares[i], k0commitments)
+    ctx = pyoprf.tupdate_peer_set_bufs(ctx, n, t, i+1, sig_pks, noise_pks, k0shares[i], k0commitments)
     peers.append(ctx)
     #print(ctx)
 
