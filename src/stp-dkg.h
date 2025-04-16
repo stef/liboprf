@@ -67,26 +67,26 @@ typedef DKG_Cheater STP_DKG_Cheater;
 /** Error code enum
  */
 typedef enum {
-  Err_OK = 0,
-  Err_ISize,
-  Err_OSize,
-  Err_OOB,
-  Err_Send,
-  Err_CheatersFound,
-  Err_CheatersFull,
-  Err_InvSessionID,
-  Err_Share,
-  Err_Noise,
-  Err_NoiseEncrypt,
-  Err_NoiseDecrypt,
-  Err_HMac,
-  Err_Index,
-  Err_NoSubVSPSFail,
-  Err_NotEnoughDealers,
-  Err_TooManyCheaters,
-  Err_DKGFinish,
-  Err_BroadcastEnv = 32,
-  Err_Env = 64
+  STP_DKG_Err_OK = 0,
+  STP_DKG_Err_ISize,
+  STP_DKG_Err_OSize,
+  STP_DKG_Err_OOB,
+  STP_DKG_Err_Send,
+  STP_DKG_Err_CheatersFound,
+  STP_DKG_Err_CheatersFull,
+  STP_DKG_Err_InvSessionID,
+  STP_DKG_Err_Share,
+  STP_DKG_Err_Noise,
+  STP_DKG_Err_NoiseEncrypt,
+  STP_DKG_Err_NoiseDecrypt,
+  STP_DKG_Err_HMac,
+  STP_DKG_Err_Index,
+  STP_DKG_Err_NoSubVSPSFail,
+  STP_DKG_Err_NotEnoughDealers,
+  STP_DKG_Err_TooManyCheaters,
+  STP_DKG_Err_DKGFinish,
+  STP_DKG_Err_BroadcastEnv = 32,
+  STP_DKG_Err_Env = 64
 } STP_DKG_Err;
 
 /** Steps of the STP enum
