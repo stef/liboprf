@@ -420,14 +420,15 @@ the corresponding kc key share and corresponding long-term signature
 keys of the peers, information stored in an internal state.
 
 Finally the peers each start their own protocol loop, in which they
-generate their own session id nonce. This nonce is broadcast via the
-STP.
+generate their own session id nonce and share the commitment to their
+share of kc. This nonce and commitment is broadcast via the STP.
 
 ------<=[ 2. STP sets sessionid and forwards keys       ]=>-----------
 
 STP receives all messages from the peers, then
   - verifies each of them,
-  - extracts the session id nonce from each,
+  - extracts the session id nonce and the commitment for their kc
+    share from each,
   - hashes its own and the peers nonces in order
   - sets the final session id to the result
   - wraps all peer messages in a STP broadcast envelope message using

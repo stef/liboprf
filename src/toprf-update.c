@@ -652,13 +652,15 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
   return 0;
 }
 
-#define toprfupdate_peer_init_msg_SIZE (sizeof(TOPRF_Update_Message) + dkg_sessionid_SIZE)
+#define toprfupdate_peer_init_msg_SIZE (sizeof(TOPRF_Update_Message) + dkg_sessionid_SIZE + crypto_core_ristretto255_BYTES)
 static TOPRF_Update_Err peer_step1_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] init2 send msg1 containing session id nonce\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_init_msg_SIZE) return TOPRF_Update_Err_OSize;
 
   uint8_t *wptr = ((TOPRF_Update_Message *) output)->data;
   randombytes_buf(wptr, dkg_sessionid_SIZE);
+  wptr+=dkg_sessionid_SIZE;
+  if(0!=dkg_vss_commit(ctx->kc0_share[0].value, ctx->kc0_share[1].value,wptr)) return TOPRF_Update_Err_VSSCommit;
   if(0!=toprf_send_msg(output, toprfupdate_peer_init_msg_SIZE, toprfupdate_peer_init_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
 
   ctx->step = TOPRF_Update_Peer_Rcv_NPK_SIDNonce;
@@ -680,7 +682,10 @@ static TOPRF_Update_Err stp_step2_handler(TOPRF_Update_STPState *ctx, const uint
   for(uint8_t i=0;i<ctx->n;i++,ptr+=toprfupdate_peer_init_msg_SIZE) {
     const TOPRF_Update_Message* msg = (const TOPRF_Update_Message*) ptr;
     if(stp_recv_msg(ctx,ptr,toprfupdate_peer_init_msg_SIZE,toprfupdate_peer_init_msg,i+1,0xff)) continue;
-    crypto_generichash_update(&sid_state, msg->data, dkg_sessionid_SIZE);
+    const uint8_t *dptr = msg->data;
+    crypto_generichash_update(&sid_state, dptr, dkg_sessionid_SIZE);
+    dptr+=dkg_sessionid_SIZE;
+    memcpy((*ctx->kc0_commitments)[i], dptr, crypto_core_ristretto255_BYTES);
 
     memcpy(wptr, ptr, toprfupdate_peer_init_msg_SIZE);
     wptr+=toprfupdate_peer_init_msg_SIZE;
