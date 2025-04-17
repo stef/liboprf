@@ -728,8 +728,13 @@ static TOPRF_Update_Err peer_step3_handler(TOPRF_Update_PeerState *ctx, const ui
   for(uint8_t i=0;i<ctx->n;i++, ptr+=toprfupdate_peer_init_msg_SIZE) {
     const TOPRF_Update_Message* msg1 = (const TOPRF_Update_Message*) ptr;
     if(peer_recv_msg(ctx,ptr,toprfupdate_peer_init_msg_SIZE,toprfupdate_peer_init_msg,i+1,0xff)) continue;
+    const uint8_t *dptr = msg1->data;
     // extract peer sig and noise pk
-    crypto_generichash_update(&sid_state, msg1->data, dkg_sessionid_SIZE);
+    crypto_generichash_update(&sid_state, dptr, dkg_sessionid_SIZE);
+    dptr+=dkg_sessionid_SIZE;
+    if(memcmp(dptr, (*ctx->kc0_commitments)[i], crypto_core_ristretto255_BYTES)!=0) {
+      return TOPRF_Update_Err_CommmitmentsMismatch;
+    }
   }
 
   if(ctx->cheater_len>0) return TOPRF_Update_Err_CheatersFound;
