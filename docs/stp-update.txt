@@ -74,9 +74,7 @@ corrective phases.
 
 2. execute STP-DKG for all peers that hold a share of kc, calculating
    sharing of ρ, if a fast-track VSPS check fails disqualify the
-   cheaters, abort if less than 2t+1 peers remain in the intersection
-   of the two DKGs which qualify as dealers. Abort if some other
-   hard-fail occurs during the DKG.
+   cheaters. Abort if some other hard-fail occurs during the DKG.
 
 3. DKG dealers defend against complaints by revealing contested
    shares. Based on this peers disqualify any misbehaving peers from
