@@ -242,6 +242,7 @@ fields:
 ```
    assert(msg.type == 0x80)
    assert(msg.version == 0)
+   assert(msg.sessionid == sessionid)
    assert(msg.messageno == expected_messageno)
    assert(msg.from == expected_sender_id)
    assert(msg.to == (own_peer_id or 0xff))
