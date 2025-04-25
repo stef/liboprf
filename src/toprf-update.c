@@ -435,7 +435,7 @@ static TOPRF_Update_Err ft_or_full_vsps(const uint8_t n, const uint8_t t, const 
   //  for(unsigned j=0;j<n;j++)
   //    dump((*C_ij)[i][j], crypto_core_ristretto255_BYTES, "C_%d,%d", i, j);
 
-  debug=0;
+  int _debug=debug; debug=0;
   if(0!=toprf_mpc_vsps_check(t-1, C_i)) {
     if(log_file!=NULL) fprintf(log_file, RED"[%d] %s\n"NORMAL, self, ft_msg);
     for(uint8_t i=0;i<dealers;i++) {
@@ -449,7 +449,7 @@ static TOPRF_Update_Err ft_or_full_vsps(const uint8_t n, const uint8_t t, const 
       return TOPRF_Update_Err_NoSubVSPSFail;
     }
   }
-  debug=1;
+  debug=_debug;
   return TOPRF_Update_Err_OK;
 }
 
@@ -1663,13 +1663,13 @@ static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, co
   }
   if(ctx->cheater_len>cheaters) return TOPRF_Update_Err_CheatersFound;
 
-  debug=0;
+  int _debug=debug; debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*ctx->p_commitments))) {
     debug=1;
     if(log_file!=NULL) fprintf(log_file, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
     if(stp_add_cheater(ctx, 2, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
-  debug=1;
+  debug=_debug;
 
   if(0!=toprf_send_msg(output, output_len, toprfupdate_stp_bc_transcript_msg, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
 
@@ -1710,13 +1710,13 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
   // in theory this should not be needed, and not fail. except for the
   // case when the dealer shares were corrupted after calculating a
   // correct commitment for them. but that should also be previously detected.
-  debug=0;
+  int _debug=debug; debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*pcom))) {
     debug=1;
     if(log_file!=NULL) fprintf(log_file, RED"[%d] result of p DKG commitments fail VSPS\n"NORMAL, ctx->index);
     if(peer_add_cheater(ctx, 2, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
-  debug=1;
+  debug=_debug;
 
   if(ctx->cheater_len>cheaters) return TOPRF_Update_Err_CheatersFound;
 
@@ -3195,11 +3195,11 @@ static TOPRF_Update_Err stp_reshare(TOPRF_Update_STPState *ctx
     if(vss_reshare(ctx->n, ctx->t, ctx->sessionid, secrets[i][0], reshares, &(*commitments)[1], secrets[i][1])) return TOPRF_Update_Err_VSSShare;
     if(0!=dkg_vss_commit(secrets[i][0], secrets[i][1], (*commitments)[0])) return 1;
 
-    debug=0;
+    int _debug=debug; debug=0;
     if(0!=toprf_mpc_vsps_check(ctx->t-1, (*commitments))) {
       if(log_file!=NULL) fprintf(log_file, RED"[!] VSPS asdfasdf failed k0p\n"NORMAL);
     }
-    debug=1;
+    debug=_debug;
     dump((uint8_t*) (*commitments), (ctx->n+1U)*crypto_core_ristretto255_BYTES, "reshared k0p commitments");
   }
   return TOPRF_Update_Err_OK;
@@ -3258,11 +3258,11 @@ static TOPRF_Update_Err peer_reshare(TOPRF_Update_PeerState *ctx
     if(vss_reshare(ctx->n, ctx->t, ctx->sessionid, secrets[i][0], reshares, &(*commitments)[1], secrets[i][1])) return TOPRF_Update_Err_VSSShare;
     if(0!=dkg_vss_commit(secrets[i][0], secrets[i][1], (*commitments)[0])) return 1;
 
-    debug=0;
+    int _debug=debug; debug=0;
     if(0!=toprf_mpc_vsps_check(ctx->t-1, (*commitments))) {
       if(log_file!=NULL) fprintf(log_file, RED"[!] VSPS asdfasdf failed k0p\n"NORMAL);
     }
-    debug=1;
+    debug=_debug;
     dump((uint8_t*) (*commitments), (ctx->n+1U)*crypto_core_ristretto255_BYTES, "reshared k0p commitments");
 
     const uint8_t accused = (uint8_t) (complaints[i] & 0xff);
@@ -3347,12 +3347,12 @@ static int stp_step45_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, 
   uint8_t *fail=outmsg->data;
   *fail = 0;
 
-  debug=0;
+  int _debug=debug; debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*ctx->p_commitments))) {
     if(log_file!=NULL) fprintf(log_file, RED"[!] VSPS failed k0p\n"NORMAL);
     *fail=1;
   }
-  debug=1;
+  debug=_debug;
 
   for(unsigned i=0;i<ctx->n;i++) {
     if(0!=dkg_vss_verify_commitment((*ctx->p_commitments)[i], p_shares[i])) {
@@ -3366,7 +3366,7 @@ static int stp_step45_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, 
   if(*fail == 0) {
     // reconstruct delta
     dkg_vss_reconstruct(ctx->t, 0, ctx->n, p_shares, (*ctx->p_commitments), ctx->delta, NULL);
-    dump(ctx->delta, crypto_scalarmult_ristretto255_SCALARBYTES, "[!] ∆ ");
+    dump(ctx->delta, crypto_scalarmult_ristretto255_SCALARBYTES, "[!] ∆");
   }
 
   if(0!=toprf_send_msg(output, output_len, toprfupdate_stp_end3_msg, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
