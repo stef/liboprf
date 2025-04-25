@@ -968,7 +968,7 @@ static STP_DKG_Err peer_verify_shares_handler(STP_DKG_PeerState *ctx, const uint
   corrupt_false_accuse_p2p3(ctx, fails_len, fails);
 #endif //UNITTEST_CORRUPT
 
-  if(log_file!=NULL) {
+  if(log_file!=NULL && *fails_len>0) {
     fprintf(log_file, RED"[%d] commitment fails#: %d -> ", ctx->index, *fails_len);
     for(unsigned i=0;i<*fails_len;i++) fprintf(log_file, "%s%d", (i>0)?", ":"", fails[i]);
     fprintf(log_file, NORMAL"\n");
