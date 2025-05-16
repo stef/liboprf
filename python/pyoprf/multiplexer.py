@@ -141,7 +141,8 @@ class Multiplexer:
            #    print(f"wtf peer {peer.name} has {peer.fd.pending()} bytes pending, which is not equ {expectedmsglen}")
        while len(responses)<n:
           fds={x.fd.fileno(): (i, x) for i,x in enumerate(self.peers) if i not in responses and x.connected() and x.fd.fileno() >= 0}
-          if not fds: raise ValueError("not enough peers left to get enough results")
+          peernames = [peer.name for peer in self.peers]
+          if not fds: raise ValueError(f"not enough peers left to get enough results: {peernames} {responses} ")
           #print("select")
           r, _,_ =select.select(fds.keys(),[],[],2)
           #print("select done")
