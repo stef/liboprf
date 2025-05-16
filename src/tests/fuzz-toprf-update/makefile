@@ -28,16 +28,16 @@ fuzz-dump-peer: $(src)
 	gcc -g -o $@ $^ -DFUZZ_DUMP -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer
 
 fuzz-complog: $(src)
-	AFL_USE_ASAN=1 AFL_LLVM_CMPLOG=1 afl-clang-lto -o $@ $^ -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
+	AFL_USE_ASAN=1 AFL_LLVM_CMPLOG=1 afl-clang-lto -O2 -march=native -o $@ $^ -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
 
 fuzz-complog-peer: $(src)
-	AFL_USE_ASAN=1 AFL_LLVM_CMPLOG=1 afl-clang-lto -o $@ $^ -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
+	AFL_USE_ASAN=1 AFL_LLVM_CMPLOG=1 afl-clang-lto -O2 -march=native -o $@ $^ -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
 
 fuzz-bin-asan:  $(src)
-	AFL_USE_ASAN=1 afl-clang-lto -o $@ $^ -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
+	AFL_USE_ASAN=1 afl-clang-lto -O2 -march=native -o $@ $^ -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
 
 fuzz-bin-asan-peer:  $(src)
-	AFL_USE_ASAN=1 afl-clang-lto -o $@ $^ -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
+	AFL_USE_ASAN=1 afl-clang-lto -O2 -march=native -o $@ $^ -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
 
 fuzz-bin:  $(src)
 	afl-clang-lto -o $@ $^ -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2
