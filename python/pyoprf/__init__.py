@@ -762,7 +762,7 @@ class Cheater(ctypes.Structure):
 #                                uint8_t (*k0p_final_commitments)[][crypto_scalarmult_ristretto255_BYTES],
 #                                uint64_t *last_ts);
 
-def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk, k0_commitments):
+def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk):
     dealers = (t-1)*2 + 1
 
     if(len(keyid)!=tupdate_keyid_SIZE): raise ValueError(f"keyid has incorrect size, must be {tupdate_keyid_SIZE}")
@@ -772,7 +772,6 @@ def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk, k0_co
             raise ValueError(f"long-term signature pubkey #{i} has invalid length ({len(k)}) must be {pysodium.crypto_sign_PUBLICKEYBYTES}")
     if len(ltssk) != pysodium.crypto_sign_SECRETKEYBYTES:
         raise ValueError(f"long-term signature secret key of STP has invalid length ({len(ltssk)}) must be {pysodium.crypto_sign_SECRETKEYBYTES}")
-    if len(k0_commitments) < dealers: raise ValueError(f"not enough dealers holding k0 shares, need at least {dealers}")
 
     b = ctypes.create_string_buffer(liboprf.toprf_update_stpstate_size()+32)
     b_addr = ctypes.addressof(b)
@@ -790,7 +789,7 @@ def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk, k0_co
                                            keyid, ctypes.byref(sig_pks), ltssk,
                                            ctypes.c_size_t(len(msg.raw)), msg))
 
-    k0_commitments = ctypes.create_string_buffer(b''.join(k0_commitments))
+    k0_commitments = ctypes.create_string_buffer(n*pysodium.crypto_core_ristretto255_BYTES)
     p_complaints = (ctypes.c_uint16 * n*n)()
     y2_complaints = (ctypes.c_uint16 * n*n)()
     cheaters = (Cheater * (t*t - 1))()
@@ -833,10 +832,11 @@ def tupdate_start_stp(n, t, ts_epsilon, proto_name, sig_pks, keyid, ltssk, k0_co
     ctx = (state, cheaters, p_complaints, y2_complaints,
            p_commitments_hashes, p_share_macs,
            p_commitments,
+           k0_commitments,
            k0p_commitments,
            zk_challenge_commitments, zk_challenge_e_i,
            k0p_final_commitments,
-           last_ts, b)
+           last_ts, sig_pks, b)
 
     return ctx, msg.raw
 
