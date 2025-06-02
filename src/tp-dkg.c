@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <sodium.h>
+#ifdef __WIN32__
+#include <winsock2.h>
+#else
 #include <arpa/inet.h> //htons
+#endif
 #include <sys/param.h> // __BYTE_ORDER __BIG_ENDIAN
 #include <string.h> // memcpy
 #include <stdarg.h> // va_{start|end}

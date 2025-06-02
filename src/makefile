@@ -22,15 +22,13 @@ else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now -Wtrampolines \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
 			  #-fstrict-flex-arrays=3 -mbranch-protection=standard
-	SOEXT=so
+	SOEXT?=so
 	SOFLAGS=-Wl,-soname,liboprf.$(SOEXT).$(SOVER)
    ifeq ($(ARCH),x86_64)
 		CFLAGS+=-fcf-protection=full
    endif
 
-   ifeq ($(ARCH),parisc64)
-   else ifeq ($(ARCH),parisc64)
-   else
+   ifneq ($(ARCH),parisc64)
 		CFLAGS+=-fstack-clash-protection
    endif
 endif
@@ -47,6 +45,7 @@ CFLAGS+=$(INCLUDES)
 
 SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
+MAKETARGET=all
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
@@ -54,7 +53,7 @@ debug: DEFINES=-DTRACE
 debug: all
 
 asan:
-	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -Werror=format-security -Werror=implicit-function-declaration -Wl, -z,noexecstack
+	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,noexecstack $(DEFINES)
 	ifeq ($(ARCH),x86_64)
 		CFLAGS+=-fcf-protection=full
 	endif
@@ -65,6 +64,15 @@ asan:
 	endif
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
+
+mingw64: CC=x86_64-w64-mingw32-gcc
+mingw64: LDFLAGS+=-L. -lws2_32 -Lwin/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
+mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES) $(INCLUDES) -Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include
+mingw64: SOEXT=dll
+mingw64: STATICEXT=dll
+mingw64: EXT=.exe
+mingw64: MAKETARGET=mingw64
+mingw64: win/libsodium-win64 noise_xk/liboprf-noiseXK.$(STATICEXT) liboprf.$(STATICEXT)
 
 AR ?= ar
 
@@ -78,10 +86,10 @@ liboprf.$(STATICEXT): $(OBJECTS)
 	$(AR) rcs $@ $^
 
 noise_xk/liboprf-noiseXK.$(SOEXT):
-	make -C noise_xk all
+	make -C noise_xk $(MAKETARGET)
 
 noise_xk/liboprf-noiseXK.$(STATICEXT):
-	make -C noise_xk all
+	make -C noise_xk $(MAKETARGET)
 
 liboprf.pc:
 	echo "prefix=$(PREFIX)" >liboprf.pc
@@ -164,5 +172,11 @@ $(DESTDIR)$(PREFIX)/include/oprf/utils.h: utils.h
 test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
 	make -C tests tests
 	make -C noise_xk test
+
+win/libsodium-win64:
+	@echo 'win/libsodium-win64 not found.'
+	@echo 'download and unpack latest libsodium-*-mingw.tar.gz and unpack into win/'
+	@echo 'https://download.libsodium.org/libsodium/releases/'
+	@false
 
 PHONY: clean
