@@ -33,10 +33,10 @@ For the [threshold OPRF](#threshold-oprf), liboprf provides:
 
 - **Trusted Party DKG**: An implementation based on Joint Feldman DKG (JF-DKG) from the paper "[Secure Distributed Key Generation for Discrete-Log Based Cryptosystems](https://link.springer.com/article/10.1007/s00145-006-0347-3)" by R. Gennaro, S. Jarecki, Hugo Krawczyk & T. Rabin.
 
-- **Semi-trusted DKG**: Implements Fast-Track Joint Verifiable Secret Sharing (FT-Joint-DL-VSS) described in R. Gennaro, M. O. Rabin, and T. Rabin, "[Simplified VSS and fact-track multiparty computations with applications to threshold cryptography](https://dl.acm.org/doi/10.1145/277697.277716)" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages 101–111. ACM, June/July 1998.
+- **Semi-trusted DKG**: Implements Fast-Track Joint Verifiable Secret Sharing (FT-Joint-DL-VSS) described in R. Gennaro, M. O. Rabin, and T. Rabin, "[Simplified VSS and fast-track multiparty computations with applications to threshold cryptography](https://dl.acm.org/doi/10.1145/277697.277716)" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages 101–111. ACM, June/July 1998.
 
 ### Threshold OPRF Updates
-To update a threshold OPRF instantiation, liboprf contains multi-party multiplication described in R. Gennaro, M. O. Rabin, and T. Rabin, "[Simplified VSS and fact-track multiparty computations with applications to threshold cryptography](https://dl.acm.org/doi/10.1145/277697.277716)" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages 101–111. ACM, June/July 1998.
+To update a threshold OPRF instantiation, liboprf contains multi-party multiplication described in R. Gennaro, M. O. Rabin, and T. Rabin, "[Simplified VSS and fast-track multiparty computations with applications to threshold cryptography](https://dl.acm.org/doi/10.1145/277697.277716)" In B. A. Coan and Y. Afek, editors, 17th ACM PODC, pages 101–111. ACM, June/July 1998.
 
 ## Installation
 
