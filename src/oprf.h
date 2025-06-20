@@ -1,6 +1,25 @@
 #ifndef oprf_h
 #define oprf_h
 
+/**
+ * @file oprf.h
+ * @brief API for Oblivious Pseudorandom Function (OPRF) implementation
+ *
+ * This file provides the API for Oblivious Pseudorandom Functions (OPRFs)
+ * using the Ristretto255 group. It includes functions for key generation,
+ * blinding inputs, evaluating OPRFs, and unblinding results.
+ *
+ * This implementation is based on RFC 9497: Oblivious Pseudorandom 
+ * Functions (OPRFs) Using Prime-Order Groups 
+ * (https://www.ietf.org/archive/id/draft-irtf-cfrg-voprf-05.html).
+ * 
+ * 
+ * This implementation also uses hashing techniques as defined in 
+ * RFC 9380: Hashing to Elliptic Curves
+ * (https://datatracker.ietf.org/doc/draft-irtf-cfrg-hash-to-curve/).
+ * 
+ */
+
 #include <stdint.h>
 #include <sodium.h>
 #include "toprf.h"
@@ -8,106 +27,126 @@
 #define OPRF_BYTES 64
 
 /**
- * This function generates an OPRF private key.
+ * @brief Generates an OPRF private key
  *
- * This is almost the KeyGen OPRF function defined in the RFC: since
- * this lib does not implement V oprf, we don't need a pubkey and so
- * we don't bother with all that is related.
+ * This is almost the `KeyGen` OPRF function defined in RFC 9497.
+ * Since this library does not implement Verfiable OPRF (VOPRF) 
+ * functionality, no public key is needed, so steps related to that
+ * are omitted.
  *
- * @param [out] kU - the per-user OPRF private key
+ * @param[out] kU The per-user OPRF private key
  */
 
 void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]);
 
 /**
- * This function computes the OPRF output using input x, N, and domain separation
- * tag info.
+ * @brief Computes the final OPRF output
  *
- * This is the Finalize OPRF function defined in the RFC.
+ * Implements the `Finalize` OPRF function defined in RFC 9497.
+ * It hashes the input and the OPRF evaluation to produce the
+ * final output for the client.
  *
- * @param [in] x - a value used to compute OPRF (the same value that
- * was used as input to be blinded)
- * @param [in] x_len - the length of param x in bytes
- * @param [in] N - a serialized OPRF group element, a byte array of fixed length,
- * an output of oprf_Unblind
- * @param [in] info - a domain separation tag
- * @param [in] info_len - the length of param info in bytes
- * @param [out] y - an OPRF output
- * @return The function returns 0 if everything is correct.
+ * @param[in] x A value used to compute OPRF (the same value that
+ *            was used as input to be blinded)
+ * @param[in] x_len Length of input x in bytes.
+ * @param[in] N Evaluated group element (output from oprf_Unblind)
+ * @param[out] rwdU Output buffer for the OPRF result
  */
 int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
                   const uint8_t N[crypto_core_ristretto255_BYTES],
                   uint8_t rwdU[OPRF_BYTES]);
 
 /**
- * This function converts input x into an element of the OPRF group, randomizes it
- * by some scalar r, producing blinded, and outputs (r, blinded).
+ * @brief Blinds an input value for OPRF evaluation
  *
- * This is the Blind OPRF function defined in the RFC.
+ * Implements the `Blind` OPRF function defined in RFC 9497.
+ * This function converts the input into an OPRF group element and 
+ * randomizes it with a scalar value `r`. Both the scalar and blinded 
+ * element are returned.
  *
- * @param [in] x - the value to blind (for OPAQUE, this is pwdU, the user's
- * password)
- * @param [in] x_len - the length of param x in bytes
- * @param [out] r - an OPRF scalar value used for randomization
- * @param [out] blinded - a serialized OPRF group element, a byte array of fixed length,
- * the blinded version of x, an input to oprf_Evaluate
- * @return The function returns 0 if everything is correct.
+ * @param[in] x Input value to blind. E.g., the user's password in 
+ *            OPAQUE (pwdU)
+ * @param[in] x_len Length of the input value in bytes
+ * @param[out] r Random scalar used to blind the input
+ * @param[out] blinded Serialized OPRF group element, the blinded version 
+ *             of `x`, used as input to `oprf_Evaluate()`
+ *
+ * @return 0 on success, non-zero on error
  */
 int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                uint8_t blinded[crypto_core_ristretto255_BYTES]);
 
 /**
- * This function evaluates input element blinded using private key k, yielding output
- * element Z.
+ * @brief Evaluates a blinded input using the OPRF private key
  *
- * This is the Evaluate OPRF function defined in the RFC.
+ * Implements the `Evaluate` OPRF function defined in RFC 9497.
+ * This function is run by the server. It uses the server's private 
+ * key `k` to evaluate the client's blinded input, producing a group 
+ * element `Z` that the client can later unblind.
  *
- * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
- * key)
- * @param [in] blinded - a serialized OPRF group element, a byte array of fixed length,
- * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
- * password)
- * @param [out] Z - a serialized OPRF group element, a byte array of fixed length,
- * an input to oprf_Unblind
- * @return The function returns 0 if everything is correct.
+ * @param[in] k OPRF private key E.g., the user's private key in OPAQUE
+ *            (kU)
+ * @param[in] blinded  Serialized OPRF group element, an output of 
+ *            `oprf_Blind()`. For OPAQUE, this is the blinded user's 
+ *             password, pwdU
+ * @param[out] Z Serialized OPRF group element, used as input to 
+ *            `oprf_Unblind()`
+ *
+ * @return 0 on success, non-zero on error
  */
 int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                   const uint8_t blinded[crypto_core_ristretto255_BYTES],
                   uint8_t Z[crypto_core_ristretto255_BYTES]);
 
 /**
- * This function removes random scalar r from Z, yielding output N.
+ * @brief Unblinds an evaluated OPRF element
  *
- * This is the Unblind OPRF function defined in the RFC.
+ * Implements the `Unblind` OPRF function defined in RFC 9497.
+ * This function removes the random scalar `r` from the evaluated 
+ * element `Z`, producing the unblinded output `N`.
  *
- * @param [in] r - an OPRF scalar value used for randomization in oprf_Blind
- * @param [in] Z - a serialized OPRF group element, a byte array of fixed length,
- * an output of oprf_Evaluate
- * @param [out] N - a serialized OPRF group element with random scalar r removed,
- * a byte array of fixed length, an input to oprf_Finalize
- * @return The function returns 0 if everything is correct.
+ * @param[in] r Scalar used to blind the input originally
+ * @param[in] Z OPRF evaluation result from the server, an output of 
+ *            `oprf_Evaluate()`
+ * @param[out] N Serialized OPRF group element with random scalar `r` 
+ *             remove, used as input to `oprf_Finalize()`.
+ *
+ * @return 0 on success, non-zero on error
  */
 int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                  const uint8_t Z[crypto_core_ristretto255_BYTES],
                  uint8_t N[crypto_core_ristretto255_BYTES]);
 
 /**
- * Implements the hash to curve CFRG IRTF https://datatracker.ietf.org/doc/draft-irtf-cfrg-hash-to-curve/
- * function needed for the OPRF implementation
+ * @brief Hashes an input message to a point on the Ristretto255 curve
  *
- * @param [in] msg: the input to hash to a ristretto255 point
- * @param [in] msg_len: the length of the input
- * @param [out] p: the resulting ristretto255 point
+ * Implements the `hash-to-curve` function defined in RFC 9380.
+ * This function is needed for the OPRF implementation.
+ *
+ * @param[in] msg Input message to hash to a Ristretto255 point
+ * @param[in] msg_len Length of the input message in bytes
+ * @param[out] p The resulting Ristretto255 point
+ *
+ * @return 0 on success, non-zero on error
  */
 int voprf_hash_to_group(const uint8_t *msg, const uint16_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]);
 
 /**
- * A utility function from the hash to curve CFRG IRTF draft/spec
+ * @brief Expands an input message to a uniformly random byte string
+ *        using a cryptographic hash function
  *
- * uses the input parameters msg/msg_len and dst/dst_len (dst stands
- * for domain separation tag), and produces a high entropy output in
- * uniform_bytes of length: len_in_bytes
+ * Implements `expand_message_xmd` as defined in RFC 9380.
+ *
+ * @param[in] msg The input message to expand
+ * @param[in] msg_len The length of the input message in bytes
+ * @param[in] dst Domain separation tag (DST)
+ * @param[in] dst_len The length of the DST
+ * @param[in] len_in_bytes Desired number of output bytes
+ * @param[out] uniform_bytes Output buffer of length `len_in_bytes` to 
+ *             receive the high entropy result
+ *
+ * @return 0 on success, non-zero on error
  */
 int expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
 
