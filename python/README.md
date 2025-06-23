@@ -8,7 +8,7 @@ pyoprf offers Python bindings for the liboprf library, allowing integration of O
 
 - [liboprf](https://github.com/stef/liboprf): The core library
 - [libsodium](https://github.com/jedisct1/libsodium): Required dependency for liboprf
-- OpenSSL: For cryptographic functions
+- OpenSSL: For TLS connections between the participants
 
 ### Installing from PyPI
 
@@ -61,7 +61,7 @@ print(f"Verification result: {final_result2.hex()}")
 assert final_result == final_result2, "OPRF evaluations should be deterministic for the same input and key"
 
 # The `final_result` can be used as a key for encryption, authentication token, and more.
-# Both client and server can derive the same value without the server learning the password
+# Only client can derive this value without the server learning the password or the final result.
 ```
 
 ### Threshold Example
@@ -132,7 +132,23 @@ OSError: liboprf.so.0: cannot open shared object file: No such file or directory
 OSError: liboprf-noiseXK.so.0: cannot open shared object file: No such file or directory
 ```
 
-To fix this, first create symbolic links:
+To fix this, you can try to install liboprf globally on your system.
+
+Either by using your distributions package manager:
+
+```sh
+% sudo apt install liboprf0t64
+```
+
+Or install liboprf from source:
+
+```sh
+cd /path/to/liboprf/src
+sudo PREFIX=/usr make install
+sudo ldconfig
+```
+
+Or by using environment variables, first create symbolic links:
 
 ```bash
 cd /path/to/liboprf/src
