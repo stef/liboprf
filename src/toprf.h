@@ -19,127 +19,149 @@
 #ifndef TOPRF_H
 #define TOPRF_H
 
+/**
+ * @file toprf.h
+ * @brief API for the Threshold Oblivious Pseudorandom Function (TOPRF)
+ *        implementation
+ * 
+ * This file defines the structures, types, and functions for implementing
+ * a Threshold Oblivious Pseudorandom Function (TOPRF) based on the 
+ * paper section 3 of the paper:
+ * "TOPPSS: Cost-minimal Password-Protected Secret Sharing based on 
+ * Threshold OPRF" by Stanislaw Jarecki, Aggelos Kiayias, Hugo Krawczyk, 
+ * and Jiayu Xu, 2017 (https://eprint.iacr.org/2017/363)
+ */
+
 #include <sodium.h>
 #include <stdint.h>
 
-typedef struct {
+/**
+ * @struct TOPRF_Share
+ * @brief Share structure for TOPRF
+ */
+typedef struct
+{
   uint8_t index;
   uint8_t value[crypto_core_ristretto255_SCALARBYTES];
 } __attribute((packed)) TOPRF_Share;
 
 #define TOPRF_Share_BYTES (sizeof(TOPRF_Share))
-#define TOPRF_Part_BYTES (crypto_core_ristretto255_BYTES+1UL)
+#define TOPRF_Part_BYTES (crypto_core_ristretto255_BYTES + 1UL)
 
-/** interpolates a polynomial of degree t at point x: y = f(x), given t shares of the polynomial
+/**
+ * @brief Interpolates a polynomial of degree `t` at an arbitrary point 
+ *        `x: y = f(x)`
  *
- * @param [in] x - the value for which to evaluate the polynomial
- * @param [in] t - the degree of the polynomial
- * @param [in] shares - evaluated points on the polynomial
- * @param [out] y - the result of f(x)
+ * Uses Lagrange interpolation to reconstruct the polynomial value at `x`,
+ * given `t` shares (evaluations) of the polynomial.
+ *
+ * @param[in] x The value at which the polynomial is evaluated
+ * @param[in] t The degree of the polynomial
+ * @param[in] shares Evaluated points on the polynomial.
+ * @param[out] y Output buffer to store the computed result, `f(x)`
  */
 void interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 /**
- * This function calculates a lagrange coefficient for f(x) based on
- * the index and the indexes of the other contributing shareholders.
+ * @brief Computes the Lagrange coefficient for `f(x)`
  *
- * @param [in] index - the index of the shareholder whose lagrange
- *             coefficient we're calculating
+ * This function calculates a Lagrange coefficient for `f(x)` 
+ * based on the index and the indices of the other contributing peers
  *
- * @param [in] x - the x for which the polynomial is to be evaluated
- *
- * @param [in] peers_len - the number of shares in peers
- *
- * @param [in] peers - the shares that contribute to the reconstruction
- *
- * @param [out] result - the lagrange coefficient
+ * @param[in] index The index of the peer for which the Lagrange coefficient 
+ *            is being calculated
+ * @param[in] x The evaluation point for the polynomial
+ * @param[in] degree Total number of shares participating (number of peers)
+ * @param[in] peers Array of indices of all participating peers that 
+ *            contribute to the reconstruction
+ * @param[out] result Output buffer to store the computed Lagrange 
+ *             coefficient
  */
 
 void lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uint8_t peers[degree], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
+
 /**
- * This function calculates a lagrange coefficient for f(0) based on
- * the index and the indexes of the other contributing shareholders.
+ * @brief Computes the Lagrange coefficient for `f(0)
  *
- * @param [in] index - the index of the shareholder whose lagrange
- *             coefficient we're calculating
+ * This function calculates a lagrange coefficient for `f(0)` based on
+ * the index and the indices of the other contributing peers
  *
- * @param [in] peers_len - the number of shares in peers
- *
- * @param [in] peers - the shares that contribute to the reconstruction
- *
- * @param [out] result - the lagrange coefficient
+ * @param[in] index The index of the peer for which the Lagrange coefficient 
+ *            is being calculated
+ * @param[in] peers_len Total number of shares in the peers
+ * @param[in] peers Shares that contribute to the reconstruction
+ * @param[out] result Output buffer to store the computed Lagrange 
+ *             coefficient
  */
 void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 /**
- * This function creates shares of secret in a (threshold, n) scheme
- * over the curve ristretto255
+ * @brief Splits a secret into `n` shares using Shamir secret sharing over 
+ *        the curve Ristretto255
  *
- * This function wraps lcoeff, so that if you want to recover the
- * shared secret you don't have to provide x=0 as a parameter. This is
- * mostly for backward compatibility.
+ * The secret is shared in a (threshold, n) scheme: any threshold number 
+ * of shares can reconstruct the secret, but fewer reveal nothing. 
+ * This function wraps `lcoeff()`, allowing to recover the shared
+ * secret without providing `x=0` as a parameter. This is mostly for 
+ * backward compatibility. 
  *
- * @param [in] secret - the scalar value to be secretly shared
+ * @param[in] secret The scalar value to be secretly shared
+ * @param[in] n The number of shares created
+ * @param[in] threshold Minimum number of shares required to reconstruct 
+ *            the secret
+ * @param[out] shares Output buffer receiving `n` generated shares
  *
- * @param [in] n - the number of shares created
- *
- * @param [in] threshold - the threshold needed to reconstruct the secret
- *
- * @param [out] shares - n shares
- *
- * @return The function returns 0 if everything is correct.
+ * @return 0 on success, non-zero on failure
  */
 void toprf_create_shares(const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
-                   const uint8_t n,
-                   const uint8_t threshold,
-                   uint8_t shares[n][TOPRF_Share_BYTES]);
+                         const uint8_t n,
+                         const uint8_t threshold,
+                         uint8_t shares[n][TOPRF_Share_BYTES]);
 
 /**
- * This function recovers the secret in the exponent using lagrange interpolation
- * over the curve ristretto255
+ * @brief Combines shares in the exponent using Lagrange interpolation over 
+ *        the curve Ristretto255
  *
- * The shareholders are not aware if they are contributing to a
- * threshold or non-threshold oprf evaluation, from their perspective
- * nothing changes in this approach.
+ * This function combines a threshold number of shares to recover the secret 
+ * in the exponent.  It uses Lagrange interpolation over the curve 
+ * Ristretto255.
+ * The peers are unaware of whether they participate in threshold or 
+ * standalone mode. Their computation remains the same in both cases.
  *
- * @param [in] responses_len - the number of elements in the response array
+ * @param[in] response_len Number of elements in the `responses` array
+ * @param[in] responses Array of shares to be combined
+ * @param[out] result  Output buffer receiving the reconstructed secret
  *
- * @param [in] responses - is an array of shares (k_i) multiplied by a
- *        point (P) on the r255 curve
- *
- * @param [out] result - the reconstructed value of P multipled by k
- *
- * @return The function returns 0 if everything is correct.
+ * @return 0 on success, non-zero on error
  */
 int toprf_thresholdmult(const size_t response_len,
                         const uint8_t responses[response_len][TOPRF_Part_BYTES],
                         uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
 /**
- * This function is the efficient threshold version of oprf_Evaluate.
+ * @brief Efficiently evaluates a blinded input using the private key 
+ *        in a threshold setting
+ * 
  *
- * This function needs to know in advance the indexes of all the
- * shares that will be combined later in the toprf_thresholdcombine() function.
- * by doing so this reduces the total costs and distributes them to the shareholders.
+ * This function is the efficient threshold version of `oprf_Evaluate()` 
+ * defined in oprf.h.
+ * It needs to know in advance the indices of all shares that will be 
+ * combined later in the `toprf_thresholdcombine()` function. This 
+ * precomputation reduces the total costs and distributes them to the peers
  *
- * @param [in] k - a private key (for OPAQUE, this is kU, the user's
- *        OPRF private key)
+ * @param[in] k The server's secret key share. For OPAQUE, this is kU, the 
+ *            user's OPRF private key
+ * @param[in] blinded Serialized OPRF group element, an output of 
+ *            `oprf_Blind()`. For OPAQUE, this is the blinded user's 
+ *             password, pwdU
+ * @param[in] self The index of the current peer
+ * @param[in] indexes Array of indices of all peers contributing to this 
+ *            OPRF evaluation
+ * @param[in] index_len Number of participating peers (Length of `indexes`)
+ * @param[out] Z Serialized OPRF group element, used as input to 
+ *            `oprf_Unblind()`
  *
- * @param [in] blinded - a serialized OPRF group element, a byte array
- *         of fixed length, an output of oprf_Blind (for OPAQUE, this
- *         is the blinded pwdU, the user's password)
- *
- * @param [in] self - the index of the current shareholder
- *
- * @param [in] indexes - the indexes of the all the shareholders
- *        contributing to this oprf evaluation,
- *
- * @param [in] index_len - the length of the indexes array,
- *
- * @param [out] Z - a serialized OPRF group element, a byte array of fixed length,
- *        an input to oprf_Unblind
- *
- * @return The function returns 0 if everything is correct.
+ * @return 0 on success, non-zero on error
  */
 int toprf_Evaluate(const uint8_t k[TOPRF_Share_BYTES],
                    const uint8_t blinded[crypto_core_ristretto255_BYTES],
@@ -147,43 +169,51 @@ int toprf_Evaluate(const uint8_t k[TOPRF_Share_BYTES],
                    uint8_t Z[TOPRF_Part_BYTES]);
 
 /**
- * This function is combines the results of the toprf_Evaluate()
- * function to recover the shared secret in the exponent.
+ * @brief Combines the partial results to reconstruct the final OPRF output
  *
- * @param [in] responses - is an array of shares (k_i) multiplied by a point (P) on the r255 curve
+ * This function is combines the results of the toprf_Evaluate() to recover 
+ * the shared secret in the exponent.
+
+ * @param[in] response_len Number of elements in the `responses` array
+ * @param[in] responses Array of shares to be combined
+ * @param[out] result  Output buffer receiving the reconstructed secret
  *
- * @param [in] responses_len - the number of elements in the response array
- *
- * @param [out] result - the reconstructed value of P multipled by k
- *
- * @return The function returns 0 if everything is correct.
+ * @return 0 on success, non-zero on error
  */
 int toprf_thresholdcombine(const size_t response_len,
-                            const uint8_t _responses[response_len][TOPRF_Part_BYTES],
-                            uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
+                           const uint8_t _responses[response_len][TOPRF_Part_BYTES],
+                           uint8_t result[crypto_scalarmult_ristretto255_BYTES]);
 
-typedef int (*toprf_evalcb)(void* ctx,
+typedef int (*toprf_evalcb)(void *ctx,
                             const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                             const uint8_t alpha[crypto_core_ristretto255_BYTES],
                             uint8_t beta[crypto_core_ristretto255_BYTES]);
 
-typedef int (*toprf_keygencb)(void* ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
+typedef int (*toprf_keygencb)(void *ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES]);
 
-
-/** Implements 3hashtdh from the paper Threshold PAKE with Security against Compromise of all Servers
-    see: https://eprint.iacr.org/2024/1455
-
-    Use this function if you implement a threshold OPRF.
-
-    @param [in] k - the share of k
-    @param [in] z - the share of zero
-    @param [in] alpha - the blinded element from the client
-    @param [in] ssid_S - a sub-session identifier that all
-                participants to the threshold evaluation must agree on
-                (it must be the same for all of them).
-    @param [in] ssid_S_len - the length of the ssid_S identifier
-    @param [out] beta - the result of the evaluation, to be returned
-                 to the client.
+/**
+ * @brief Implements the 3HashTDH protocol
+ *
+ * This function implements the 3HashTDH protocol from the paper:
+ * "Threshold PAKE with Security against Compromise of All Servers"
+ * (https://eprint.iacr.org/2024/1455) by Gu, Jarecki, Kedzior, 
+ * Nazarian, Xu.
+ *
+ * Use this function to implement a threshold OPRF.
+ *
+ * @param[in] k A share of the secret key
+ * @param[in] z A random zero-sharing of the secret key. This is a share of 
+ *            a random `t`-degree polynomial that evaluates to zero, where t 
+ *            is the threshold
+ * @param[in] alpha The blinded element from the client
+ * @param[in] ssid_S A session-specific identifier that all participants in 
+ *            the threshold evaluation must agree on (it must be the same 
+ *            for all participants)
+ * @param[in] ssid_S_len Length of the `ssid_S` identifier
+ * @param[out] beta Output buffer containing the result of evaluation, to 
+ *             be returned to the client
+ *
+ * @return 0 on success, non-zero on error
  */
 int toprf_3hashtdh(const uint8_t k[TOPRF_Share_BYTES],
                    const uint8_t z[TOPRF_Share_BYTES],
