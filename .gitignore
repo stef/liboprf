@@ -14,3 +14,4 @@ attack
 tp-dkg
 python/tests/__pycache__/
 src/liboprf-corrupt-dkg.so
+src/liboprf.pc
