@@ -1,19 +1,19 @@
 /**
  * @file dkg_mult.h
- * @brief API for the Distributed Key Generation (DKG) Multiplication 
+ * @brief API for the Distributed Key Generation (DKG) Multiplication
  *        Protocols
  *
- * Implements a secure multiplication protocol that, given sharings of 
- * secret `a` and secret `b`, generates a sharing of the product `a*b` 
+ * Implements a secure multiplication protocol that, given sharings of
+ * secret `a` and secret `b`, generates a sharing of the product `a*b`
  * without revealing either secret.
  *
  * The interfaces in this header provide access to functions
- * implementing the Simple-Mult protocol defined in Fig. 2 from 
- * R. Gennaro, M. O. Rabin, and T. Rabin. "Simplified VSS and 
- * fast-track multiparty computations with applications to threshold 
- * cryptography". In B. A. Coan and Y. Afek, editors, 17th ACM PODC, 
+ * implementing the Simple-Mult protocol defined in Fig. 2 from
+ * R. Gennaro, M. O. Rabin, and T. Rabin. "Simplified VSS and
+ * fast-track multiparty computations with applications to threshold
+ * cryptography". In B. A. Coan and Y. Afek, editors, 17th ACM PODC,
  * pages 101–111. ACM, June / July 1998.
- * 
+ *
  * Also implements the Fast-Track Multiplication (FT-Mult) protocol
  * defined in Fig. 5 of the same paper, which allows for faster
  * multiparty computations.
@@ -32,7 +32,7 @@
  * @brief Computes the inverse of a Vandermonde matrix
  *
  * Given a list of dealer indices, this function generates the
- * corresponding Vandermonde matrix and computes its inverse, storing 
+ * corresponding Vandermonde matrix and computes its inverse, storing
  * the result in `inverted`.
  *
  * @param[in] dealers Number of dealers (matrix dimension)
@@ -48,16 +48,17 @@ void invertedVDMmatrix(const uint8_t dealers,
  *
  * Performs the  multiplication of two shares, `a` and `b`.
  *
- * @param[in] a One share held by the peer contributing to the 
+ * @param[in] a One share held by the dealer contributing to the
  *            multiplication
- * @param[in] b Another share held by the peer contributing to 
+ * @param[in] b Another share held by the dealer contributing to
  *            the multiplication
- * @param[in] peers The number of peers participating in the 
- *            computation. This should equal the number of peers 
+ * @param[in] peers The number of peers participating in the
+ *            computation. This should equal the number of peers
  *            holding shares of `a` and `b`.
- * @param[in] threshold The number of peers minimum necessary to 
- *            parcipate in this computation. Should equal the threshold 
- *            for the `a` and `b` values.
+ * @param[in] threshold The number of peers minimum necessary to
+ *            reconstruct either of the input or the result
+ *            shares. Should equal the threshold for the `a` and `b`
+ *            values.
  * @param[out] shares Output array of shares of a*b, one for each peer
  *
  * @return 0 on success, non-zero on error
@@ -70,12 +71,12 @@ int toprf_mpc_mul_start(const uint8_t _a[TOPRF_Share_BYTES],
 /**
  * @brief Phase 2 of multiparty threshold multiplication.
  *
- * Each shareholder calls this function to finalize their share of a*b,
+ * Each peer calls this function to finalize their share of a*b,
  * using all shares from phase 1 and the inverted Vandermonde matrix.
  *
- * @param[in]  dealers Number of dealers
- * @param[in]  indexes Indices of the participating dealers
- * @param[in]  peer Index of the current peer computing their share
+ * @param[in] dealers Number of dealers
+ * @param[in] indexes Indices of the participating dealers
+ * @param[in] peer Index of the current peer computing their share
  * @param[in] shares All shares from phase 1 for this participant
  * @param[out] share Output share of a*b for this participant
  */
@@ -88,7 +89,7 @@ void toprf_mpc_mul_finish(const uint8_t dealers,
 /**
  * @brief Checks the correctness of a set of commitments
  *
- * @param[in] t Degree of the polynomials (threshold)
+ * @param[in] t Degree of the polynomials + 1 (threshold)
  * @param[in] A Array of commitments to check
  *
  * @return 0 if the check passes, non-zero otherwise
@@ -104,8 +105,8 @@ int toprf_mpc_vsps_check(const uint8_t t,
  * Multiparty Computations  with Applications to Threshold Cryptography" by R. Gennaro, M. O.
  * Rabin, and T. Rabin, PODC 1998.
  *
- * @param[in] dealers Number of participants/dealers
- * @param[in] n Number of parties receiving shares
+ * @param[in] dealers Number of participants acting as dealers (always 2t+1)
+ * @param[in] n Number of parties receiving shares (must be more or equal 2t+1)
  * @param[in] t Threshold for reconstruction
  * @param[in] self Index of the current participant
  * @param[in] alpha Share of secret `a` (and its blinding factor)
@@ -125,10 +126,10 @@ int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t
                            uint8_t ci_tau[crypto_core_ristretto255_SCALARBYTES]);
 
 /**
- * @brief Computes zero-knowledge (ZK) commitments for fast-track 
+ * @brief Computes zero-knowledge (ZK) commitments for fast-track
  *        multiplication
  *
- * Generates commitments for use in the zero-knowledge proof of correct 
+ * Generates commitments for use in the zero-knowledge proof of correct
  * multiplication.
  *
  * @param[in] B_i Commitment to the value being proved
