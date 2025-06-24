@@ -181,21 +181,21 @@ int dkg_finish(const uint8_t n,
   return 0;
 }
 
-void dkg_reconstruct(const size_t response_len,
-                     const TOPRF_Share responses[response_len],
-                     uint8_t result[crypto_scalarmult_ristretto255_BYTES]) {
+void dkg_reconstruct(const size_t threshold,
+                     const TOPRF_Share shares[threshold],
+                     uint8_t secret[crypto_scalarmult_ristretto255_BYTES]) {
   uint8_t lpoly[crypto_scalarmult_ristretto255_SCALARBYTES];
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
-  memset(result,0,crypto_scalarmult_ristretto255_SCALARBYTES);
+  memset(secret,0,crypto_scalarmult_ristretto255_SCALARBYTES);
 
-  uint8_t indexes[response_len];
-  for(size_t i=0;i<response_len;i++) {
-    indexes[i]=responses[i].index;
+  uint8_t indexes[threshold];
+  for(size_t i=0;i<threshold;i++) {
+    indexes[i]=shares[i].index;
   }
-  for(size_t i=0;i<response_len;i++) {
-    coeff(responses[i].index, response_len, indexes, lpoly);
-    crypto_core_ristretto255_scalar_mul(tmp, responses[i].value, lpoly);
-    crypto_core_ristretto255_scalar_add(result, result, tmp);
+  for(size_t i=0;i<threshold;i++) {
+    coeff(shares[i].index, threshold, indexes, lpoly);
+    crypto_core_ristretto255_scalar_mul(tmp, shares[i].value, lpoly);
+    crypto_core_ristretto255_scalar_add(secret, secret, tmp);
   }
 }
 

@@ -52,6 +52,29 @@ static void _recv(const uint8_t *net, size_t *pkt_len, uint8_t *buf, const size_
   //return msg_len;
 }
 
+static uint8_t dkg_vss_verify_commitments(const uint8_t n,
+                                          const uint8_t self,
+                                          const uint8_t commitments[n][n][crypto_core_ristretto255_BYTES],
+                                          const TOPRF_Share shares[n][2],
+                                          uint8_t complaints[n]) {
+  uint8_t complaints_len=0;
+  for(uint8_t i=1;i<=n;i++) {
+    if(i==self) continue;
+
+    if(0!=dkg_vss_verify_commitment(commitments[i-1][self-1], shares[i-1])) {
+      // complain about P_i
+      fprintf(stderr, "\x1b[0;31mfailed to verify contribs of P_%d in stage 1\x1b[0m\n", i);
+      complaints[complaints_len++]=i;
+      //return 1;
+    } else {
+#ifdef UNIT_TEST
+      if(debug) fprintf(stderr, "\x1b[0;32mP_%d stage 1 correct!\x1b[0m\n", i);
+#endif // UNIT_TEST
+    }
+  }
+  return complaints_len;
+}
+
 static int dkg_vss(const uint8_t n, const uint8_t t,
                    TOPRF_Share final_shares[n][2],
                    uint8_t commitments[n][crypto_core_ristretto255_BYTES]) {
@@ -95,7 +118,6 @@ static int dkg_vss(const uint8_t n, const uint8_t t,
   }
   return 0;
 }
-
                
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 #if !defined(FUZZ_PEER)

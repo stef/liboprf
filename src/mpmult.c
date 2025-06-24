@@ -302,6 +302,7 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
   return 0;
 }
 
+// todo remove dealers param, can be calculatted from t param
 int toprf_mpc_ftmult_step1(const uint8_t dealers, const uint8_t n, const uint8_t t, const uint8_t self,
                            const TOPRF_Share alpha[2], const TOPRF_Share beta[2],
                            const uint8_t lambdas[dealers][crypto_core_ristretto255_SCALARBYTES],
