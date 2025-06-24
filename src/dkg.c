@@ -467,7 +467,7 @@ int dkg_noise_decrypt(const uint8_t *input,
 /**
   Return the session unique send key, needed for tp-dkg reveal share.
 */
-uint8_t* __attribute__((visibility("hidden"))) Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
+uint8_t __attribute__((visibility("hidden"))) *Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
   Noise_XK_session_t st = sn[0U];
   if (st.tag == Noise_XK_DS_Initiator && st.val.case_DS_Initiator.state.tag == Noise_XK_IMS_Transport)
     return st.val.case_DS_Initiator.state.val.case_IMS_Transport.send_key;
