@@ -75,29 +75,6 @@ int dkg_vss_verify_commitment(const uint8_t commitment[crypto_core_ristretto255_
   return 0;
 }
 
-uint8_t dkg_vss_verify_commitments(const uint8_t n,
-                                   const uint8_t self,
-                                   const uint8_t commitments[n][n][crypto_core_ristretto255_BYTES],
-                                   const TOPRF_Share shares[n][2],
-                                   uint8_t complaints[n]) {
-  uint8_t complaints_len=0;
-  for(uint8_t i=1;i<=n;i++) {
-    if(i==self) continue;
-
-    if(0!=dkg_vss_verify_commitment(commitments[i-1][self-1], shares[i-1])) {
-      // complain about P_i
-      fprintf(stderr, "\x1b[0;31mfailed to verify contribs of P_%d in stage 1\x1b[0m\n", i);
-      complaints[complaints_len++]=i;
-      //return 1;
-    } else {
-#ifdef UNIT_TEST
-      if(debug) fprintf(stderr, "\x1b[0;32mP_%d stage 1 correct!\x1b[0m\n", i);
-#endif // UNIT_TEST
-    }
-  }
-  return complaints_len;
-}
-
 int dkg_vss_finish(const uint8_t n,
                     const uint8_t qual[n],
                     const TOPRF_Share shares[n][2],
@@ -107,6 +84,7 @@ int dkg_vss_finish(const uint8_t n,
   memset(share[0].value, 0, crypto_core_ristretto255_SCALARBYTES);
   memset(share[1].value, 0, crypto_core_ristretto255_SCALARBYTES);
   for(int i=0;qual[i] && i<n;i++) {
+    // todo should we assert that there are no duplicate indexes in qual?
     if(self!=shares[qual[i]-1][0].index) {
       fprintf(stderr, "\x1b[0;31mbad share i=%d qual[i]=%d, index=%d\x1b[0m\n", i, qual[i], shares[qual[i]-1][0].index);
     }

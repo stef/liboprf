@@ -39,7 +39,7 @@ extern const uint8_t H[crypto_core_ristretto255_BYTES];
 int dkg_vss_share(const uint8_t n,
                   const uint8_t threshold,
                   const uint8_t secret[crypto_core_ristretto255_SCALARBYTES],
-                  uint8_t commitments[threshold][crypto_core_ristretto255_BYTES],
+                  uint8_t commitments[n][crypto_core_ristretto255_BYTES],
                   TOPRF_Share shares[n][2],
                   uint8_t blind[crypto_core_ristretto255_SCALARBYTES]);
 
@@ -55,27 +55,7 @@ int dkg_vss_verify_commitment(const uint8_t commitment[crypto_core_ristretto255_
                               const TOPRF_Share share[2]);
 
 /**
- * @brief Verifies all received shares from other participants
- *
- * Checks that all received shares match their corresponding commitments.
- * Records participants whose shares don't verify in the `complaints` array.
- *
- * @param[in] n The number of participants
- * @param[in] self The index of the current participant
- * @param[in] commitments Array of commitments from all participants
- * @param[in] shares Array of shares received from all participants
- * @param[out] complaints Array to record indices of participants with invalid shares
- *
- * @return The number of participants with invalid shares
- */
-uint8_t dkg_vss_verify_commitments(const uint8_t n,
-                                   const uint8_t self,
-                                   const uint8_t commitments[n][n+1][crypto_core_ristretto255_BYTES],
-                                   const TOPRF_Share shares[n][2],
-                                   uint8_t complaints[n]);
-
-/**
- * @brief Finalizes the VSS protocol for a participant
+ * @brief Finalizes the DKG VSS protocol for a participant
  *
  * Combines valid shares from qualified participants to compute the final
  * secret share and its corresponding commitment.
@@ -108,7 +88,7 @@ int dkg_vss_finish(const uint8_t n,
  * @param[in] shares Array of shares provided for reconstruction
  * @param[in] commitments Array of commitments to verify shares
  * @param[out] result Buffer to store the reconstructed secret
- * @param[out] blind Buffer to store the reconstructed blinding factor
+ * @param[out] blind optional Buffer to store the reconstructed blinding factor skipped if NULL
  *
  * @return 0 on success, non-zero on error
  */
