@@ -144,9 +144,9 @@ static void genVDMmatrix(const uint8_t indexes[], const uint8_t index_len,
   }
 }
 
-void invertedVDMmatrix(const uint8_t dealers,
-                       const uint8_t indexes[dealers],
-                       uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES]) {
+void __attribute__((visibility("hidden"))) invertedVDMmatrix(const uint8_t dealers,
+                                                             const uint8_t indexes[dealers],
+                                                             uint8_t inverted[dealers][dealers][crypto_core_ristretto255_SCALARBYTES]) {
   uint8_t vdm[dealers][dealers][crypto_core_ristretto255_SCALARBYTES];
   genVDMmatrix(indexes, dealers, vdm);
   invert(dealers, vdm, inverted);
