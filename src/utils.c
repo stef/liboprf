@@ -3,8 +3,8 @@
 #include <string.h>
 #include <sodium.h>
 
-int debug = 0;
-FILE* log_file=NULL;
+int __attribute__((visibility("hidden"))) debug = 0;
+FILE __attribute__((visibility("hidden"))) *log_file=NULL;
 
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar) {
@@ -26,7 +26,7 @@ void debian_rng_scalar(uint8_t *scalar) {
 }
 #endif
 
-void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
+void __attribute__((visibility("hidden"))) dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   FILE* lf = stderr;
   if(!debug) return;
   if(log_file!=NULL) lf = log_file;
@@ -41,7 +41,7 @@ void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   fflush(lf);
 }
 
-void fail(const char* msg, ...) {
+void __attribute__((visibility("hidden"))) fail(const char* msg, ...) {
   va_list args;
   va_start(args, msg);
   fprintf(stderr, "\x1b[0;31m");
@@ -52,7 +52,7 @@ void fail(const char* msg, ...) {
 
 #ifndef htonll
 #include <arpa/inet.h>
-uint64_t htonll(uint64_t n) {
+uint64_t __attribute__((visibility("hidden"))) htonll(uint64_t n) {
 #if __BYTE_ORDER == __BIG_ENDIAN
     return n;
 #else
@@ -62,7 +62,7 @@ uint64_t htonll(uint64_t n) {
 #endif // htonll
 
 #ifndef ntohll
-uint64_t ntohll(uint64_t n) {
+uint64_t __attribute__((visibility("hidden"))) ntohll(uint64_t n) {
 #if __BYTE_ORDER == __BIG_ENDIAN
     return n;
 #else
