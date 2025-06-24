@@ -16,10 +16,10 @@
  * jointly generate a cryptographic key without any single party knowing the
  * complete key. Each participant receives a share of the key, and a threshold
  * of these shares is required to perform operations with the key.
- * 
- * The library also uses the Noise_XK handshake pattern 
- * (https://noiseexplorer.com/patterns/XK/) to establish a secure 
- * communication channel between participants. 
+ *
+ * The library also uses the Noise_XK handshake pattern
+ * (https://noiseexplorer.com/patterns/XK/) to establish a secure
+ * communication channel between participants.
  **/
 
 #include <sodium.h>
@@ -30,20 +30,6 @@
 #define dkg_hash_BYTES crypto_generichash_BYTES
 #define dkg_commitment_BYTES(threshold) (threshold * crypto_core_ristretto255_BYTES)
 
-#define HASH ((uint8_t)1)
-#define COMMITMENT ((uint8_t)2)
-
-/** @struct DKG_Fail
-     Structure representing a failure in the DKG protocol
-     @var DKG_Fail::type The type of failure
-     @var DKG_Fail::index The index of the peer that caused the failure
- */
-typedef struct
-{
-     uint8_t type;
-     uint8_t index;
-} __attribute((packed)) DKG_Fail;
-
 /** @struct DKG_Cheater
 
     This struct communicates one detected violation of the protocol.
@@ -51,7 +37,7 @@ typedef struct
     @var DKG_Cheater::step The step in which the violation occured
     @var DKG_Cheater::error The error code specifying the violation
     @var DKG_Cheater::peer The peer that caused the violation
-    @var DKG_Cheater::other_peer Optionally the peer that reported the 
+    @var DKG_Cheater::other_peer Optionally the peer that reported the
          violation (set to 0xfe if unused)
     @var DKG_Cheater::invalid_index
  */
@@ -68,13 +54,13 @@ typedef struct
  * @brief Evaluates a polynomial at a given point
  *
  * Evaluates a polynomial defined by coefficients in array `a` at point `j`.
- * It is used in the DKG protocol for share generation. The result is stored 
+ * It is used in the DKG protocol for share generation. The result is stored
  * as a share.
  *
  * @param[in] j The index at which to evaluate the polynomial
  * @param[in] threshold The number of coefficients
  * @param[in] a Array of coefficients defining the polynomial
- * @param[out] result The resulting share containing the polynomial 
+ * @param[out] result The resulting share containing the polynomial
  *             evaluation at `j`
  */
 void polynom(const uint8_t j, const uint8_t threshold,
@@ -89,12 +75,13 @@ void polynom(const uint8_t j, const uint8_t threshold,
  * at the start of the DKG protocol.
  *
  * @param[in] n The number of peers participating in the DKG
- * @param[in] threshold The minimum number of shares needed to reconstruct 
+ * @param[in] threshold The minimum number of shares needed to reconstruct
  *            the secret (must be greater 1 and less than `n`)
- * @param[out] commitments Array of commitments to be broadcast after 
- *             receiving all hashes
- * @param[out] shares Array of `n` shares, one for each peer, to be sent 
- *             privately to each peer after receiving all of the commitment 
+ * @param[out] commitments Array of commitments to be broadcast to all
+ *             peers. NOTE: in this scheme the commitments are to the
+ *             coefficients of the polynomial.
+ * @param[out] shares Array of `n` shares, one for each peer, to be sent
+ *             privately to each peer after receiving all of the commitment
  *             broadcasts
  *
  * @return 0 on success, non-zero on error
@@ -111,10 +98,10 @@ int dkg_start(const uint8_t n,
  * from a specific peer.
  *
  * @param[in] n The number of peers participating in the DKG
- * @param[in] threshold The minimum number of shares needed to reconstruct 
+ * @param[in] threshold The minimum number of shares needed to reconstruct
  *            the secret
  * @param[in] self The index of the current peer (1-based)
- * @param[in] i The index of the peer whose commitment is being verified 
+ * @param[in] i The index of the peer whose commitment is being verified
  *            (1-based)
  * @param[in] commitments The commitments from peer `i`
  * @param[in] share The share received from peer `i`
@@ -135,12 +122,12 @@ int dkg_verify_commitment(const uint8_t n,
  * from all peers. It collects IDs of participants whose shares are invalid.
  *
  * @param[in] n The number of peers participating in the DKG
- * @param[in] threshold The minimum number of shares needed to reconstruct 
+ * @param[in] threshold The minimum number of shares needed to reconstruct
  *            the secret
  * @param[in] self The index of the current peer (1-based)
  * @param[in] commitments Array of commitments from all peers
  * @param[in] shares Array of shares received from all peers
- * @param[out] fails Array to hold IDs of peers whose shares failed 
+ * @param[out] fails Array to hold IDs of peers whose shares failed
  *             verification
  * @param[out] fails_len Number of peers whose shares failed
  *
@@ -161,7 +148,7 @@ int dkg_verify_commitments(const uint8_t n,
  * secret share for this peer.
  *
  * @param[in] n The number of peers participating in the DKG
- * @param[in] shares Array of shares addressed to this peer received 
+ * @param[in] shares Array of shares addressed to this peer received
  *            from all peers
  * @param[in] self The index of the current peer (1-based)
  * @param[out] xi Final computed secret share for this peer
@@ -176,18 +163,17 @@ int dkg_finish(const uint8_t n,
 /**
  * @brief Reconstructs the shared secret from a set of shares
  *
- * Combines shares into the group secret. This is used in the final 
- * phase of DKG, where a threshold of participants collaborate to 
+ * Combines shares into the group secret. This is used in the final
+ * phase of DKG, where a threshold of participants collaborate to
  * recover the secret.
  *
- * @param[in] response_len The number of available shares (must be 
- *            >= threshold)
- * @param[in] responses Array of participant shares used in reconstruction
- * @param[out] result Output buffer to store the reconstructed secret
+ * @param[in] threshold the threshold of the sharing
+ * @param[in] shares Array of participant shares used in reconstruction
+ * @param[out] secret Output buffer to store the reconstructed secret
  */
-void dkg_reconstruct(const size_t response_len,
-                     const TOPRF_Share responses[response_len],
-                     uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
+void dkg_reconstruct(const size_t threshold,
+                     const TOPRF_Share shares[threshold],
+                     uint8_t secret[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 #define dkg_freshness_TIMEOUT 120000
 
@@ -198,25 +184,24 @@ void dkg_reconstruct(const size_t response_len,
 #define dkg_sessionid_SIZE 32U
 #define dkg_max_err_SIZE 128
 
-/** @struct DKG_Message
-    This is the header for each message sent in this protocol.
+/** @struct DKG_Message This is the header for messages sent in higher
+    level instantiations of DKG/MPC protocols in liboprf
 
-    @var DKG_Message::sig Signature over the message header, the message 
-         body and the session ID, which is normally not included in the 
-         message
+    @var DKG_Message::sig Signature over the message header and the
+         message body
 
     @var DKG_Message::type Message type identifier
 
     @var DKG_Message::version Protocol version
 
-    @var DKG_Message::msgno The "type" of this message, which is strictly 
+    @var DKG_Message::msgno The "type" of this message, which is strictly
          tied to the current step of the protocol
 
     @var DKG_Message::len Length of the complete message, including the header
 
     @var DKG_Message::from Sender ID (0 for STP, otherwise the peer index)
 
-    @var DKG_Message::to Recipient of the message (0 for STP, 0xff for 
+    @var DKG_Message::to Recipient of the message (0 for STP, 0xff for
           broadcast, all other values <= `n` are the indices of the peers)
 
     @var DKG_Message::ts Timestamp proving the freshness of the message.
@@ -249,8 +234,8 @@ typedef struct
 /**
  * @brief Validates message timestamp for freshness
  *
- * If `last_ts` is 0, compares `ts` to the current system time with an 
- * allowed epsilon. Otherwise, checks monotonically increasing timestamps 
+ * If `last_ts` is 0, compares `ts` to the current system time with an
+ * allowed epsilon. Otherwise, checks monotonically increasing timestamps
  * within a window of `ts_epsilon`.
  *
  * @param[in] ts_epsilon Maximum allowed time difference in seconds
@@ -264,11 +249,11 @@ int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts);
 /**
  * @brief Creates and signs a protocol message
  *
- * Populates a `DKG_Message` structure and signs it using the provided 
- * signing key. Used to exchange protocol messages between participants 
+ * Populates a `DKG_Message` structure and signs it using the provided
+ * signing key. Used to exchange protocol messages between participants
  * securely.
  *
- * @param[out] msg_buf Pointer to the buffer to fill with the message
+ * @param[out] msg_buf Pointer to the buffer to fill with the message header
  * @param[in] msg_buf_len Size of the message buffer
  * @param[in] type Message type
  * @param[in] version Protocol version
@@ -285,7 +270,7 @@ int send_msg(uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, con
 /**
  * @brief Receives, validates, and verifies a DKG protocol message
  *
- * Performs multiple checks: type, version, size, sequence numbers, 
+ * Performs multiple checks: type, version, size, sequence numbers,
  * session ID, timestamp validation, and signature verification.
  *
  * @param[in] msg_buf Buffer containing the received message
@@ -307,7 +292,7 @@ int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t typ
 /**
  * @brief Initializes a Noise_XK handshake session with a given remote peer
  *
- * Adds the peer to the local Noise_XK context, creates a session as 
+ * Adds the peer to the local Noise_XK context, creates a session as
  * initiator, and generates the first handshake message
  *
  * @param[in] index Index of the current peer
@@ -400,10 +385,10 @@ int dkg_noise_decrypt(const uint8_t *input,
                       Noise_XK_session_t **session);
 
 /**
- * @brief Gets the current Noise_XK transport key used for 
+ * @brief Gets the current Noise_XK transport key used for
  *        sending or receiving
  *
- * Depending on whether the session is an initiator or responder, 
+ * Depending on whether the session is an initiator or responder,
  * this function returns the appropriate session key.
  *
  * @param[in] sn Pointer to the Noise_XK session object
@@ -419,12 +404,12 @@ uint8_t *Noise_XK_session_get_key(const Noise_XK_session_t *sn);
  *
  * @param[in,out] transcript Pointer to the transcript state
  * @param[in] msg Message to add to the transcript
- * @param[in] msg_len Sie of the message
+ * @param[in] msg_len Size of the message
  */
 void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len);
 
 /**
- * @brief Returns a human-readable error message for a DKG error code
+ * @brief Returns a human-readable error message for a DKG error code returned by the recv_msg() fn
  *
  * Maps integer error codes to descriptive strings
  *
