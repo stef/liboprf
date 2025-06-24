@@ -121,7 +121,7 @@ static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i,
 }
 
 /*
- * expand_message_xmd(msg, DST, len_in_bytes)
+ * oprf_expand_message_xmd(msg, DST, len_in_bytes)
  * as defined by https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/blob/master/draft-irtf-cfrg-hash-to-curve.md#expand_message_xmd-hashtofield-expand-xmd
  *
  * Parameters:
@@ -154,7 +154,7 @@ static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i,
  * 11. uniform_bytes = b_1 || ... || b_ell
  * 12. return substr(uniform_bytes, 0, len_in_bytes)
  */
-int expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes) {
+int oprf_expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes) {
   // 1.  ell = ceil(len_in_bytes / b_in_bytes)
   const unsigned ell = (len_in_bytes + crypto_hash_sha512_BYTES-1) / crypto_hash_sha512_BYTES;
 #ifdef TRACE
@@ -256,7 +256,7 @@ int voprf_hash_to_group(const uint8_t *msg, const uint16_t msg_len, uint8_t p[cr
   if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
     return -1;
   }
-  if(0!=expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) {
+  if(0!=oprf_expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) {
     sodium_munlock(uniform_bytes,sizeof uniform_bytes);
     return -1;
   }
