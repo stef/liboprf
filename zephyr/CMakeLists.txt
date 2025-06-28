@@ -32,4 +32,6 @@ if(CONFIG_LIBOPRF)
      ${LIBOPRF_SRC_DIR}/noise_xk/src/*.c)
   # Add all necessary source files
   zephyr_library_sources(${lib_sources})
+
+  zephyr_compile_definitions(NO_TIME)
 endif()
