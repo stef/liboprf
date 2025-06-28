@@ -10,6 +10,9 @@
 #include "dkg.h"
 #include "tp-dkg.h"
 #include "utils.h"
+#ifdef __ZEPHYR__
+#include <zephyr/kernel.h>
+#endif
 
 /*
     @copyright 2024, Stefan Marsiske toprf@ctrlc.hu
@@ -351,7 +354,11 @@ void tpdkg_tp_set_bufs(TP_DKG_TPState *ctx,
   ctx->peer_sig_pks = tp_peers_sig_pks;
   ctx->peer_lt_pks = peer_lt_pks;
   ctx->last_ts = last_ts;
+#ifdef __ZEPHYR__
+  uint64_t now = (uint64_t) k_uptime_get();
+#else
   uint64_t now = (uint64_t)time(NULL);
+#endif
   for(uint8_t i=0;i<ctx->n;i++) ctx->last_ts[i]=now;
 }
 

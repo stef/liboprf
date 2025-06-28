@@ -3,6 +3,7 @@
 
 #include <sodium.h>
 #include <stdint.h>
+#include <stdio.h>
 
 extern int debug;
 extern FILE* log_file;
