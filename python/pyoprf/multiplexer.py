@@ -208,6 +208,9 @@ class BLEPeer:
 
 class Multiplexer:
     def __init__(self, peers):
+        if asyncio.get_event_loop_policy()._local._loop is None:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         self.peers = []
         for name, p in peers.items():
             if 'port' in p:
