@@ -9,28 +9,27 @@ if(CONFIG_LIBOPRF)
   set(LIBOPRF_SRC_DIR ${LIBOPRF_DIR}/src)
   
   # Build liboprf directly (no external build process)
-  zephyr_library_named(oprf)
+  #zephyr_library_named(oprf)
   
   # Add necessary includes
   zephyr_include_directories(
      ${LIBOPRF_DIR}/src
-     ${LIBOPRF_DIR}/noise_xk/include
-     ${LIBOPRF_DIR}/noise_xk/include/karmel
-     ${LIBOPRF_DIR}/noise_xk/include/karmel/minimal
+     ${LIBOPRF_DIR}/src/noise_xk/include
+     ${LIBOPRF_DIR}/src/noise_xk/include/karmel
+     ${LIBOPRF_DIR}/src/noise_xk/include/karmel/minimal
   )
   
   # Make the includes available to applications
   zephyr_library_include_directories(
      ${LIBOPRF_DIR}/src
-     ${LIBOPRF_DIR}/noise_xk/include
-     ${LIBOPRF_DIR}/noise_xk/include/karmel
-     ${LIBOPRF_DIR}/noise_xk/include/karmel/minimal
+     ${LIBOPRF_DIR}/src/noise_xk/include
+     ${LIBOPRF_DIR}/src/noise_xk/include/karmel
+     ${LIBOPRF_DIR}/src/noise_xk/include/karmel/minimal
   )
   
+  FILE(GLOB lib_sources 
+     ${LIBOPRF_SRC_DIR}/*.c 
+     ${LIBOPRF_SRC_DIR}/noise_xk/src/*.c)
   # Add all necessary source files
-  zephyr_library_sources(
-    # Core files
-    ${LIBOPRF_SRC_DIR}/*.c 
-    ${LIBOPRF_SRC_DIR}/noise_xk/src/*.c
-  )
+  zephyr_library_sources(${lib_sources})
 endif()
