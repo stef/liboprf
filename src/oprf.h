@@ -148,7 +148,7 @@ int voprf_hash_to_group(const uint8_t *msg, const uint16_t msg_len, uint8_t p[cr
  *
  * @return 0 on success, non-zero on error
  */
-int expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
+int oprf_expand_message_xmd(const uint8_t *msg, const uint16_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes);
 
 #ifdef __EMSCRIPTEN__
 /**

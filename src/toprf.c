@@ -51,7 +51,7 @@ typedef struct {
   uint8_t value[crypto_core_ristretto255_BYTES];
 } __attribute((packed)) TOPRF_Part;
 
-void lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uint8_t peers[degree], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+void __attribute__((visibility("hidden"))) lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uint8_t peers[degree], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
   uint8_t xscalar[crypto_scalarmult_ristretto255_SCALARBYTES]={0};
   xscalar[0]=x;
 
@@ -82,7 +82,7 @@ void lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uin
 }
 
 // interpolates a polynomial of degree t at point x: y = f(x), given t shares of the polynomial
-void interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+void __attribute__((visibility("hidden"))) interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], uint8_t y[crypto_scalarmult_ristretto255_SCALARBYTES]) {
   memset(y,0,crypto_scalarmult_ristretto255_SCALARBYTES);
   uint8_t l[crypto_scalarmult_ristretto255_SCALARBYTES];
 
@@ -103,7 +103,7 @@ void interpolate(const uint8_t x, const uint8_t t, const TOPRF_Share shares[t], 
   }
 }
 
-void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
+void __attribute__((visibility("hidden"))) coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]) {
   lcoeff(index,0,peers_len,peers,result);
 }
 

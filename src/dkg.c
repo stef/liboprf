@@ -38,7 +38,7 @@
 
 // calculates polynomial f(j) given the polynomials threshold coefficients in
 // array a
-void polynom(const uint8_t j, const uint8_t threshold,
+void __attribute__((visibility("hidden"))) polynom(const uint8_t j, const uint8_t threshold,
                     const uint8_t a[threshold][crypto_core_ristretto255_SCALARBYTES],
                     TOPRF_Share *result) {
   //f(z) = a_0 + a_1*z + a_2*z^2 + a_3*z^3 + ⋯ + (a_t)*(z^t)
@@ -202,7 +202,7 @@ void dkg_reconstruct(const size_t threshold,
 
 //////////////////// utility functions for [s]tp-dkg  ////////////////////
 
-int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
+int __attribute__((visibility("hidden"))) check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
   if(*last_ts == 0) {
     uint64_t now = (uint64_t)time(NULL);
     if(ts < now - ts_epsilon) return 3;
@@ -215,7 +215,7 @@ int check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
   return 0;
 }
 
-int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t version, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
+int __attribute__((visibility("hidden"))) send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t version, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_sk, const uint8_t sessionid[dkg_sessionid_SIZE]) {
   if(msg_buf==NULL) return 1;
   DKG_Message* msg = (DKG_Message*) msg_buf;
   msg->type = type;
@@ -231,7 +231,7 @@ int send_msg(uint8_t* msg_buf, const size_t msg_buf_len, const uint8_t type, con
   return 0;
 }
 
-int recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t version, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
+int __attribute__((visibility("hidden"))) recv_msg(const uint8_t *msg_buf, const size_t msg_buf_len, const uint8_t type, const uint8_t version, const uint8_t msgno, const uint8_t from, const uint8_t to, const uint8_t *sig_pk, const uint8_t sessionid[dkg_sessionid_SIZE], const uint64_t ts_epsilon, uint64_t *last_ts ) {
   if(msg_buf==NULL) return 8;
   const DKG_Message* msg = (const DKG_Message*) msg_buf;
   if(msg->type != type) return 9;
@@ -467,7 +467,7 @@ int dkg_noise_decrypt(const uint8_t *input,
 /**
   Return the session unique send key, needed for tp-dkg reveal share.
 */
-uint8_t* Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
+uint8_t __attribute__((visibility("hidden"))) *Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
   Noise_XK_session_t st = sn[0U];
   if (st.tag == Noise_XK_DS_Initiator && st.val.case_DS_Initiator.state.tag == Noise_XK_IMS_Transport)
     return st.val.case_DS_Initiator.state.val.case_IMS_Transport.send_key;
@@ -476,7 +476,7 @@ uint8_t* Noise_XK_session_get_key(const Noise_XK_session_t *sn) {
   return NULL;
 }
 
-void update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
+void __attribute__((visibility("hidden"))) update_transcript(crypto_generichash_state *transcript, const uint8_t *msg, const size_t msg_len) {
   uint32_t msg_size_32b = htonl((uint32_t)msg_len);
   crypto_generichash_update(transcript, (uint8_t*) &msg_size_32b, sizeof(msg_size_32b));
   crypto_generichash_update(transcript, msg, msg_len);
