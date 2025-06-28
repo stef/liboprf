@@ -20,7 +20,7 @@
  * trusted, but does not learn the result of the DKG. If the trusted party
  * is so trusted that it can learn the result of the DKG, then it is much
  * simpler to just randomly generate a secret and then share it using
- * Shamir's Secret Sharing.
+ * Shamir's secret sharing.
  *
  * The peers only identify themselves towards the TP using long-term
  * keys, but use ephemeral keys when communicating with each other. This
@@ -319,7 +319,7 @@ int tpdkg_tpstate_step(const TP_DKG_TPState *ctx);
  *            several hours
  * @param[in] n Number of peers participating in this execution
  * @param[in] t Threshold necessary to use the results of this DKG
- * @param[in] proto_name a list of bytes used as a domain seperation tag
+ * @param[in] proto_name a list of bytes used as a domain separation tag
  *            (DST). Set it to the name of your application
  * @param[in] proto_name_len The size of the array `proto_name`, to allow
  *            non-zero terminated DSTs

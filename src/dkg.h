@@ -5,6 +5,9 @@
  * @file dkg.h
  * @brief API for the Distributed Key Generation (DKG) protocol
  *
+ * SPDX-FileCopyrightText: 2025, Marsiske Stefan
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ * 
  * @warning This is a low-level interface. Do not use directly unless
  * you use it to implement DKG protocols which have proper sessionids
  * and other protections against replay and confused deputy attacks.
@@ -34,7 +37,7 @@
 
     This struct communicates one detected violation of the protocol.
 
-    @var DKG_Cheater::step The step in which the violation occured
+    @var DKG_Cheater::step The step in which the violation occurred
     @var DKG_Cheater::error The error code specifying the violation
     @var DKG_Cheater::peer The peer that caused the violation
     @var DKG_Cheater::other_peer Optionally the peer that reported the
@@ -70,7 +73,7 @@ void polynom(const uint8_t j, const uint8_t threshold,
 /**
  * @brief Initiates the first step in the DKG protocol
  *
- * Ggenerates polynomial coefficients, calculates commitments, and creates
+ * Generates polynomial coefficients, calculates commitments, and creates
  * shares for all participants. Each peer should execute this function
  * at the start of the DKG protocol.
  *

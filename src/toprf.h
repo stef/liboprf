@@ -1,21 +1,3 @@
-/*
-    @copyright 2023, Stefan Marsiske toprf@ctrlc.hu
-    This file is part of liboprf.
-
-    liboprf is free software: you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public License
-    as published by the Free Software Foundation, either version 3 of
-    the License, or (at your option) any later version.
-
-    liboprf is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the License
-    along with liboprf. If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef TOPRF_H
 #define TOPRF_H
 
@@ -23,6 +5,9 @@
  * @file toprf.h
  * @brief API for the Threshold Oblivious Pseudorandom Function (TOPRF)
  *        implementation
+ * 
+ * SPDX-FileCopyrightText: 2023, Marsiske Stefan
+ * SPDX-License-Identifier: LGPL-3.0-or-later
  *
  * This file defines the structures, types, and functions for implementing
  * a Threshold Oblivious Pseudorandom Function (TOPRF) based on the
@@ -96,7 +81,7 @@ void lcoeff(const uint8_t index, const uint8_t x, const size_t degree, const uin
 void coeff(const uint8_t index, const size_t peers_len, const uint8_t peers[peers_len], uint8_t result[crypto_scalarmult_ristretto255_SCALARBYTES]);
 
 /**
- * @brief Splits a secret into `n` shares using Shamir secret sharing over
+ * @brief Splits a secret into `n` shares using Shamir's secret sharing over
  *        the curve Ristretto255
  *
  * The secret is shared in a (threshold, n) scheme: any threshold number
@@ -170,7 +155,7 @@ int toprf_Evaluate(const uint8_t k[TOPRF_Share_BYTES],
 /**
  * @brief Combines the partial results to reconstruct the final OPRF output
  *
- * This function is combines the results of the toprf_Evaluate() to recover
+ * This function is combines the results of the `toprf_Evaluate()` to recover
  * the shared secret in the exponent.
 
  * @param[in] response_len Number of elements in the `responses` array
