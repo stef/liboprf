@@ -1,0 +1,7 @@
+# Kconfig - liboprf configuration options
+
+menuconfig LIBOPRF
+	bool "liboprf OPRF library"
+	depends on LIBSODIUM
+	help
+	  This option enables the liboprf cryptographic library.

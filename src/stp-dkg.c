@@ -3,6 +3,9 @@
 #include "stp-dkg.h"
 #include "dkg-vss.h"
 #include "mpmult.h"
+#ifdef __ZEPHYR__
+#include <zephyr/kernel.h>
+#endif
 
 /*
     @copyright 2025, Stefan Marsiske toprf@ctrlc.hu
@@ -399,7 +402,11 @@ void stp_dkg_stp_set_bufs(STP_DKG_STPState *ctx,
   ctx->commitments = commitments;
   ctx->cheater_max = cheater_max;
   ctx->last_ts = last_ts;
+#ifdef __ZEPHYR__
+  uint64_t now = (uint64_t) k_uptime_get();
+#else
   uint64_t now = (uint64_t)time(NULL);
+#endif
   for(uint8_t i=0;i<ctx->n;i++) ctx->last_ts[i]=now;
 }
 

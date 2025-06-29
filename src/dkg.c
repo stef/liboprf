@@ -8,6 +8,10 @@
 #include "dkg.h"
 #include "noise_private.h"
 
+#ifdef __ZEPHYR__
+uint64_t ztime(void);
+#endif
+
 /*
     @copyright 2023-24, Stefan Marsiske toprf@ctrlc.hu
     This file is part of liboprf.
@@ -204,7 +208,11 @@ void dkg_reconstruct(const size_t threshold,
 
 int __attribute__((visibility("hidden"))) check_ts(const uint64_t ts_epsilon, uint64_t *last_ts, const uint64_t ts) {
   if(*last_ts == 0) {
+#ifdef __ZEPHYR__
+    uint64_t now = ztime();
+#else
     uint64_t now = (uint64_t)time(NULL);
+#endif
     if(ts < now - ts_epsilon) return 3;
     if(ts > now + ts_epsilon) return 4;
   } else {
@@ -224,7 +232,11 @@ int __attribute__((visibility("hidden"))) send_msg(uint8_t* msg_buf, const size_
   msg->msgno = msgno;
   msg->from = from;
   msg->to = to;
+#ifdef __ZEPHYR__
+  msg->ts = htonll((uint64_t) ztime());
+#else
   msg->ts = htonll((uint64_t)time(NULL));
+#endif
   memcpy(msg->sessionid, sessionid, dkg_sessionid_SIZE);
 
   crypto_sign_detached(msg->sig, NULL, &msg->type, sizeof(DKG_Message) - crypto_sign_BYTES, sig_sk);
@@ -242,7 +254,7 @@ int __attribute__((visibility("hidden"))) recv_msg(const uint8_t *msg_buf, const
   if(msg->to != to) return 4;
   if(sodium_memcmp(msg->sessionid, sessionid, dkg_sessionid_SIZE)!=0) return 7;
 
-#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+#if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && !defined(NO_TIME)
   int ret = check_ts(ts_epsilon, last_ts, ntohll(msg->ts));
   if(0!=ret) {
     if(log_file!=NULL) {

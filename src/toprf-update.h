@@ -13,6 +13,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <sodium.h>
 #include "dkg.h"
 #include "toprf.h"

@@ -6,6 +6,9 @@
 #ifndef HAVE_SODIUM_HKDF
 #include "aux_/crypto_kdf_hkdf_sha256.h"
 #endif
+#ifdef __ZEPHYR__
+#include <zephyr/kernel.h>
+#endif
 
 // todo handle adding new peers who don't have a share of kc
 // todo handle random order of peers - related to prev todo
@@ -546,7 +549,11 @@ void toprf_update_stp_set_bufs(TOPRF_Update_STPState *ctx,
   ctx->zk_challenge_commitments = zk_challenge_commitments;
   ctx->zk_challenge_e_i = zk_challenge_e_i;
   ctx->k0p_final_commitments = k0p_final_commitments;
+#ifdef __ZEPHYR__
+  uint64_t now = (uint64_t) k_uptime_get();
+#else
   uint64_t now = (uint64_t)time(NULL);
+#endif
   for(uint8_t i=0;i<ctx->n;i++) ctx->last_ts[i]=now;
 }
 
@@ -1609,7 +1616,6 @@ static TOPRF_Update_Err peer_verify_vsps(TOPRF_Update_PeerState *ctx, uint8_t *o
   if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg-verify4 VSPS check commitments, calculate share and broadcast transcript and final commitment\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_bc_transcript_msg_SIZE) return TOPRF_Update_Err_OSize;
 
-
   TOPRF_Update_Message* msg20 = (TOPRF_Update_Message*) output;
   uint8_t *wptr = msg20->data;
   crypto_generichash_state transcript_state;
@@ -1854,7 +1860,7 @@ static TOPRF_Update_Err peer_mult2_handler(TOPRF_Update_PeerState *ctx, const ui
   uint8_t *wptr = msg->data;
   // we stashed our commitments temporarily in k_commitments
   memcpy(wptr, (*ctx->k0p_commitments), (ctx->n+1U) * crypto_core_ristretto255_BYTES);
-  dump((uint8_t*)(*ctx->k0p_commitments), (ctx->n+1U) * crypto_core_ristretto255_BYTES, "[%d] commitments", ctx->index);
+  if(log_file!=NULL) dump((uint8_t*)(*ctx->k0p_commitments), (ctx->n+1U) * crypto_core_ristretto255_BYTES, "[%d] commitments", ctx->index);
   //broadcast dealer_commitments
   if(0!=toprf_send_msg(output, toprfupdate_peer_mult_coms_msg_SIZE(ctx), toprfupdate_peer_mult_coms_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
 
