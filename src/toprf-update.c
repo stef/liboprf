@@ -714,7 +714,7 @@ static TOPRF_Update_Err peer_step3_handler(TOPRF_Update_PeerState *ctx, const ui
   update_transcript(&ctx->transcript_state, input, input_len);
 
   // create noise device
-  uint8_t iname[14];
+  uint8_t iname[15];
   snprintf((char*) iname, sizeof iname, "toprf peer %02x", ctx->index);
   uint8_t dummy[32]={0}; // the following function needs a deserialization key, which we never use.
 
@@ -748,7 +748,7 @@ static TOPRF_Update_Err peer_step3_handler(TOPRF_Update_PeerState *ctx, const ui
   uint8_t *wptr = output;
   for(uint8_t i=0;i<ctx->n;i++, wptr+=toprfupdate_peer_ake1_msg_SIZE) {
     TOPRF_Update_Message *msg3 = (TOPRF_Update_Message *) wptr;
-    uint8_t rname[14];
+    uint8_t rname[15];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
     if(0!=dkg_init_noise_handshake(ctx->index, ctx->dev, (*ctx->peer_noise_pks)[i], rname, &(*ctx->noise_outs)[i], msg3->data)) return TOPRF_Update_Err_Noise;
     if(0!=toprf_send_msg(wptr, toprfupdate_peer_ake1_msg_SIZE, toprfupdate_peer_ake1_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
@@ -780,7 +780,7 @@ static TOPRF_Update_Err peer_step5_handler(TOPRF_Update_PeerState *ctx, const ui
 
     // respond to noise handshake request
     TOPRF_Update_Message *msg4 = (TOPRF_Update_Message *) wptr;
-    uint8_t rname[14];
+    uint8_t rname[15];
     snprintf((char*) rname, sizeof rname, "toprf peer %02x", i+1);
     if(0!=dkg_respond_noise_handshake(ctx->index, ctx->dev, rname, &(*ctx->noise_ins)[i], msg3->data, msg4->data)) return TOPRF_Update_Err_Noise;
     if(0!=toprf_send_msg(wptr, toprfupdate_peer_ake2_msg_SIZE, toprfupdate_peer_ake2_msg, ctx->index, i+1, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;

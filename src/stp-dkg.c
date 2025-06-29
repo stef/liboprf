@@ -592,7 +592,7 @@ static STP_DKG_Err peer_start_noise_handler(STP_DKG_PeerState *ctx, const uint8_
   update_transcript(&ctx->transcript, input, input_len);
 
   // create noise device
-  uint8_t iname[14];
+  uint8_t iname[15];
   snprintf((char*) iname, sizeof iname, "toprf peer %02x", ctx->index);
   uint8_t dummy[32]={0}; // the following function needs a deserialization key, which we never use.
 
