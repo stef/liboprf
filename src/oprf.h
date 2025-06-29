@@ -4,6 +4,9 @@
 /**
  * @file oprf.h
  * @brief API for Oblivious Pseudorandom Function (OPRF) implementation
+ * 
+ * SPDX-FileCopyrightText: 2025, Marsiske Stefan
+ * SPDX-License-Identifier: LGPL-3.0-or-later
  *
  * This file provides the API for Oblivious Pseudorandom Functions (OPRFs)
  * using the Ristretto255 group. It includes functions for key generation,
@@ -49,7 +52,7 @@ void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]);
  * @param[in] x A value used to compute OPRF (the same value that
  *            was used as input to be blinded)
  * @param[in] x_len Length of input x in bytes.
- * @param[in] N Evaluated group element (output from oprf_Unblind)
+ * @param[in] N Evaluated group element (output from `oprf_Unblind()`)
  * @param[out] rwdU Output buffer for the OPRF result
  */
 int oprf_Finalize(const uint8_t *x, const uint16_t x_len,

@@ -3,6 +3,9 @@
  * @brief API for the Distributed Key Generation (DKG) Multiplication
  *        Protocols
  *
+ * SPDX-FileCopyrightText: 2025, Marsiske Stefan
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ * 
  * Implements a secure multiplication protocol that, given sharings of
  * secret `a` and secret `b`, generates a sharing of the product `a*b`
  * without revealing either secret.

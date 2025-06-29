@@ -6,6 +6,9 @@
  * @brief Verifiable Secret Sharing (VSS) implementation for Distributed 
  *        Key Generation
  *
+ * SPDX-FileCopyrightText: 2025, Marsiske Stefan
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ * 
  * Implements functions for Verifiable Secret Sharing, which allows participants
  * to verify that the shares they received are consistent with the commitments
  * published by the dealer, ensuring that all participants can reconstruct the

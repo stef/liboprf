@@ -285,7 +285,7 @@ int stp_dkg_stpstate_step(const STP_DKG_STPState *ctx);
  *            several hours
  * @param[in] n Number of peers participating in this execution
  * @param[in] t Threshold necessary to use the results of this DKG
- * @param[in] proto_name An array of bytes used as a domain seperation tag
+ * @param[in] proto_name An array of bytes used as a domain separation tag
  *            (DST). Set it to the name of your application
  * @param[in] proto_name_len The size of the array `proto_name`, to allow
  *            non-zero terminated DSTs
