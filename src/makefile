@@ -1,7 +1,7 @@
 PREFIX?=/usr/local
 INCLUDES=-Inoise_xk/include -Inoise_xk/include/karmel -Inoise_xk/include/karmel/minimal
 CFLAGS?=-march=native -Wall -O2 -g \
-		  -Werror=format-security -Werror=implicit-function-declaration \
+		  -Werror=attributes -Werror=format-security -Werror=format-truncation -Werror=implicit-function-declaration \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
@@ -35,10 +35,21 @@ else
    endif
 endif
 
+PKGCONF_MISSING := $(shell pkgconf --version >/dev/null; echo $$?)
+ifneq ($(PKGCONF_MISSING),0)
+   $(error liboprf: Cannot find pkgconf)
+endif
+
+SODIUM_MISSING := $(shell pkgconf --exists libsodium; echo $$?)
+ifneq ($(SODIUM_MISSING),0)
+  $(error liboprf: Cannot find libsodium via pkgconf. Check that libsodium has been installed)
+endif
+
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
-ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
+ifneq ($(SODIUM_NEWER_THAN_1_0_18),0)
    CFLAGS+= -Iaux_
    EXTRA_SOURCES+= aux_/kdf_hkdf_sha256.c
+   $(info liboprf: Using auxiliary sources because libsodium is too old)
 else
    CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
@@ -47,6 +58,9 @@ CFLAGS+=$(INCLUDES)
 
 SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
+
+# Uncomment to use $ORIGIN as the runtime search path
+#SOFLAGS += -Wl,-rpath,'$$'ORIGIN
 
 all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
