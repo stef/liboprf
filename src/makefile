@@ -62,7 +62,7 @@ OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 # Uncomment to use $ORIGIN as the runtime search path
 #SOFLAGS += -Wl,-rpath,'$$'ORIGIN
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
+all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc liboprf_merged_localized.o
 
 debug: DEFINES=-DTRACE
 debug: all
@@ -83,10 +83,16 @@ asan: all
 AR ?= ar
 
 liboprf.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $(filter %.c,$^) $(LDFLAGS)
 
 liboprf-corrupt-dkg.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
-	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ $(filter %.c,$^) $(LDFLAGS)
+
+liboprf_merged.o: $(OBJECTS)
+	ld -r -o $@ $^
+
+liboprf_merged_localized.o: liboprf_merged.o
+	objcopy --localize-hidden $^ $@
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	$(AR) rcs $@ $^
