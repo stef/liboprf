@@ -66,6 +66,10 @@ OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 # Uncomment to use $ORIGIN as the runtime search path
 #SOFLAGS += -Wl,-rpath,'$$'ORIGIN
 
+# Terminal colors: purely for UX, comment out if causing problems
+decor = $(shell [ -t 0 ] && printf "\033[38;5;2m====" || printf "====")
+endDecor = $(shell [ -t 0 ] && printf "====\033[0m" || printf "====")
+
 all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
 debug: DEFINES=-DTRACE
@@ -86,28 +90,35 @@ asan: all
 
 AR ?= ar
 
-liboprf.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $(filter %.c,$^) $(LDFLAGS)
+liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
+	$(info $(decor) Build dynamic release library: $@ $(endDecor))
+	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
 
-liboprf-corrupt-dkg.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
-	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ $(filter %.c,$^) $(LDFLAGS)
+liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
+	$(info $(decor) Build unit test library: $@ $(endDecor))
+	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
 
 liboprf_merged.o: $(OBJECTS)
+	$(info $(decor) Merge object files $(endDecor))
 	ld -r -o $@ $^
 
 liboprf_merged_localized.o: liboprf_merged.o
+	$(info $(decor) Localize symbols $(endDecor))
 	objcopy --localize-hidden $^ $@
 
 liboprf_release.$(STATICEXT): liboprf_merged_localized.o
+	$(info $(decor) Build static release library: $@ $(endDecor))
 	$(AR) rcs $@ $^
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	$(AR) rcs $@ $^
 
 noise_xk/liboprf-noiseXK.$(SOEXT):
+	$(info $(decor) Compile vendorized noiseXK library: $@ $(endDecor))
 	make -C noise_xk all
 
 noise_xk/liboprf-noiseXK.$(STATICEXT):
+	$(info $(decor) Compile vendorized noiseXK library: $@ $(endDecor))
 	make -C noise_xk all
 
 liboprf.pc:
@@ -194,3 +205,58 @@ test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK
 	make -C noise_xk test
 
 PHONY: clean
+
+# Dynamic rules area
+
+# NOTE:
+# 1. The $(__NL__)'s are required - don't remove them!
+# 2. Every variable reference must be double-escaped in the defines ($VAR -> $$VAR)
+# 3. There is one exception to the rule: do not escape $1, $2, etc. and $__NL__
+# 4. Change `eval` to `info` to debug. Also, GMake has a `--dry-run` option
+
+# "New line" variable
+# Don't remove these empty comments!
+define __NL__
+#
+#
+endef
+
+# Compile a first-party C file into an object file
+# Input params:
+#   $(1) = C file path
+define compileObject
+$(__NL__)
+
+$(1:.c=.o) : $(1)
+	$$(info )
+	$$(info $$(decor) Compile C source: $$^ $$(endDecor))
+	$$(CC) $$(CFLAGS) $$(INCLUDES) -o $$@ -c $$^
+
+$(__NL__)
+endef
+
+# Compile a vendor C file into an object file
+# Input params:
+#   $(1) = C file path
+define compileVendorObject
+$(__NL__)
+
+$(1:.c=.o) : $(1)
+	$$(info )
+	$$(info $$(decor) Compile vendor C source: $$^ $$(endDecor))
+	$$(CC) $$(CFLAGS) -fvisibility=hidden $$(INCLUDES) -o $$@ -c $$^
+
+$(__NL__)
+endef
+
+# Compile liboprf C files
+$(foreach var,$(LIBOPRF_SOURCES), \
+    $(eval $(call compileObject,$(var) )) \
+)
+
+# Compile vendor C files
+$(foreach var,$(EXTRA_SOURCES), \
+    $(eval $(call compileVendorObject,$(var) )) \
+)
+
+# END dynamic rules section
