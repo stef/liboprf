@@ -149,12 +149,16 @@ install-noiseXK:
 
 uninstall: uninstall-oprf uninstall-noiseXK
 
-uninstall-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) \
-                $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h \
-					 $(PREFIX)/include/oprf/dkg.h $(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h \
-					 $(DESTDIR)$(PREFIX)/include/oprf/utils.h
-	rm $^
-	rmdir $(PREFIX)/include/oprf/
+uninstall-oprf:
+	@ \
+	if [ ! '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is empty!' && exit 1; fi; \
+	if [ ! -d '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is not a folder' && exit 1; fi;
+
+	rm -vf  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)'  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT)'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/oprf.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf.h'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/dkg.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/utils.h'
+	rmdir -v '$(DESTDIR)$(PREFIX)/include/oprf/'
 
 uninstall-noiseXK:
 	make -C noise_xk uninstall
