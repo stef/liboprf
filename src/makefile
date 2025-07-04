@@ -116,6 +116,7 @@ liboprf.pc:
 
 clean:
 	rm -f *.o liboprf.$(SOEXT) liboprf.$(STATICEXT) liboprf-corrupt-dkg.$(SOEXT)
+	rm -f aux_/*.o
 	make -C tests clean
 	make -C noise_xk clean
 
