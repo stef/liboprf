@@ -13,6 +13,9 @@ SOEXT?=so
 STATICEXT?=a
 SOVER=0
 
+# To statically link the noiseXK library, use these LDFLAGS (and comment out the other LDFLAGS)
+#LDFLAGS?=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
+
 UNAME := $(shell uname -s)
 ARCH := $(shell uname -m)
 ifeq ($(UNAME),Darwin)
@@ -56,13 +59,14 @@ endif
 
 CFLAGS+=$(INCLUDES)
 
-SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c $(EXTRA_SOURCES)
+LIBOPRF_SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c
+SOURCES=$(LIBOPRF_SOURCES) $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 # Uncomment to use $ORIGIN as the runtime search path
 #SOFLAGS += -Wl,-rpath,'$$'ORIGIN
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc liboprf_merged_localized.o
+all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
 debug: DEFINES=-DTRACE
 debug: all
@@ -93,6 +97,9 @@ liboprf_merged.o: $(OBJECTS)
 
 liboprf_merged_localized.o: liboprf_merged.o
 	objcopy --localize-hidden $^ $@
+
+liboprf_release.$(STATICEXT): liboprf_merged_localized.o
+	$(AR) rcs $@ $^
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	$(AR) rcs $@ $^
@@ -145,7 +152,7 @@ $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
 	cp $< $@.$(SOVER)
 	ln -sf $@.$(SOVER) $@
 
-$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
+$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf_release.$(STATICEXT)
 	mkdir -p $(DESTDIR)$(PREFIX)/lib
 	cp $< $@
 

@@ -1,4 +1,4 @@
-liboprf.a
+liboprf*.a
 *.o
 .arch
 bench
