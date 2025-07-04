@@ -235,16 +235,17 @@ $(1:.c=.o) : $(1)
 $(__NL__)
 endef
 
-# Compile a vendor C file into an object file
+# Compile a vendorized libsodium C file into an object file
+# Static linking DEFINES can be found at <https://libsodium.gitbook.io/doc/usage>
 # Input params:
 #   $(1) = C file path
-define compileVendorObject
+define compileSodiumObject
 $(__NL__)
 
 $(1:.c=.o) : $(1)
 	$$(info )
-	$$(info $$(decor) Compile vendor C source: $$^ $$(endDecor))
-	$$(CC) $$(CFLAGS) -fvisibility=hidden $$(INCLUDES) -o $$@ -c $$^
+	$$(info $$(decor) Compile vendorized libsodium source: $$^ $$(endDecor))
+	$$(CC) $$(CFLAGS) -fvisibility=hidden -DSODIUM_STATIC=1 -DSODIUM_EXPORT="" $$(INCLUDES) -o $$@ -c $$^
 
 $(__NL__)
 endef
@@ -256,7 +257,7 @@ $(foreach var,$(LIBOPRF_SOURCES), \
 
 # Compile vendor C files
 $(foreach var,$(EXTRA_SOURCES), \
-    $(eval $(call compileVendorObject,$(var) )) \
+    $(eval $(call compileSodiumObject,$(var) )) \
 )
 
 # END dynamic rules section
