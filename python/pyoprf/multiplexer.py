@@ -12,7 +12,7 @@ def split_by_n(iterable, n):
     return list(zip_longest(*[iter(iterable)]*n))
 
 class Peer:
-    def __init__(self, name, addr, type = "SSL", ssl_cert=None, timeout=5):
+    def __init__(self, name, addr, type = "SSL", ssl_cert=None, timeout=5, alpn_proto=None):
         self.name = name
         self.type = type    # currently only TCP or SSL over TCP, but
                             # could be others like dedicated NOISE_XK,
@@ -21,6 +21,7 @@ class Peer:
         self.address = addr # Currently only TCP host:port as a tuple
         self.ssl_cert = ssl_cert
         self.timeout = timeout
+        self.alpn_proto = alpn_proto or ["oprf/1"]
         self.state = "new"
         self.fd = None
 
@@ -34,6 +35,7 @@ class Peer:
         if self.type == "SSL":
            ctx = ssl.create_default_context()
            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+           ctx.set_alpn_protocols(self.alpn_proto)
            if(self.ssl_cert):
                ctx.load_verify_locations(self.ssl_cert) # only for dev, production system should use proper certs!
                ctx.check_hostname=False                 # only for dev, production system should use proper certs!
@@ -207,7 +209,7 @@ class BLEPeer:
         asyncio.get_event_loop().run_until_complete(self._disconnect())
 
 class Multiplexer:
-    def __init__(self, peers):
+    def __init__(self, peers, alpn_proto=None):
         if asyncio.get_event_loop_policy()._local._loop is None:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -218,7 +220,8 @@ class Multiplexer:
                          ,(p['host'],p['port'])
                          ,type=p.get("type", "SSL")
                          ,ssl_cert = p.get('ssl_cert')
-                         ,timeout = p.get('timeout'))
+                         ,timeout = p.get('timeout')
+                         ,alpn_proto=alpn_proto)
             elif 'bleaddr' in p:
                 p = BLEPeer(name
                             ,p['bleaddr']
