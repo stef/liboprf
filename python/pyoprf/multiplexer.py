@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
-import ssl, socket, select, struct, asyncio
+import ssl, socket, select, struct, asyncio, serial, sys
 from pyoprf import noisexk
 from itertools import zip_longest
+from serial_asyncio import create_serial_connection
 try:
     from ble_serial.bluetooth.ble_client import BLE_client
 except:
     BLE_client = None
+try:
+    import pyudev
+except:
+    pyudev = None
 
 def split_by_n(iterable, n):
     return list(zip_longest(*[iter(iterable)]*n))
@@ -208,6 +213,144 @@ class BLEPeer:
             #raise ValueError(f"{self.name} cannot close, is not connected")
         asyncio.get_event_loop().run_until_complete(self._disconnect())
 
+class Serial(asyncio.Protocol):
+    def __init__(self, *args, **kwargs):
+        self.rx_buffer = []
+        self.rx_len = 0
+        self.rx_pexted = 0
+        self.rx_available = asyncio.Event()
+        super().__init__(*args, **kwargs)
+
+    def connection_made(self, transport):
+        #print('port opened', transport, file=sys.stderr)
+        self.transport = transport
+        transport.serial.dtr = True
+        #transport.serial.rts = False
+        #transport.write(b'hello world\n')
+
+    def data_received(self, data):
+        #print('data received', len(data), data.hex(), file=sys.stderr)
+        #print('data received', len(data), file=sys.stderr)
+        self.rx_buffer.append(data)
+        self.rx_len += len(data)
+        if self.rx_pected > 0 and self.rx_len >= self.rx_pected:
+            self.rx_available.set()
+
+    def connection_lost(self, exc):
+        print('port closed', file=sys.stderr)
+        self.rx_available.set()
+        #asyncio.get_event_loop().stop()
+
+    async def read_raw(self,size):
+        #print(f"read_raw({size})",file=sys.stderr)
+        #while(self.rx_available.is_set()): pass
+        self.rx_pected = size
+        while(self.rx_len < self.rx_pected
+              and not self.rx_available.is_set()):
+            await asyncio.sleep(0.001)
+        #if(self.rx_len < self.rx_pected):
+        #while(self.rx_available.is_set()): pass
+            #print(f"{self.rx_len} < {self.rx_pected}", file=sys.stderr)
+        #    await self.rx_available.wait()
+        rsize = 0;
+        ret = []
+        while(rsize<self.rx_pected):
+           if self.rx_buffer == []: break
+           ret.append(self.rx_buffer.pop(0))
+           rsize+=len(ret[-1])
+        ret = b''.join(ret)
+        if(size<len(ret)): print(f"XXXX read size: {len(ret)}", file=sys.stderr)
+        self.rx_pected = 0
+        self.rx_len -= rsize
+        self.rx_available.clear()
+        return ret
+
+class USBPeer:
+    def __init__(self, name, serno, server_pk, client_sk, timeout=5):
+        self.name = name
+        self.serno = serno # the serial number of the usb device
+        self.server_pk = server_pk
+        self.client_sk = client_sk
+        self.timeout = timeout
+        self.state = "new"
+
+    def __getattr__(self,name):
+        if name=="address":
+            return f"usb-cdc device #{self.serno} at {self.port}"
+
+    def find_usb_port(self):
+       context = pyudev.Context()
+       idx=0
+       for device in context.list_devices(subsystem='tty'):
+          if device.get('ID_SERIAL_SHORT') == self.serno:
+             if idx==1:
+                 return device.device_node
+             idx+=1
+       return None
+
+    async def _connect(self):
+        if self.state == "connected":
+            raise ValueError(f"{self.name} is already connected")
+
+        self.session, msg = noisexk.initiator_session(self.client_sk, self.server_pk, dst=b"klutshnik ble tle")
+        self.transport.serial.write(msg)
+        #print(f"sent {len(msg)}B as {msg.hex()}",file=sys.stderr)
+        #print('waiting for noise hs2 response', file=sys.stderr)
+        resp = await self.protocol.read_raw(48)
+        #print(f"received {len(resp)}B as {resp.hex()}",file=sys.stderr)
+        noisexk.initiator_session_complete(self.session, resp)
+        ct = noisexk.send_msg(self.session, "")
+        self.transport.serial.write(ct)
+        #print(f"sent {len(ct)}B as {ct.hex()}",file=sys.stderr)
+
+        self.state="connected"
+        #print(f"_connected to {self.path}", file=sys.stderr)
+
+    def connect(self):
+        self.path = self.find_usb_port()
+        #print(f"connecting to {self.path}",file=sys.stderr)
+        loop = asyncio.get_event_loop()
+        loop.set_debug(True)
+        coro = create_serial_connection(loop, Serial, self.path, baudrate=115200)
+        self.transport, self.protocol = loop.run_until_complete(coro)
+        loop.run_until_complete(self._connect())
+        while not self.connected(): pass
+        #print(f"connected to {self.path}", file=sys.stderr)
+
+    def connected(self):
+        return self.state == "connected"
+
+    async def read_async(self, size):
+        if not self.connected():
+            return None
+        ct = await self.protocol.read_raw(size+16)
+        if len(ct)==0 or len(ct)<size+16:
+            self.state = 'disconnected'
+            raise ValueError(f"short read for {self.name}, only {len(b''.join(ct))} instead of expected {size} bytes")
+        #print(f"read_async({size}) .. ok",file=sys.stderr)
+        return noisexk.read_msg(self.session, ct)
+
+    def read(self, *args, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(self.read_async(*args, **kwargs))
+
+    def send(self, msg):
+        if not self.connected():
+            return
+            #raise ValueError(f"{self.name} cannot write, is not connected")
+        ct = noisexk.send_msg(self.session, msg)
+        header = struct.pack(">H",len(ct))
+        self.transport.serial.write(header+ct)
+
+    def close(self):
+        if self.state == "closed": return
+        if not self.connected():
+            return
+            #raise ValueError(f"{self.name} cannot close, is not connected")
+        if self.transport.serial is not None:
+            self.transport.serial.dtr = False
+        self.transport.close()
+        self.state = "closed"
+
 class Multiplexer:
     def __init__(self, peers, alpn_proto=None):
         if asyncio.get_event_loop_policy()._local._loop is None:
@@ -225,6 +368,12 @@ class Multiplexer:
             elif 'bleaddr' in p:
                 p = BLEPeer(name
                             ,p['bleaddr']
+                            ,p['device_pk']
+                            ,p['client_sk']
+                            ,timeout=p.get('timeout'))
+            elif 'usb_serial' in p:
+                p = USBPeer(name
+                            ,p['usb_serial']
                             ,p['device_pk']
                             ,p['client_sk']
                             ,timeout=p.get('timeout'))
@@ -267,6 +416,7 @@ class Multiplexer:
         )
         for i in range(len(results)):
             if isinstance(results[i], Exception):
+                print(f"client {self.peers[i].name} returned exception: {results[i]}", file=sys.stderr)
                 results[i]=None
                 continue
             if results[i] == b'\x00\x04fail':
