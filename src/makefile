@@ -157,7 +157,8 @@ uninstall-oprf:
 	rm -vf  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)'  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT)'
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/oprf.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf.h'
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/dkg.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h'
-	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/utils.h'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/utils.h' '$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h' '$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h'
 	rmdir -v '$(DESTDIR)$(PREFIX)/include/oprf/'
 
 uninstall-noiseXK:
