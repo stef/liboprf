@@ -1,6 +1,6 @@
 PREFIX?=/usr/local
 INCLUDES=-Inoise_xk/include -Inoise_xk/include/karmel -Inoise_xk/include/karmel/minimal
-CFLAGS?=-march=native -Wall -O2 -g \
+CFLAGS?=-march=native -Wall -O2 -g -ffunction-sections -fdata-sections \
 		  -Werror=attributes -Werror=format-security -Werror=format-truncation -Werror=implicit-function-declaration \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
@@ -12,6 +12,9 @@ CC?=gcc
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
+
+# To statically link the noiseXK library, use these LDFLAGS (and comment out the other LDFLAGS)
+#LDFLAGS?=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
 
 UNAME := $(shell uname -s)
 ARCH := $(shell uname -m)
@@ -56,13 +59,18 @@ endif
 
 CFLAGS+=$(INCLUDES)
 
-SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c $(EXTRA_SOURCES)
+LIBOPRF_SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c
+SOURCES=$(LIBOPRF_SOURCES) $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 
 # Uncomment to use $ORIGIN as the runtime search path
 #SOFLAGS += -Wl,-rpath,'$$'ORIGIN
 
-all: liboprf.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
+# Terminal colors: purely for UX, comment out if causing problems
+decor = $(shell [ -t 0 ] && printf "\033[38;5;2m====" || printf "====")
+endDecor = $(shell [ -t 0 ] && printf "====\033[0m" || printf "====")
+
+all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
 debug: DEFINES=-DTRACE
 debug: all
@@ -82,19 +90,38 @@ asan: all
 
 AR ?= ar
 
-liboprf.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
+aux_/kdf_hkdf_sha256.o: aux_/kdf_hkdf_sha256.c
+	$(CC) $(CFLAGS) -fvisibility=hidden $(INCLUDES) -o $@ -c $^
 
-liboprf-corrupt-dkg.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
-	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
+liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
+	$(info $(decor) Build dynamic release library: $@ $(endDecor))
+	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
+
+liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
+	$(info $(decor) Build unit test library: $@ $(endDecor))
+	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
+
+liboprf_merged.o: $(OBJECTS)
+	$(info $(decor) Merge object files $(endDecor))
+	ld -r -o $@ $^
+
+liboprf_merged_localized.o: liboprf_merged.o
+	$(info $(decor) Localize symbols $(endDecor))
+	objcopy --localize-hidden $^ $@
+
+liboprf_release.$(STATICEXT): liboprf_merged_localized.o
+	$(info $(decor) Build static release library: $@ $(endDecor))
+	$(AR) rcs $@ $^
 
 liboprf.$(STATICEXT): $(OBJECTS)
 	$(AR) rcs $@ $^
 
 noise_xk/liboprf-noiseXK.$(SOEXT):
+	$(info $(decor) Compile vendorized noiseXK library: $@ $(endDecor))
 	make -C noise_xk all
 
 noise_xk/liboprf-noiseXK.$(STATICEXT):
+	$(info $(decor) Compile vendorized noiseXK library: $@ $(endDecor))
 	make -C noise_xk all
 
 liboprf.pc:
@@ -103,6 +130,7 @@ liboprf.pc:
 
 clean:
 	rm -f *.o liboprf.$(SOEXT) liboprf.$(STATICEXT) liboprf-corrupt-dkg.$(SOEXT)
+	rm -f aux_/*.o
 	make -C tests clean
 	make -C noise_xk clean
 
@@ -124,12 +152,17 @@ install-noiseXK:
 
 uninstall: uninstall-oprf uninstall-noiseXK
 
-uninstall-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) \
-                $(DESTDIR)$(PREFIX)/include/oprf/oprf.h $(DESTDIR)$(PREFIX)/include/oprf/toprf.h \
-					 $(PREFIX)/include/oprf/dkg.h $(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h \
-					 $(DESTDIR)$(PREFIX)/include/oprf/utils.h
-	rm $^
-	rmdir $(PREFIX)/include/oprf/
+uninstall-oprf:
+	@ \
+	if [ ! '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is empty!' && exit 1; fi; \
+	if [ ! -d '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is not a folder' && exit 1; fi;
+
+	rm -vf  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)'  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT)'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/oprf.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf.h'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/dkg.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/utils.h' '$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc'
+	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h' '$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h'
+	rmdir -v '$(DESTDIR)$(PREFIX)/include/oprf/'
 
 uninstall-noiseXK:
 	make -C noise_xk uninstall
@@ -139,7 +172,7 @@ $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT): liboprf.$(SOEXT)
 	cp $< $@.$(SOVER)
 	ln -sf $@.$(SOVER) $@
 
-$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf.$(STATICEXT)
+$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT): liboprf_release.$(STATICEXT)
 	mkdir -p $(DESTDIR)$(PREFIX)/lib
 	cp $< $@
 
