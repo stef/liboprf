@@ -90,6 +90,9 @@ asan: all
 
 AR ?= ar
 
+aux_/kdf_hkdf_sha256.o: aux_/kdf_hkdf_sha256.c
+	$(CC) $(CFLAGS) -fvisibility=hidden $(INCLUDES) -o $@ -c $^
+
 liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build dynamic release library: $@ $(endDecor))
 	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
@@ -210,59 +213,3 @@ test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK
 	make -C noise_xk test
 
 PHONY: clean
-
-# Dynamic rules area
-
-# NOTE:
-# 1. The $(__NL__)'s are required - don't remove them!
-# 2. Every variable reference must be double-escaped in the defines ($VAR -> $$VAR)
-# 3. There is one exception to the rule: do not escape $1, $2, etc. and $__NL__
-# 4. Change `eval` to `info` to debug. Also, GMake has a `--dry-run` option
-
-# "New line" variable
-# Don't remove these empty comments!
-define __NL__
-#
-#
-endef
-
-# Compile a first-party C file into an object file
-# Input params:
-#   $(1) = C file path
-define compileObject
-$(__NL__)
-
-$(1:.c=.o) : $(1)
-	$$(info )
-	$$(info $$(decor) Compile C source: $$^ $$(endDecor))
-	$$(CC) $$(CFLAGS) $$(INCLUDES) -o $$@ -c $$^
-
-$(__NL__)
-endef
-
-# Compile a vendorized libsodium C file into an object file
-# Static linking DEFINES can be found at <https://libsodium.gitbook.io/doc/usage>
-# Input params:
-#   $(1) = C file path
-define compileSodiumObject
-$(__NL__)
-
-$(1:.c=.o) : $(1)
-	$$(info )
-	$$(info $$(decor) Compile vendorized libsodium source: $$^ $$(endDecor))
-	$$(CC) $$(CFLAGS) -fvisibility=hidden -DSODIUM_STATIC=1 -DSODIUM_EXPORT="" $$(INCLUDES) -o $$@ -c $$^
-
-$(__NL__)
-endef
-
-# Compile liboprf C files
-$(foreach var,$(LIBOPRF_SOURCES), \
-    $(eval $(call compileObject,$(var) )) \
-)
-
-# Compile vendor C files
-$(foreach var,$(EXTRA_SOURCES), \
-    $(eval $(call compileSodiumObject,$(var) )) \
-)
-
-# END dynamic rules section
