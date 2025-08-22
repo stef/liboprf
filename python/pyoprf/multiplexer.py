@@ -6,11 +6,11 @@ from itertools import zip_longest
 from serial_asyncio import create_serial_connection
 try:
     from ble_serial.bluetooth.ble_client import BLE_client
-except:
+except ImportError:
     BLE_client = None
 try:
     import pyudev
-except:
+except ImportError:
     pyudev = None
 
 def split_by_n(iterable, n):
