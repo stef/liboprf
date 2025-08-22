@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import ssl, socket, select, struct, asyncio, serial, sys
+import ssl, socket, select, struct, asyncio, serial, sys, time
 from pyoprf import noisexk
 from itertools import zip_longest
 from serial_asyncio import create_serial_connection
@@ -61,7 +61,7 @@ class Peer:
     def connected(self):
         return self.state == "connected"
 
-    async def read_async(self,size):
+    def read_async(self,size):
         if not self.connected():
             return None
             #raise ValueError(f"{self.name} cannot read, is not connected")
@@ -78,7 +78,7 @@ class Peer:
         return b''.join(res)
 
     def read(self, *args, **kwargs):
-        return asyncio.get_event_loop().run_until_complete(self.read_async(*args, **kwargs))
+        return self.read_async(*args, **kwargs)
 
     def send(self, msg):
         if not self.connected():
@@ -128,7 +128,8 @@ class BLEPeer:
              self.rx_available.set()
 
     async def read_raw(self,size):
-        while(self.rx_available.is_set()): pass
+        while(self.rx_available.is_set()):
+            await asyncio.sleep(0.001)
         self.rx_pected = size
         if(self.rx_len < self.rx_pected):
             #print(f"{self.rx_len} < {self.rx_pected}", file=sys.stderr)
@@ -179,7 +180,7 @@ class BLEPeer:
     def connect(self):
         asyncio.get_event_loop().set_debug(True)
         asyncio.get_event_loop().run_until_complete(self._connect())
-        while not self.connected(): pass
+        while not self.connected(): time.sleep(0.001)
 
     def connected(self):
         return self.state == "connected"
@@ -314,7 +315,7 @@ class USBPeer:
         coro = create_serial_connection(loop, Serial, self.path, baudrate=115200)
         self.transport, self.protocol = loop.run_until_complete(coro)
         loop.run_until_complete(self._connect())
-        while not self.connected(): pass
+        while not self.connected(): time.sleep(0.001)
         #print(f"connected to {self.path}", file=sys.stderr)
 
     def connected(self):
