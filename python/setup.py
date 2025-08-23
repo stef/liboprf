@@ -15,7 +15,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(name = 'pyoprf',
-       version = '0.7.1',
+       version = '0.8.0',
        description = 'python bindings for liboprf',
        license = "LGPLv3",
        author = 'Stefan Marsiske',
@@ -24,7 +24,7 @@ setup(name = 'pyoprf',
        long_description=read('README.md'),
        long_description_content_type="text/markdown",
        packages=find_packages(),
-       install_requires = ("pysodium", "SecureString"),
+       install_requires = ("pysodium", "SecureString", "pyserial", "pyudev", "ble_serial", "serial_asyncio"),
        classifiers = ["Development Status :: 4 - Beta",
                       "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
                       "Topic :: Security :: Cryptography",
