@@ -61,7 +61,7 @@ class Peer:
     def connected(self):
         return self.state == "connected"
 
-    def read_async(self,size):
+    async def read_async(self,size):
         if not self.connected():
             return None
             #raise ValueError(f"{self.name} cannot read, is not connected")
@@ -78,7 +78,7 @@ class Peer:
         return b''.join(res)
 
     def read(self, *args, **kwargs):
-        return self.read_async(*args, **kwargs)
+        return asyncio.get_event_loop().run_until_complete(self.read_async(*args, **kwargs))
 
     def send(self, msg):
         if not self.connected():
