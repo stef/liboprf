@@ -1,9 +1,8 @@
 PREFIX?=/usr/local
-LDFLAGS=-lsodium
+LIBS=-lsodium
 SOURCES=src/Noise_XK.c src/XK.c
-
-CFLAGS 	?= -Iinclude -I include/karmel -I include/karmel/minimal \
-				-Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
+INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
+CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
@@ -48,7 +47,7 @@ AR ?= ar
 	$(AR) rcs $@ $^
 
 %.$(SOEXT): $(OBJS)
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 
 clean:
 	rm -rf *.so *.a src/*.o
@@ -76,3 +75,6 @@ $(DESTDIR)$(PREFIX)/include/oprf/noiseXK: include
 
 test: liboprf-noiseXK.$(SOEXT).$(SOVER)
 	make -C example test
+
+%.o: %.c
+	$(CC) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@

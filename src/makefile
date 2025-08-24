@@ -7,14 +7,14 @@ CFLAGS?=-march=native -Wall -O2 -g -ffunction-sections -fdata-sections \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
 		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES)
 
-LDFLAGS?=-lsodium -loprf-noiseXK -Lnoise_xk
+LIBS=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
 
-# To statically link the noiseXK library, use these LDFLAGS (and comment out the other LDFLAGS)
-#LDFLAGS?=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
+# To statically link the noiseXK library, use these LIBS (and comment out the other LIBS)
+#LIBS=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
 
 UNAME := $(shell uname -s)
 ARCH := $(shell uname -m)
@@ -50,14 +50,12 @@ endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifneq ($(SODIUM_NEWER_THAN_1_0_18),0)
-   CFLAGS+= -Iaux_
+   INCLUDES+= -Iaux_
    EXTRA_SOURCES+= aux_/kdf_hkdf_sha256.c
    $(info liboprf: Using auxiliary sources because libsodium is too old)
 else
    CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
-
-CFLAGS+=$(INCLUDES)
 
 LIBOPRF_SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c
 SOURCES=$(LIBOPRF_SOURCES) $(EXTRA_SOURCES)
@@ -95,11 +93,11 @@ aux_/kdf_hkdf_sha256.o: aux_/kdf_hkdf_sha256.c
 
 liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build dynamic release library: $@ $(endDecor))
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
 
 liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build unit test library: $@ $(endDecor))
-	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
 
 liboprf_merged.o: $(OBJECTS)
 	$(info $(decor) Merge object files $(endDecor))
@@ -211,5 +209,8 @@ $(DESTDIR)$(PREFIX)/include/oprf/utils.h: utils.h
 test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
 	make -C tests tests
 	make -C noise_xk test
+
+%.o: %.c
+	$(CC) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
 
 PHONY: clean
