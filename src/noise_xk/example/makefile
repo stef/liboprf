@@ -1,8 +1,8 @@
 LDFLAGS=-lsodium -loprf-noiseXK
 SOURCES=xk-ex.c ../../utils.c
 
-CFLAGS 	?= -I../.. -I../include -I ../include/karmel -I ../include/karmel/minimal \
-				-Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
+INCLUDES=-I../.. -I../include -I ../include/karmel -I ../include/karmel/minimal 
+CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fPIC \
 				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
@@ -24,7 +24,7 @@ endif
 all: xk-ex
 
 xk-ex: $(SOURCES)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) -L..
+	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) -L..
 
 AR ?= ar
 
