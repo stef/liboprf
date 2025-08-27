@@ -34,15 +34,23 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
+    const libsodium_package = b.dependency("libsodium", .{
+        .target = target,
+        .optimize = optimize,
+        .@"test" = false, // `test` is a keyword in zig
+        .static = true,
+        .shared = false
+    });
+    static_lib.linkLibrary(libsodium_package.artifact("sodium"));
+    static_lib.addIncludePath(libsodium_package.path("include"));
+
     b.installArtifact(static_lib);
     initLibConfig(b, static_lib);
 
     const flags = &.{
         "-fvisibility=hidden",
-        "-fno-strict-aliasing",
-        "-fno-strict-overflow",
+        "-fPIC",
         "-fwrapv",
-        "-flax-vector-conversions",
     };
 
     static_lib.installHeadersDirectory(b.path(src_path ++ "/noise_xk/include"), "oprf/noise_xk", .{});
@@ -56,9 +64,8 @@ pub fn build(b: *std.Build) !void {
         const name = entry.basename;
         if (mem.endsWith(u8, name, ".c")) {
             const full_path = try fmt.allocPrint(allocator, "{s}/{s}", .{ src_path, entry.path });
-
-            static_lib.addCSourceFiles(.{
-                .files = &.{full_path},
+            static_lib.addCSourceFile(.{
+                .file = b.path(full_path),
                 .flags = flags,
             });
         } else if (mem.endsWith(u8, name, ".h")) {
