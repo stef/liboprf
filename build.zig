@@ -62,6 +62,8 @@ pub fn build(b: *std.Build) !void {
         if(mem.startsWith(u8, entry.path, "tests")) continue;
 
         const name = entry.basename;
+        if(mem.eql(u8, name, "xk_ex.c")) continue;
+
         if (mem.endsWith(u8, name, ".c")) {
             const full_path = try fmt.allocPrint(allocator, "{s}/{s}", .{ src_path, entry.path });
             static_lib.addCSourceFile(.{
