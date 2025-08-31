@@ -21,10 +21,10 @@ in/tc0p: fuzz-dump-peer
 	./fuzz-dump-peer $(N) $(T) $(STEP) in/tc0p
 
 fuzz-dump: ../../tp-dkg.c ../tp-dkg.c
-	gcc -g -o fuzz-dump ../../tp-dkg.c ../tp-dkg.c -DFUZZ_DUMP -DUNITTEST -I../.. -I../../noise_xk/include -I../../noise_xk/include/karmel -I../../noise_xk/include/karmel/minimal -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM -lsodium -loprf -loprf-noiseXK -fno-omit-frame-pointer
+	gcc $(CPPFLAGS) $(CFLAGS) -g -o fuzz-dump ../../tp-dkg.c ../tp-dkg.c -DFUZZ_DUMP -DUNITTEST -I../.. -I../../noise_xk/include -I../../noise_xk/include/karmel -I../../noise_xk/include/karmel/minimal -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM $(LDFLAGS) -lsodium -loprf -loprf-noiseXK -fno-omit-frame-pointer
 
 fuzz-dump-peer: ../../tp-dkg.c ../tp-dkg.c
-	gcc -g -o fuzz-dump-peer ../../tp-dkg.c ../tp-dkg.c -DFUZZ_DUMP -DFUZZ_PEER -DUNITTEST -I../.. -I../../noise_xk/include -I../../noise_xk/include/karmel -I../../noise_xk/include/karmel/minimal -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM -lsodium -loprf -loprf-noiseXK -fno-omit-frame-pointer
+	gcc $(CPPFLAGS) $(CFLAGS) -g -o fuzz-dump-peer ../../tp-dkg.c ../tp-dkg.c -DFUZZ_DUMP -DFUZZ_PEER -DUNITTEST -I../.. -I../../noise_xk/include -I../../noise_xk/include/karmel -I../../noise_xk/include/karmel/minimal -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM $(LDFLAGS) -lsodium -loprf -loprf-noiseXK -fno-omit-frame-pointer
 
 fuzz-complog: ../../tp-dkg.c ../tp-dkg.c
 	AFL_USE_ASAN=1 AFL_LLVM_CMPLOG=1 afl-clang-lto -o fuzz-complog ../../tp-dkg.c ../tp-dkg.c -DUNITTEST -I../.. -I../../noise_xk/include -I../../noise_xk/include/karmel -I../../noise_xk/include/karmel/minimal -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM -lsodium -loprf -loprf-noiseXK -fno-omit-frame-pointer -fsanitize-memory-track-origins=2

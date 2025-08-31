@@ -28,28 +28,28 @@ endif
 all: tv1 tv2 dkg toprf tp-dkg tp-dkg-corrupt mpmult stp-dkg stp-dkg-corrupt toprf-update toprf-update-corrupt
 
 tv1: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
-	$(CC) -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g -o tv1 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=0 test.c ../oprf.c ../utils.c -lsodium
 
 tv2: test.c cfrg_oprf_test_vectors.h cfrg_oprf_test_vector_decl.h ../oprf.c ../utils.c
-	$(CC) -Wall -g -o tv2 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=1 test.c ../oprf.c ../utils.c -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g -o tv2 -DCFRG_TEST_VEC=1 -DCFRG_OPRF_TEST_VEC=1 -DTC=1 test.c ../oprf.c ../utils.c -lsodium
 
 toprf: toprf.c 
-	$(CC) -g -o toprf toprf.c ../toprf.c ../oprf.c $(EXTRA_SOURCES) -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o toprf toprf.c ../toprf.c ../oprf.c $(EXTRA_SOURCES) -lsodium
 
 dkg: ../dkg.c ../utils.c dkg.c ../dkg.c ../utils.c ../toprf.c ../oprf.c
-	$(CC) $(CFLAGS) -g $(INCLUDES) -DUNIT_TEST -o dkg dkg.c ../dkg.c ../utils.c ../toprf.c ../oprf.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -g $(INCLUDES) -DUNIT_TEST -o dkg dkg.c ../dkg.c ../utils.c ../toprf.c ../oprf.c ../noise_xk/liboprf-noiseXK.a $(LDFLAGS) -lsodium
 
 tp-dkg: ../tp-dkg.c tp-dkg.c ../tp-dkg.c ../utils.c ../toprf.c ../oprf.c ../dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../utils.c ../toprf.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -o tp-dkg tp-dkg.c ../tp-dkg.c ../utils.c ../toprf.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a $(LDFLAGS) -lsodium
 
 tp-dkg-corrupt: ../tp-dkg.c tp-dkg.c ../tp-dkg.c ../utils.c ../toprf.c ../oprf.c ../dkg.c
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../utils.c ../toprf.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -D_DEFAULT_SOURCE -g -std=c11 $(INCLUDES) -DWITH_SODIUM -DUNITTEST -DUNITTEST_CORRUPT -o tp-dkg-corrupt tp-dkg.c ../tp-dkg.c ../utils.c ../toprf.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a $(LDFLAGS) -lsodium
 
 stp-dkg: ../dkg-vss.c ../dkg.c ../stp-dkg.c stp-dkg.c ../stp-dkg.h ../mpmult.c ../utils.c ../toprf.c ../oprf.c ../dkg.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o stp-dkg stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o stp-dkg stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a $(LDFLAGS) -lsodium
 
 stp-dkg-corrupt: ../dkg-vss.c ../dkg.c ../stp-dkg.c stp-dkg.c ../stp-dkg.h ../mpmult.c ../utils.c ../toprf.c ../oprf.c ../dkg.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a $(LDFLAGS) -lsodium
 
 mpmult: ../mpmult.c mpmult.c ../utils.c ../toprf.c ../dkg-vss.c ../oprf.c ../dkg.c
 	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../dkg-vss.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium

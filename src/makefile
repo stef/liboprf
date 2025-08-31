@@ -89,15 +89,15 @@ asan: all
 AR ?= ar
 
 aux_/kdf_hkdf_sha256.o: aux_/kdf_hkdf_sha256.c
-	$(CC) $(CFLAGS) -fvisibility=hidden $(INCLUDES) -o $@ -c $^
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fvisibility=hidden $(INCLUDES) -o $@ -c $^
 
 liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build dynamic release library: $@ $(endDecor))
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
 
 liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build unit test library: $@ $(endDecor))
-	$(CC) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
 
 liboprf_merged.o: $(OBJECTS)
 	$(info $(decor) Merge object files $(endDecor))

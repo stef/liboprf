@@ -22,10 +22,10 @@ in/tc0p: fuzz-dump-peer
 	./fuzz-dump-peer $(N) $(T) $(STEP) in/tc0p
 
 fuzz-dump: $(src)
-	gcc -g -o $@ $^ -DFUZZ_DUMP -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer
+	gcc $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -DFUZZ_DUMP -DUNITTEST $(includes) $(defines) $(LDFLAGS) $(libs) -fno-omit-frame-pointer
 
 fuzz-dump-peer: $(src)
-	gcc -g -o $@ $^ -DFUZZ_DUMP -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer
+	gcc $(CPPFLAGS) $(CFLAGS) -g -o $@ $^ -DFUZZ_DUMP -DFUZZ_PEER -DUNITTEST $(includes) $(defines) $(LDFLAGS) $(libs) -fno-omit-frame-pointer
 
 fuzz-complog: $(src)
 	AFL_USE_ASAN=1 AFL_LLVM_CMPLOG=1 afl-clang-lto -O2 -march=native -o $@ $^ -DUNITTEST $(includes) $(defines) $(libs) -fno-omit-frame-pointer -fsanitize-memory-track-origins=2

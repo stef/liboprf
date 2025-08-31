@@ -47,7 +47,7 @@ AR ?= ar
 	$(AR) rcs $@ $^
 
 %.$(SOEXT): $(OBJS)
-	$(CC) $(CFLAGS) -fPIC -shared $(SOFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $(SOFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -rf *.so *.a src/*.o
@@ -77,4 +77,4 @@ test: liboprf-noiseXK.$(SOEXT).$(SOVER)
 	make -C example test
 
 %.o: %.c
-	$(CC) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
