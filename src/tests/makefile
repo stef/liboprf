@@ -52,22 +52,22 @@ stp-dkg-corrupt: ../dkg-vss.c ../dkg.c ../stp-dkg.c stp-dkg.c ../stp-dkg.h ../mp
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o stp-dkg-corrupt stp-dkg.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../stp-dkg.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a $(LDFLAGS) -lsodium
 
 mpmult: ../mpmult.c mpmult.c ../utils.c ../toprf.c ../dkg-vss.c ../oprf.c ../dkg.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../dkg-vss.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o mpmult mpmult.c ../mpmult.c ../utils.c ../toprf.c ../dkg-vss.c ../oprf.c ../dkg.c ../noise_xk/liboprf-noiseXK.a -lsodium
 
 update-poc: ../dkg-vss.c ../dkg.c update-poc.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o update-poc update-poc.c ../dkg-vss.c ../utils.c ../toprf.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o update-poc update-poc.c ../dkg-vss.c ../utils.c ../toprf.c ../noise_xk/liboprf-noiseXK.a -lsodium
 
 ft-mult: ../dkg-vss.c ../dkg.c ft-mult.c ../toprf.c
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o ft-mult ft-mult.c ../dkg-vss.c ../utils.c ../toprf.c ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o ft-mult ft-mult.c ../dkg-vss.c ../utils.c ../toprf.c ../noise_xk/liboprf-noiseXK.a -lsodium
 
 toprf-update: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c ../oprf.c ../dkg.c $(EXTRA_SOURCES)
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../oprf.c ../dkg.c $(EXTRA_SOURCES) ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -o toprf-update toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c ../oprf.c ../dkg.c $(EXTRA_SOURCES) ../noise_xk/liboprf-noiseXK.a -lsodium
 
 toprf-update-corrupt: ../dkg-vss.c ../dkg.c ../toprf-update.c toprf-update.c ../toprf-update.h ../mpmult.c ../utils.c ../oprf.c ../dkg.c $(EXTRA_SOURCES)
-	$(CC) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o toprf-update-corrupt toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c  ../oprf.c ../dkg.c $(EXTRA_SOURCES) ../noise_xk/liboprf-noiseXK.a -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -g $(INCLUDES) -DUNIT_TEST -DUNITTEST_CORRUPT -o toprf-update-corrupt toprf-update.c ../dkg-vss.c ../mpmult.c ../utils.c ../toprf.c ../toprf-update.c  ../oprf.c ../dkg.c $(EXTRA_SOURCES) ../noise_xk/liboprf-noiseXK.a -lsodium
 
 allocations: allocations.c
-	gcc -g -o allocations allocations.c -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal -loprf -loprf-noiseXK
+	$(CC) $(CPPFLAGS) $(CFLAGS) -g -o allocations allocations.c -I.. -I../noise_xk/include -I../noise_xk/include/karmel/ -I../noise_xk/include/karmel/minimal -loprf -loprf-noiseXK
 
 cfrg_oprf_test_vectors.h: testvecs2h.py
 	./testvecs2h.py $@ >$@

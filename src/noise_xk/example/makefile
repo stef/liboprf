@@ -24,7 +24,7 @@ endif
 all: xk-ex
 
 xk-ex: $(SOURCES)
-	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) -L..
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(INCLUDES) $^ -o $@ $(LDFLAGS) -L..
 
 AR ?= ar
 

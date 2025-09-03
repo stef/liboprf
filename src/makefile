@@ -211,6 +211,6 @@ test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK
 	make -C noise_xk test
 
 %.o: %.c
-	$(CC) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
 
 PHONY: clean
