@@ -115,7 +115,7 @@ exit:
 }
 
 int main () {
-    uint8_t prologue[10] = "Noise* 1.0";
+    uint8_t prologue[11] = "Noise* 1.0";
     rcode res;
     encap_message *encap_msg;
     uint32_t cipher_msg_len;
