@@ -34,6 +34,7 @@ else
 
    ifeq ($(ARCH),parisc64)
    else ifeq ($(ARCH),parisc64)
+   else ifeq ($(ARCH),armv7-a)
    else
 		CFLAGS+=-fstack-clash-protection
    endif
@@ -81,6 +82,7 @@ asan:
 	endif
 	ifeq ($(ARCH),parisc64)
 	else ifeq ($(ARCH),parisc64)
+	else ifeq ($(ARCH),armv7-a)
 	else
 		CFLAGS+=-fstack-clash-protection
 	endif
