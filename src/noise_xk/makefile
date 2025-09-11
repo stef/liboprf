@@ -16,8 +16,8 @@ SOEXT?=so
 STATICEXT?=a
 SOVER=0
 
-UNAME := $(shell uname -s)
-ARCH := $(shell uname -m)
+UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
+ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
 ifeq ($(UNAME),Darwin)
    SOEXT=dylib
    SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT)

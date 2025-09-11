@@ -17,8 +17,8 @@ SOVER=0
 # To statically link the noiseXK library, use these LIBS (and comment out the other LIBS)
 #LIBS=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
 
-UNAME := $(shell uname -s)
-ARCH := $(shell uname -m)
+UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
+ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)
