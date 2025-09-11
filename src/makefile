@@ -9,6 +9,7 @@ CFLAGS?=-Wall -O2 -ffunction-sections -fdata-sections \
 
 LIBS=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
+LD?=ld
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
@@ -101,7 +102,7 @@ liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 
 liboprf_merged.o: $(OBJECTS)
 	$(info $(decor) Merge object files $(endDecor))
-	ld -r -o $@ $^
+	$(LD) -r -o $@ $^
 
 liboprf_merged_localized.o: liboprf_merged.o
 	$(info $(decor) Localize symbols $(endDecor))
