@@ -40,6 +40,10 @@ endif
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
 
+android: CFLAGS+=-I$(SODIUM) -I$(SODIUM)/sodium
+android: LDFLAGS+=-L.
+android: liboprf-noiseXK.so
+
 all: liboprf-noiseXK.$(STATICEXT) liboprf-noiseXK.$(SOEXT)
 
 AR ?= ar
