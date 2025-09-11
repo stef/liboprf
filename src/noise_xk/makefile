@@ -5,7 +5,7 @@ INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
 CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
-				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
+				-fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \

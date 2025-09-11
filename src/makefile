@@ -1,6 +1,6 @@
 PREFIX?=/usr/local
 INCLUDES=-Inoise_xk/include -Inoise_xk/include/karmel -Inoise_xk/include/karmel/minimal
-CFLAGS?=-march=native -Wall -O2 -g -ffunction-sections -fdata-sections \
+CFLAGS?=-Wall -O2 -ffunction-sections -fdata-sections \
 		  -Werror=attributes -Werror=format-security -Werror=format-truncation -Werror=implicit-function-declaration \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
