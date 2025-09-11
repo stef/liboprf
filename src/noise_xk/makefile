@@ -5,7 +5,7 @@ INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
 CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
 				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
-				-g -fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
+				-fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \
@@ -16,8 +16,8 @@ SOEXT?=so
 STATICEXT?=a
 SOVER=0
 
-UNAME := $(shell uname -s)
-ARCH := $(shell uname -m)
+UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
+ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
 ifeq ($(UNAME),Darwin)
    SOEXT=dylib
    SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT)
@@ -32,12 +32,17 @@ else
    endif
    ifeq ($(ARCH),parisc64)
    else ifeq ($(ARCH),parisc64)
+   else ifeq ($(ARCH),armv7-a)
    else
    	CFLAGS+=-fstack-clash-protection
    endif
 endif
 
 OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
+
+android: CFLAGS+=-I$(SODIUM) -I$(SODIUM)/sodium
+android: LDFLAGS+=-L.
+android: liboprf-noiseXK.so
 
 all: liboprf-noiseXK.$(STATICEXT) liboprf-noiseXK.$(SOEXT)
 

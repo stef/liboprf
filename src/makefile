@@ -1,6 +1,6 @@
 PREFIX?=/usr/local
 INCLUDES=-Inoise_xk/include -Inoise_xk/include/karmel -Inoise_xk/include/karmel/minimal
-CFLAGS?=-march=native -Wall -O2 -g -ffunction-sections -fdata-sections \
+CFLAGS?=-Wall -O2 -ffunction-sections -fdata-sections \
 		  -Werror=attributes -Werror=format-security -Werror=format-truncation -Werror=implicit-function-declaration \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
@@ -9,6 +9,7 @@ CFLAGS?=-march=native -Wall -O2 -g -ffunction-sections -fdata-sections \
 
 LIBS=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
+LD?=ld
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
@@ -16,8 +17,8 @@ SOVER=0
 # To statically link the noiseXK library, use these LIBS (and comment out the other LIBS)
 #LIBS=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
 
-UNAME := $(shell uname -s)
-ARCH := $(shell uname -m)
+UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
+ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)
@@ -33,6 +34,7 @@ else
 
    ifeq ($(ARCH),parisc64)
    else ifeq ($(ARCH),parisc64)
+   else ifeq ($(ARCH),armv7-a)
    else
 		CFLAGS+=-fstack-clash-protection
    endif
@@ -68,6 +70,9 @@ OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 decor = $(shell [ -t 0 ] && printf "\033[38;5;2m====" || printf "====")
 endDecor = $(shell [ -t 0 ] && printf "====\033[0m" || printf "====")
 
+android: CFLAGS+=-I$(SODIUM) -I$(SODIUM)/sodium -L.
+android: liboprf.so
+
 all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
 debug: DEFINES=-DTRACE
@@ -80,6 +85,7 @@ asan:
 	endif
 	ifeq ($(ARCH),parisc64)
 	else ifeq ($(ARCH),parisc64)
+	else ifeq ($(ARCH),armv7-a)
 	else
 		CFLAGS+=-fstack-clash-protection
 	endif
@@ -101,7 +107,7 @@ liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 
 liboprf_merged.o: $(OBJECTS)
 	$(info $(decor) Merge object files $(endDecor))
-	ld -r -o $@ $^
+	$(LD) -r -o $@ $^
 
 liboprf_merged_localized.o: liboprf_merged.o
 	$(info $(decor) Localize symbols $(endDecor))
