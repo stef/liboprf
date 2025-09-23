@@ -42,7 +42,7 @@ OBJS 	+= $(patsubst %.c,%.o,$(SOURCES))
 
 android: CFLAGS+=-I$(SODIUM) -I$(SODIUM)/sodium
 android: LDFLAGS+=-L.
-android: liboprf-noiseXK.so
+android: liboprf-noiseXK.$(SOEXT)
 
 all: liboprf-noiseXK.$(STATICEXT) liboprf-noiseXK.$(SOEXT)
 
