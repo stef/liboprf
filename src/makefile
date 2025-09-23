@@ -71,7 +71,7 @@ decor = $(shell [ -t 0 ] && printf "\033[38;5;2m====" || printf "====")
 endDecor = $(shell [ -t 0 ] && printf "====\033[0m" || printf "====")
 
 android: CFLAGS+=-I$(SODIUM) -I$(SODIUM)/sodium -L.
-android: liboprf.so
+android: liboprf.$(SOEXT)
 
 all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
