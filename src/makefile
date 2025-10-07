@@ -102,9 +102,9 @@ liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build dynamic release library: $@ $(endDecor))
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
 
-liboprf-corrupt-dkg.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
+liboprf-corrupt-dkg.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build unit test library: $@ $(endDecor))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(INCLUDES) -DUNITTEST -DUNITTEST_CORRUPT -fPIC -shared $(SOFLAGS) -o $@ $(SOURCES) $(LDFLAGS) $(LIBS)
 
 liboprf_merged.o: $(OBJECTS)
 	$(info $(decor) Merge object files $(endDecor))
