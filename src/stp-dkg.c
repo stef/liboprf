@@ -165,7 +165,7 @@ static int stp_recv_msg(STP_DKG_STPState *ctx,
   int ret = toprf_recv_msg(msg_buf, msg_buf_len, msgno, from, to, (*ctx->sig_pks)[from], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[from-1]);
   if(0!=ret) {
     if(stp_add_cheater(ctx, 64+ret, from, to) == NULL) return STP_DKG_Err_CheatersFull;
-    if(log_file!=NULL) fprintf(log_file, RED"failed to validate msg %d from %d, err: %d\n"NORMAL, msgno, from, ret);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"failed to validate msg %d from %d, err: %d\n"NORMAL, msgno, from, ret);
     return ret;
   }
   return 0;
@@ -179,7 +179,7 @@ static int peer_recv_msg(STP_DKG_PeerState *ctx,
   int ret = toprf_recv_msg(msg_buf, msg_buf_len, msgno, from, to, (*ctx->sig_pks)[from], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[from-1]);
   if(0!=ret) {
     if(peer_add_cheater(ctx, 64+ret, from, to) == NULL) return STP_DKG_Err_CheatersFull;
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to validate msg %d from %d, err: %d\n"NORMAL, ctx->index, msgno, from, ret);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed to validate msg %d from %d, err: %d\n"NORMAL, ctx->index, msgno, from, ret);
     return 1;
   }
   return 0;
@@ -191,7 +191,7 @@ static STP_DKG_Err stp_broadcast(STP_DKG_STPState *ctx, const uint8_t *input, co
                                       const size_t msg_size,
                                       const uint8_t msgno,
                                       const STP_DKG_STP_Steps next_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
   if(msg_count * msg_size != input_len) return STP_DKG_Err_ISize;
   if(sizeof(STP_DKG_Message) + input_len != output_len) return STP_DKG_Err_OSize;
   size_t cheaters = ctx->cheater_len;
@@ -222,7 +222,7 @@ static STP_DKG_Err stp_route(STP_DKG_STPState *ctx, const uint8_t *input, const 
                                   const uint8_t msgno,
                                   const size_t msg_size,
                                   const STP_DKG_STP_Steps next_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
   if(input_len != msg_size * send_count * recv_count) return STP_DKG_Err_ISize;
   if(input_len != output_len) return STP_DKG_Err_OSize;
 
@@ -236,7 +236,7 @@ static STP_DKG_Err stp_route(STP_DKG_STPState *ctx, const uint8_t *input, const 
       if(0!=ret) {
         if(stp_add_cheater(ctx, 64+ret, j+1, i+1) == NULL) return STP_DKG_Err_CheatersFull;
         const STP_DKG_Message *msg = (const STP_DKG_Message*) (*inputs)[j][i];
-        fprintf(log_file,"[x] msgno: %d, from: %d to: %d err: %d ", msg->msgno, msg->from, msg->to, ret);
+        fprintf(liboprf_log_file,"[x] msgno: %d, from: %d to: %d err: %d ", msg->msgno, msg->from, msg->to, ret);
         dump((*inputs)[j][i], msg_size, "msg");
         continue;
       }
@@ -294,8 +294,8 @@ static void handle_complaints(const uint8_t n,
     if(self!=0 && fails[k] == self && ctx_my_complaints_len != NULL && ctx_my_complaints != NULL) {
       ctx_my_complaints[(*ctx_my_complaints_len)++] = accuser;
     }
-    if(log_file!=NULL) {
-      fprintf(log_file,"\x1b[0;31m[!] peer %d failed to verify %s from peer %d!\x1b[0m\n", accuser, type, fails[k]);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"\x1b[0;31m[!] peer %d failed to verify %s from peer %d!\x1b[0m\n", accuser, type, fails[k]);
     }
   }
 }
@@ -305,21 +305,21 @@ static STP_DKG_Err ft_or_full_vsps(const uint8_t n, const uint8_t t, const uint8
                                         const uint8_t (*C_ij)[n][n][crypto_core_ristretto255_BYTES],
                                         const char *ft_msg, const char *sub_msg, const char *no_sub_msg,
                                         uint8_t *fails_len, uint8_t fails[n]) {
-  debug=0;
+  liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(t-1, C_i)) {
-    if(log_file!=NULL) fprintf(stderr, RED"[%d] %s\n"NORMAL, self, ft_msg);
+    if(liboprf_log_file!=NULL) fprintf(stderr, RED"[%d] %s\n"NORMAL, self, ft_msg);
     for(uint8_t i=0;i<dealers;i++) {
       if(0!=toprf_mpc_vsps_check(t-1, (*C_ij)[i])) {
-        if(log_file!=NULL) fprintf(stderr, RED"[%d] %s [%d]\n"NORMAL, self, sub_msg, i+1);
+        if(liboprf_log_file!=NULL) fprintf(stderr, RED"[%d] %s [%d]\n"NORMAL, self, sub_msg, i+1);
         fails[(*fails_len)++]=i+1;
       }
     }
     if(*fails_len == 0) {
-      if(log_file!=NULL) fprintf(stderr, RED"[%d] %s\n"NORMAL, self, no_sub_msg);
+      if(liboprf_log_file!=NULL) fprintf(stderr, RED"[%d] %s\n"NORMAL, self, no_sub_msg);
       return STP_DKG_Err_NoSubVSPSFail;
     }
   }
-  debug=1;
+  liboprf_debug=1;
   return STP_DKG_Err_OK;
 }
 
@@ -329,7 +329,7 @@ int stp_dkg_start_stp(STP_DKG_STPState *ctx, const uint64_t ts_epsilon,
                            uint8_t (*sig_pks)[][crypto_sign_PUBLICKEYBYTES],
                            const uint8_t ltssk[crypto_sign_SECRETKEYBYTES],
                            const size_t msg0_len, STP_DKG_Message *msg0) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 0. start stp vss dkg\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] step 0. start stp vss dkg\x1b[0m\n");
   if(2>n || t>=n || n>128 || n<2*t+1) return 1;
   if(proto_name_len<1) return 2;
   if(proto_name_len>1024) return 3;
@@ -416,7 +416,7 @@ STP_DKG_Err stp_dkg_start_peer(STP_DKG_PeerState *ctx,
                                const uint8_t noise_sks[crypto_scalarmult_SCALARBYTES],
                                const STP_DKG_Message *msg0,
                                uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] step 0.5 start peer\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[?] step 0.5 start peer\x1b[0m\n");
 
   ctx->ts_epsilon = ts_epsilon;
   ctx->stp_last_ts = 0;
@@ -501,7 +501,7 @@ int stp_dkg_peer_set_bufs(STP_DKG_PeerState *ctx,
 
 #define stp_dkg_stp_index_msg_SIZE(ctx) (sizeof(STP_DKG_Message) + ctx->n * crypto_generichash_BYTES)
 static int stp_init_send_indexes(STP_DKG_STPState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] step 0. assign peer indices\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] step 0. assign peer indices\x1b[0m\n");
   if(output_len!=ctx->n * stp_dkg_stp_index_msg_SIZE(ctx)) return 2;
 
   uint8_t (*pkhashes)[crypto_generichash_BYTES] = (uint8_t (*)[crypto_generichash_BYTES]) ((STP_DKG_Message*) output)->data;
@@ -523,7 +523,7 @@ static int stp_init_send_indexes(STP_DKG_STPState *ctx, uint8_t *output, const s
 static STP_DKG_Err peer_init1_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const DKG_Message *msg1=(const DKG_Message*) input;
   ctx->index=msg1->to;
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] init1 send msg1 containing session nonce\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] init1 send msg1 containing session nonce\x1b[0m\n", ctx->index);
   if(input_len != stp_dkg_stp_index_msg_SIZE(ctx)) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_init1_msg_SIZE) return STP_DKG_Err_OSize;
 
@@ -555,7 +555,7 @@ static STP_DKG_Err peer_init1_handler(STP_DKG_PeerState *ctx, const uint8_t *inp
 }
 
 static STP_DKG_Err stp_init2_handler(STP_DKG_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] init2 broadcast msg1 containing sessionid nonces\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] init2 broadcast msg1 containing sessionid nonces\x1b[0m\n");
   if(input_len  != (stp_dkg_peer_init1_msg_SIZE) * ctx->n) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_init1_msg_SIZE * ctx->n + sizeof(STP_DKG_Message)) return STP_DKG_Err_OSize;
 
@@ -588,7 +588,7 @@ static STP_DKG_Err stp_init2_handler(STP_DKG_STPState *ctx, const uint8_t *input
 
 #define stp_dkg_peer_start_noise_msg_SIZE (sizeof(STP_DKG_Message) + noise_xk_handshake1_SIZE)
 static STP_DKG_Err peer_start_noise_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] noise1 receive peers session nonces, finalize sessionid, start noise sessions\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] noise1 receive peers session nonces, finalize sessionid, start noise sessions\x1b[0m\n", ctx->index);
   if(input_len != (stp_dkg_peer_init1_msg_SIZE) * ctx->n + sizeof(STP_DKG_Message)) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_start_noise_msg_SIZE * ctx->n) return STP_DKG_Err_OSize;
 
@@ -647,7 +647,7 @@ static STP_DKG_Err stp_route_start_noise_handler(STP_DKG_STPState *ctx, const ui
 
 #define stp_dkg_peer_respond_noise_msg_SIZE (sizeof(STP_DKG_Message) + noise_xk_handshake2_SIZE)
 static STP_DKG_Err peer_respond_noise_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] noise2 receive session requests\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] noise2 receive session requests\x1b[0m\n", ctx->index);
   if(input_len != stp_dkg_peer_start_noise_msg_SIZE * ctx->n) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_respond_noise_msg_SIZE * ctx->n) return STP_DKG_Err_OSize;
 
@@ -679,7 +679,7 @@ static STP_DKG_Err stp_route_noise_respond_handler(STP_DKG_STPState *ctx, const 
 
 #define stp_dkg_peer_start_dkg_msg_SIZE(ctx) (sizeof(STP_DKG_Message) + stp_dkg_commitment_HASHBYTES  + ctx->n * crypto_auth_hmacsha256_BYTES)
 static STP_DKG_Err peer_dkg1_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg1 finish session handshake, start with dkg\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg1 finish session handshake, start with dkg\x1b[0m\n", ctx->index);
   if(input_len != stp_dkg_peer_respond_noise_msg_SIZE * ctx->n) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_start_dkg_msg_SIZE(ctx)) return STP_DKG_Err_OSize;
 
@@ -705,7 +705,7 @@ static STP_DKG_Err peer_dkg1_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
   corrupt_share_p4(ctx);
 #endif // UNITTEST_CORRUPT
 
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     dump((const uint8_t*) (*ctx->k_commitments), crypto_core_ristretto255_BYTES*ctx->n, "[%d] dealer commitments", ctx->index);
   }
 
@@ -734,7 +734,7 @@ static STP_DKG_Err peer_dkg1_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
     wptr+=crypto_auth_hmacsha256_BYTES;
   }
 
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     dump(msg5->data+stp_dkg_commitment_HASHBYTES, ctx->n*crypto_auth_hmacsha256_BYTES, "[%d] share macs", ctx->index);
   }
 
@@ -764,7 +764,7 @@ static STP_DKG_Err stp_dkg1_handler(STP_DKG_STPState *ctx, const uint8_t *input,
 
 #define stp_dkg_peer_dkg2_msg_SIZE(ctx) (sizeof(STP_DKG_Message) + crypto_core_ristretto255_BYTES * ctx->n)
 static STP_DKG_Err peer_dkg2_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg2 receive commitment hashes, broadcast commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg2 receive commitment hashes, broadcast commitments\x1b[0m\n", ctx->index);
   if(input_len != sizeof(STP_DKG_Message) + stp_dkg_peer_start_dkg_msg_SIZE(ctx) * ctx->n) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_dkg2_msg_SIZE(ctx)) return STP_DKG_Err_OSize;
 
@@ -783,7 +783,7 @@ static STP_DKG_Err peer_dkg2_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
     // extract and store encrypted share mac
     dptr+=stp_dkg_commitment_HASHBYTES;
     memcpy((*ctx->share_macs)[i*ctx->n], dptr, crypto_auth_hmacsha256_BYTES*ctx->n);
-    if(log_file!=NULL) {
+    if(liboprf_log_file!=NULL) {
       dump((*ctx->commitments_hashes)[i], stp_dkg_commitment_HASHBYTES, "[%d] commitment hash [%d]", ctx->index, i+1);
       dump((*ctx->share_macs)[i*ctx->n], crypto_auth_hmacsha256_BYTES*ctx->n, "[%d] share macs [%d]", ctx->index, i+1);
     }
@@ -820,7 +820,7 @@ static STP_DKG_Err stp_dkg2_handler(STP_DKG_STPState *ctx, const uint8_t *input,
     // verify against commitment hashes
     crypto_generichash(chash, stp_dkg_commitment_HASHBYTES, msg->data, crypto_core_ristretto255_BYTES*ctx->n, NULL, 0);
     if(memcmp(chash, (*ctx->commitment_hashes)[i], stp_dkg_commitment_HASHBYTES)!=0) {
-      if(log_file!=NULL) fprintf(log_file, RED"f[!] failed to verify hash for commitments of dealer %d\n"NORMAL, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"f[!] failed to verify hash for commitments of dealer %d\n"NORMAL, i+1);
       if(stp_add_cheater(ctx, 4, i+1, 0) == NULL) {
         ctx->step=step;
         return STP_DKG_Err_CheatersFull;
@@ -860,14 +860,14 @@ static STP_DKG_Err stp_dkg2_handler(STP_DKG_STPState *ctx, const uint8_t *input,
   }
 
   if(ctx->n - fails_len < 2) {
-    if(log_file!=NULL) fprintf(log_file, RED"[!] less than 2 honest dealers: %d \n"NORMAL, ctx->n - fails_len);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] less than 2 honest dealers: %d \n"NORMAL, ctx->n - fails_len);
     if(stp_add_cheater(ctx,2,0,0) == NULL) {
       ctx->step=step;
       return STP_DKG_Err_CheatersFull;
     }
   }
   if(fails_len >= ctx->t) {
-    if(log_file!=NULL) fprintf(log_file, RED"[!] more than t cheaters (t=%d, cheaters=%d)\n"NORMAL, ctx->t, fails_len);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] more than t cheaters (t=%d, cheaters=%d)\n"NORMAL, ctx->t, fails_len);
     if(stp_add_cheater(ctx,3,fails_len,0) == NULL) {
       ctx->step=step;
       return STP_DKG_Err_CheatersFull;
@@ -884,7 +884,7 @@ static STP_DKG_Err stp_dkg2_handler(STP_DKG_STPState *ctx, const uint8_t *input,
                                         + sizeof(TOPRF_Share) /* msg: the noise_xk wrapped k blind */  \
                                         + crypto_secretbox_xchacha20poly1305_MACBYTES /* mac of msg */ )
 static STP_DKG_Err peer_dkg3_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg3 receive commitments & distribute shares via noise chans\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg3 receive commitments & distribute shares via noise chans\x1b[0m\n", ctx->index);
   if(input_len != sizeof(STP_DKG_Message) + stp_dkg_peer_dkg2_msg_SIZE(ctx) * ctx->n) return STP_DKG_Err_ISize;
   if(output_len != ctx->n * stp_dkg_peer_dkg3_msg_SIZE) return STP_DKG_Err_OSize;
 
@@ -899,7 +899,7 @@ static STP_DKG_Err peer_dkg3_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
 
     // extract peer commitments
     memcpy((*ctx->ki_commitments)[i*ctx->n], msg5->data, crypto_core_ristretto255_BYTES * ctx->n);
-    if(log_file!=NULL) {
+    if(liboprf_log_file!=NULL) {
       dump((*ctx->ki_commitments)[i*ctx->n], crypto_core_ristretto255_BYTES*ctx->n, "[%d] k commitments [%d]", ctx->index, i+1);
     }
 
@@ -907,7 +907,7 @@ static STP_DKG_Err peer_dkg3_handler(STP_DKG_PeerState *ctx, const uint8_t *inpu
     uint8_t chash[stp_dkg_commitment_HASHBYTES];
     crypto_generichash(chash, stp_dkg_commitment_HASHBYTES, (*ctx->ki_commitments)[i*ctx->n], crypto_core_ristretto255_BYTES*ctx->n, NULL, 0);
     if(memcmp(chash, (*ctx->commitments_hashes)[i], stp_dkg_commitment_HASHBYTES)!=0) {
-      if(log_file!=NULL) fprintf(log_file, RED"f[%d] failed to verify hash for commitments of dealer %d\n"NORMAL, ctx->index, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"f[%d] failed to verify hash for commitments of dealer %d\n"NORMAL, ctx->index, i+1);
       if(peer_add_cheater(ctx, 1, i+1, 0) == NULL) return STP_DKG_Err_CheatersFull;
     }
   }
@@ -939,7 +939,7 @@ static STP_DKG_Err stp_dkg3_handler(STP_DKG_STPState *ctx, const uint8_t *input,
 
 #define stp_dkg_peer_verify_shares_msg_SIZE(ctx) (sizeof(STP_DKG_Message) + (size_t)(ctx->n + 1))
 static STP_DKG_Err peer_verify_shares_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] verify1 DKG step 2 - receive shares, verify commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] verify1 DKG step 2 - receive shares, verify commitments\x1b[0m\n", ctx->index);
   if(input_len != stp_dkg_peer_dkg3_msg_SIZE * ctx->n) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_verify_shares_msg_SIZE(ctx)) return STP_DKG_Err_OSize;
 
@@ -966,7 +966,7 @@ static STP_DKG_Err peer_verify_shares_handler(STP_DKG_PeerState *ctx, const uint
   // verify that the shares match the commitment
   for(uint8_t i=0;i<ctx->n;i++) {
     if(0!=dkg_vss_verify_commitment((*c)[i][ctx->index-1],(*ctx->k_shares)[i])) {
-      if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] failed to verify k commitments from %d!\x1b[0m\n", ctx->index, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"\x1b[0;31m[%d] failed to verify k commitments from %d!\x1b[0m\n", ctx->index, i+1);
       fails[(*fails_len)++]=i+1;
     }
   }
@@ -975,10 +975,10 @@ static STP_DKG_Err peer_verify_shares_handler(STP_DKG_PeerState *ctx, const uint
   corrupt_false_accuse_p2p3(ctx, fails_len, fails);
 #endif //UNITTEST_CORRUPT
 
-  if(log_file!=NULL && *fails_len>0) {
-    fprintf(log_file, RED"[%d] commitment fails#: %d -> ", ctx->index, *fails_len);
-    for(unsigned i=0;i<*fails_len;i++) fprintf(log_file, "%s%d", (i>0)?", ":"", fails[i]);
-    fprintf(log_file, NORMAL"\n");
+  if(liboprf_log_file!=NULL && *fails_len>0) {
+    fprintf(liboprf_log_file, RED"[%d] commitment fails#: %d -> ", ctx->index, *fails_len);
+    for(unsigned i=0;i<*fails_len;i++) fprintf(liboprf_log_file, "%s%d", (i>0)?", ":"", fails[i]);
+    fprintf(liboprf_log_file, NORMAL"\n");
   }
 
   if(0!=toprf_send_msg(output, stp_dkg_peer_verify_shares_msg_SIZE(ctx), stpvssdkg_peer_verify_shares_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return STP_DKG_Err_Send;
@@ -996,7 +996,7 @@ static STP_DKG_Err stp_complaint_handler(STP_DKG_STPState *ctx, const uint8_t *i
                                  const uint8_t msgno,
                                  const STP_DKG_STP_Steps pass_step,
                                  const STP_DKG_STP_Steps fail_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
 
   if(input_len != msg_size * msg_count) return STP_DKG_Err_ISize;
   if(sizeof(STP_DKG_Message) + input_len != output_len) return STP_DKG_Err_OSize;
@@ -1059,7 +1059,7 @@ static STP_DKG_Err peer_complaint_handler(STP_DKG_PeerState *ctx, const uint8_t 
                                                const uint8_t msgno,
                                                const STP_DKG_Peer_Steps pass_step,
                                                const STP_DKG_Peer_Steps fail_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] %s\x1b[0m\n", ctx->index, step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] %s\x1b[0m\n", ctx->index, step_title);
   if(input_len != sizeof(STP_DKG_Message) + msg_size * ctx->n) return STP_DKG_Err_ISize;
 
   // verify STP message envelope
@@ -1105,11 +1105,11 @@ static STP_DKG_Err peer_dkg_fork(STP_DKG_PeerState *ctx, const uint8_t *input, c
 }
 
 static STP_DKG_Err peer_defend(STP_DKG_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] defend disclose share encryption key\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] defend disclose share encryption key\x1b[0m\n", ctx->index);
   if(output_len != stp_dkg_peer_output_size(ctx)) return STP_DKG_Err_OSize;
   if(output_len == 0) {
-    if(log_file!=NULL) {
-      fprintf(log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
     }
     ctx->step = STP_DKG_Peer_Check_Shares;
     return 0;
@@ -1119,7 +1119,7 @@ static STP_DKG_Err peer_defend(STP_DKG_PeerState *ctx, uint8_t *output, const si
   STP_DKG_Message* msg = (STP_DKG_Message*) output;
   uint8_t *wptr = msg->data;
   for(int i=0;i<ctx->my_share_complaints_len;i++) {
-    if(log_file!=NULL) fprintf(log_file, "\x1b[0;36m[%d] defending against complaint from %d\x1b[0m\n", ctx->index, ctx->my_share_complaints[i]);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;36m[%d] defending against complaint from %d\x1b[0m\n", ctx->index, ctx->my_share_complaints[i]);
 
     *wptr++ = ctx->my_share_complaints[i];
     // reveal key for noise wrapped share sent previously
@@ -1137,7 +1137,7 @@ static STP_DKG_Err peer_defend(STP_DKG_PeerState *ctx, uint8_t *output, const si
 }
 
 static STP_DKG_Err stp_broadcast_defenses(STP_DKG_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] defense1 broadcast defenses\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] defense1 broadcast defenses\x1b[0m\n");
   if(input_len != stp_dkg_stp_input_size(ctx)) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_stp_output_size(ctx)) return STP_DKG_Err_OSize;
 
@@ -1166,17 +1166,17 @@ static STP_DKG_Err stp_broadcast_defenses(STP_DKG_STPState *ctx, const uint8_t *
       const uint8_t accuser=dptr[0];
       const uint8_t *key=dptr+1;
       const uint8_t *shares=key+dkg_noise_key_SIZE;
-      if(log_file!=NULL) fprintf(log_file,"[!] accused: %d, by %d\n", accused, accuser);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"[!] accused: %d, by %d\n", accused, accuser);
 
       if(0!=crypto_auth_verify((*ctx->share_macs)[(accused-1)*ctx->n+(accuser-1)], shares, stp_dkg_encrypted_share_SIZE, key)) {
-        if(log_file!=NULL) fprintf(log_file,RED"[!] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,RED"[!] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, accused, accuser);
         if(stp_add_cheater(ctx, 1, accused, accuser) == NULL) return STP_DKG_Err_CheatersFull;
         continue;
       }
       TOPRF_Share share[2];
       Noise_XK_error_code res0 = Noise_XK_aead_decrypt((uint8_t*)key, 0, 0U, NULL, TOPRF_Share_BYTES*2, (uint8_t*) &share, (uint8_t*) shares);
       if (!(res0 == Noise_XK_CSuccess)) {
-        if(log_file!=NULL) fprintf(log_file,RED"[!] failed to decrypt shares of accused: %d, by %d\n"NORMAL, accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,RED"[!] failed to decrypt shares of accused: %d, by %d\n"NORMAL, accused, accuser);
         // share decryption failure
         if(stp_add_cheater(ctx,  2, accused, accuser) == NULL) return STP_DKG_Err_CheatersFull;
         continue;
@@ -1189,13 +1189,13 @@ static STP_DKG_Err stp_broadcast_defenses(STP_DKG_STPState *ctx, const uint8_t *
         continue;
       }
       if(0!=dkg_vss_verify_commitment((*c)[accused-1][accuser-1],share)) {
-        if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[!] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"\x1b[0;31m[!] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
         STP_DKG_Cheater* cheater = stp_add_cheater(ctx, 4, accused, accuser);
         if(cheater == NULL) return STP_DKG_Err_CheatersFull;
         cheater->invalid_index = share[0].index;
         continue;
       } else {
-        if(log_file!=NULL) fprintf(log_file,GREEN"[!] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,GREEN"[!] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
         if(stp_add_cheater(ctx, 5, accuser, accused) == NULL) return STP_DKG_Err_CheatersFull;
       }
     }
@@ -1220,7 +1220,7 @@ static STP_DKG_Err stp_broadcast_defenses(STP_DKG_STPState *ctx, const uint8_t *
 static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, const size_t output_len);
 
 static STP_DKG_Err peer_check_shares(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] verify3 disclosed shares\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] verify3 disclosed shares\x1b[0m\n", ctx->index);
   if(input_len != stp_dkg_peer_input_size(ctx)) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_peer_bc_transcript_msg_SIZE) return STP_DKG_Err_OSize;
 
@@ -1254,10 +1254,10 @@ static STP_DKG_Err peer_check_shares(STP_DKG_PeerState *ctx, const uint8_t *inpu
       const uint8_t accuser=dptr[0];
       const uint8_t *key=dptr+1;
       const uint8_t *shares=key+dkg_noise_key_SIZE;
-      if(log_file!=NULL) fprintf(log_file,"[%d] accused: %d, by %d\n", ctx->index, accused, accuser);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"[%d] accused: %d, by %d\n", ctx->index, accused, accuser);
 
       if(0!=crypto_auth_verify((*ctx->share_macs)[(accused-1)*ctx->n+(accuser-1)], shares, stp_dkg_encrypted_share_SIZE, key)) {
-        if(log_file!=NULL) fprintf(log_file,RED"[%d] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,RED"[%d] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
         if(peer_add_cheater(ctx, 1, accused, accuser) == NULL) return STP_DKG_Err_CheatersFull;
         ctx->share_complaints[ctx->share_complaints_len++]=accused;
         continue;
@@ -1266,7 +1266,7 @@ static STP_DKG_Err peer_check_shares(STP_DKG_PeerState *ctx, const uint8_t *inpu
       Noise_XK_error_code
         res0 = Noise_XK_aead_decrypt((uint8_t*)key, 0, 0U, NULL, TOPRF_Share_BYTES*2, (uint8_t*) &share, (uint8_t*) shares);
       if (!(res0 == Noise_XK_CSuccess)) {
-        if(log_file!=NULL) fprintf(log_file,RED"[%d] failed to decrypt shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,RED"[%d] failed to decrypt shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
         // share decryption failure
         if(peer_add_cheater(ctx,  2, accused, accuser) == NULL) return STP_DKG_Err_CheatersFull;
         ctx->share_complaints[ctx->share_complaints_len++]=accused;
@@ -1281,14 +1281,14 @@ static STP_DKG_Err peer_check_shares(STP_DKG_PeerState *ctx, const uint8_t *inpu
         continue;
       }
       if(0!=dkg_vss_verify_commitment((*c)[accused-1][accuser-1],share)) {
-        if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"\x1b[0;31m[%d] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
         STP_DKG_Cheater* cheater = peer_add_cheater(ctx, 4, accused, accuser);
         if(cheater == NULL) return STP_DKG_Err_CheatersFull;
         cheater->invalid_index = share[0].index;
         ctx->share_complaints[ctx->share_complaints_len++]=accused;
         continue;
       } else {
-        if(log_file!=NULL) fprintf(log_file,GREEN"[%d] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,GREEN"[%d] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
         if(peer_add_cheater(ctx, 5, accuser, accused) == NULL) return STP_DKG_Err_CheatersFull;
         //ctx->share_complaints[ctx->share_complaints_len++]=accused;
       }
@@ -1298,7 +1298,7 @@ static STP_DKG_Err peer_check_shares(STP_DKG_PeerState *ctx, const uint8_t *inpu
 }
 
 static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] verify1 DKG step 2 - VSPS check commitments, calculate share and broadcast transcript and final commitment\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] verify1 DKG step 2 - VSPS check commitments, calculate share and broadcast transcript and final commitment\x1b[0m\n", ctx->index);
   if(output_len != stp_dkg_peer_bc_transcript_msg_SIZE) return STP_DKG_Err_OSize;
 
   // 2. Players verify the VSPS property of the sum of the shared secrets by running
@@ -1328,15 +1328,15 @@ static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, con
                                        &fails_len, fails);
   if(ret!=STP_DKG_Err_OK) return ret;
   if(ctx->n - fails_len < 2) {
-    if(log_file!=NULL) {
-      fprintf(log_file, RED"[%d] less than 2 honest dealers: %d \n"NORMAL, ctx->index, ctx->n - fails_len);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file, RED"[%d] less than 2 honest dealers: %d \n"NORMAL, ctx->index, ctx->n - fails_len);
       if(peer_add_cheater(ctx, 6, 0, 0) == NULL) return STP_DKG_Err_CheatersFull;
     }
     return STP_DKG_Err_NotEnoughDealers;
   }
   if(fails_len >= ctx->t) {
-    if(log_file!=NULL) {
-      fprintf(log_file, RED"[%d] more than t cheaters (t=%d, cheaters=%d)\n"NORMAL, ctx->index, ctx->t, fails_len);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file, RED"[%d] more than t cheaters (t=%d, cheaters=%d)\n"NORMAL, ctx->index, ctx->t, fails_len);
       if(peer_add_cheater(ctx, 7, fails_len, 0) == NULL) return STP_DKG_Err_CheatersFull;
     }
     return STP_DKG_Err_TooManyCheaters;
@@ -1357,10 +1357,10 @@ static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, con
     } else if(peer_add_cheater(ctx, 8, ctx->index, i+1) == NULL) return STP_DKG_Err_CheatersFull;
   }
   qual[qual_len]=0;
-  if(log_file!=NULL) {
-    fprintf(log_file,"[%d] qual is: ", ctx->index);
-    for(unsigned i=0;i<qual_len;i++) fprintf(log_file,"%s%d", ((i==0)?"":", "), qual[i]);
-    fprintf(log_file,"\n");
+  if(liboprf_log_file!=NULL) {
+    fprintf(liboprf_log_file,"[%d] qual is: ", ctx->index);
+    for(unsigned i=0;i<qual_len;i++) fprintf(liboprf_log_file,"%s%d", ((i==0)?"":", "), qual[i]);
+    fprintf(liboprf_log_file,"\n");
   }
 
   ctx->share[0].index=ctx->index;
@@ -1382,7 +1382,7 @@ static STP_DKG_Err peer_verify_vsps(STP_DKG_PeerState *ctx, uint8_t *output, con
 
 #define stp_dkg_stp_bc_transcript_msg_SIZE(ctx) (sizeof(STP_DKG_Message) + stp_dkg_peer_bc_transcript_msg_SIZE*ctx->n)
 static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] final1 broadcast DKG transcripts\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] final1 broadcast DKG transcripts\x1b[0m\n");
 
   if((stp_dkg_peer_bc_transcript_msg_SIZE * ctx->n) != input_len) return STP_DKG_Err_ISize;
   if(output_len != stp_dkg_stp_bc_transcript_msg_SIZE(ctx)) return STP_DKG_Err_OSize;
@@ -1400,8 +1400,8 @@ static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_
     memcpy((*ctx->commitments)[i], msg->data + crypto_generichash_BYTES, crypto_core_ristretto255_BYTES);
 
     if(sodium_memcmp(transcript_hash, msg->data, sizeof(transcript_hash))!=0) {
-      if(log_file!=NULL) {
-        fprintf(log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
+      if(liboprf_log_file!=NULL) {
+        fprintf(liboprf_log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
       }
       if(stp_add_cheater(ctx, 1, i+1, 0) == NULL) return STP_DKG_Err_CheatersFull;
       continue;
@@ -1412,13 +1412,13 @@ static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_
   }
   if(ctx->cheater_len>cheaters) return STP_DKG_Err_CheatersFound;
 
-  debug=0;
+  liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, *ctx->commitments)) {
-    debug=1;
-    if(log_file!=NULL) fprintf(stderr, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
+    liboprf_debug=1;
+    if(liboprf_log_file!=NULL) fprintf(stderr, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
     if(stp_add_cheater(ctx, 2, 0, 0) == NULL) return STP_DKG_Err_CheatersFull;
   }
-  debug=1;
+  liboprf_debug=1;
 
   if(0!=toprf_send_msg(output, output_len, stpvssdkg_stp_bc_transcript_msg, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return STP_DKG_Err_Send;
   dkg_dump_msg(output, output_len, 0);
@@ -1428,7 +1428,7 @@ static STP_DKG_Err stp_bc_transcript_handler(STP_DKG_STPState *ctx, const uint8_
 }
 
 static STP_DKG_Err peer_final_handler(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t input_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] finish receive and check final transcript\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] finish receive and check final transcript\x1b[0m\n", ctx->index);
   if(input_len != stp_dkg_stp_bc_transcript_msg_SIZE(ctx)) return STP_DKG_Err_ISize;
 
   // verify STP message envelope
@@ -1443,8 +1443,8 @@ static STP_DKG_Err peer_final_handler(STP_DKG_PeerState *ctx, const uint8_t *inp
     if(peer_recv_msg(ctx,ptr,stp_dkg_peer_bc_transcript_msg_SIZE,stpvssdkg_peer_bc_transcript_msg,i+1,0xff)) continue;
 
     if(sodium_memcmp(ctx->final_transcript, msg->data, crypto_generichash_BYTES)!=0) {
-      if(log_file!=NULL) {
-        fprintf(log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
+      if(liboprf_log_file!=NULL) {
+        fprintf(liboprf_log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
       }
       if(peer_add_cheater(ctx, 1, i+1, 0) == NULL) return STP_DKG_Err_CheatersFull;
       continue;
@@ -1456,13 +1456,13 @@ static STP_DKG_Err peer_final_handler(STP_DKG_PeerState *ctx, const uint8_t *inp
   // in theory this should not be needed, and not fail. except for the
   // case when the dealer shares were corrupted after calculating a
   // correct commitment for them.
-  debug=0;
+  liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*kcom))) {
-    debug=1;
-    if(log_file!=NULL) fprintf(stderr, RED"[%d] result of DKG commitments fail VSPS\n"NORMAL, ctx->index);
+    liboprf_debug=1;
+    if(liboprf_log_file!=NULL) fprintf(stderr, RED"[%d] result of DKG commitments fail VSPS\n"NORMAL, ctx->index);
     if(peer_add_cheater(ctx, 2, 0, 0) == NULL) return STP_DKG_Err_CheatersFull;
   }
-  debug=1;
+  liboprf_debug=1;
 
   ctx->step = STP_DKG_Peer_Done;
   return STP_DKG_Err_OK;
@@ -1523,7 +1523,7 @@ int stp_dkg_stp_input_sizes(const STP_DKG_STPState *ctx, size_t *sizes) {
   case STP_DKG_STP_Broadcast_DKG_Transcripts: { item = stp_dkg_peer_bc_transcript_msg_SIZE; break; }
   case STP_DKG_STP_Done: { item = 0; break; }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] isize invalid stp step: %d\n", ctx->step);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] isize invalid stp step: %d\n", ctx->step);
   }
   }
 
@@ -1546,7 +1546,7 @@ size_t stp_dkg_stp_output_size(const STP_DKG_STPState *ctx) {
   case STP_DKG_STP_Broadcast_DKG_Defenses: return sizeof(STP_DKG_Message) + stp_dkg_stp_input_size(ctx);
   case STP_DKG_STP_Broadcast_DKG_Transcripts: return stp_dkg_stp_bc_transcript_msg_SIZE(ctx);
   case STP_DKG_STP_Done: return 0;
-  default: if(log_file!=NULL) fprintf(log_file, "[!] osize invalid stp step: %d\n", ctx->step);
+  default: if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] osize invalid stp step: %d\n", ctx->step);
   }
   return 0;
 }
@@ -1619,13 +1619,13 @@ int stp_dkg_stp_peer_msg(const STP_DKG_STPState *ctx, const uint8_t *base, const
     break;
   }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] invalid stp step in stp_dkg_stp_peer_msg\n");
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] invalid stp step in stp_dkg_stp_peer_msg\n");
     return 1;
   }
   }
 
   if(base+base_size < *msg + *len) {
-    if(log_file!=NULL) fprintf(log_file, "buffer overread detected in stp_dkg_stp_peer_msg %ld, step %d\n", (base+base_size) - (*msg + *len), ctx->step);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "buffer overread detected in stp_dkg_stp_peer_msg %ld, step %d\n", (base+base_size) - (*msg + *len), ctx->step);
     return 2;
   }
 
@@ -1659,7 +1659,7 @@ size_t stp_dkg_peer_input_size(const STP_DKG_PeerState *ctx) {
   case STP_DKG_Peer_Confirm_Transcripts: return stp_dkg_stp_bc_transcript_msg_SIZE(ctx);
   case STP_DKG_Peer_Done: return 0;
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[%d] invalid step\n", ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] invalid step\n", ctx->index);
   }
   }
   return 1;
@@ -1691,7 +1691,7 @@ size_t stp_dkg_peer_output_size(const STP_DKG_PeerState *ctx) {
   case STP_DKG_Peer_Confirm_Transcripts: return 0;
   case STP_DKG_Peer_Done: return 0;
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[%d] invalid step\n", ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] invalid step\n", ctx->index);
   }
   }
   return 1;
@@ -1712,7 +1712,7 @@ int stp_dkg_stp_next(STP_DKG_STPState *ctx, const uint8_t *input, const size_t i
   case STP_DKG_STP_Broadcast_DKG_Transcripts: { ret = stp_bc_transcript_handler(ctx, input, input_len, output, output_len); break;}
   case STP_DKG_STP_Done: { ret = 0; break; }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] invalid step\n");
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] invalid step\n");
     return 99;
   }
   }
@@ -1742,7 +1742,7 @@ int stp_dkg_peer_next(STP_DKG_PeerState *ctx, const uint8_t *input, const size_t
     break;
   }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[%d] invalid step\n", ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] invalid step\n", ctx->index);
     ret = 99;
   }
   }

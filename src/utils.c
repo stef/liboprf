@@ -3,8 +3,12 @@
 #include <string.h>
 #include <sodium.h>
 
-int __attribute__((visibility("hidden"))) debug = 0;
-FILE __attribute__((visibility("hidden"))) *log_file=NULL;
+#if (defined UNIT_TEST || defined UNITTEST_CORRUPT)
+int  liboprf_debug = 1;
+#else
+int  liboprf_debug = 0;
+#endif
+FILE *liboprf_log_file=NULL;
 
 #ifdef UNIT_TEST
 void debian_rng_scalar(uint8_t *scalar) {
@@ -28,8 +32,8 @@ void debian_rng_scalar(uint8_t *scalar) {
 
 void __attribute__((visibility("hidden"))) dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   FILE* lf = stderr;
-  if(!debug) return;
-  if(log_file!=NULL) lf = log_file;
+  if(!liboprf_debug) return;
+  if(liboprf_log_file!=NULL) lf = liboprf_log_file;
   va_list args;
   va_start(args, msg);
   vfprintf(lf, msg, args);

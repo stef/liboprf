@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-extern int debug;
-extern FILE* log_file;
+extern int liboprf_debug;
+extern FILE* liboprf_log_file;
 
 #define RED "\x1b[0;31m"
 #define NORMAL "\x1b[0m"

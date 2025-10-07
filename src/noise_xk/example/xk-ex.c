@@ -64,7 +64,7 @@ uint8_t bob_spriv[DH_KEY_SIZE] = {
 
 uint8_t bob_spub[DH_KEY_SIZE]  = { 0 };
 
-extern int debug;
+extern int liboprf_debug;
 
 static int load_authkeys(const char *path, device *dev) {
   FILE *stream;
@@ -122,7 +122,7 @@ int main () {
     uint8_t *cipher_msg;
     uint32_t plain_msg_len;
     uint8_t *plain_msg;
-    debug = 1;
+    liboprf_debug = 1;
 
     // Generate the public keys from the private keys
     Noise_XK_dh_secret_to_public(alice_spub, alice_spriv);

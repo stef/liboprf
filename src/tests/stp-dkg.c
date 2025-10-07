@@ -52,8 +52,8 @@ int keyloader_cb(const uint8_t id[crypto_generichash_BYTES], void *arg, uint8_t 
 int main(const int argc, const char **argv) {
   int ret=0;
   // enable logging
-  log_file = stderr;
-  debug = 1;
+  liboprf_log_file = stderr;
+  liboprf_debug = 1;
 
   if(argc<3) {
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)

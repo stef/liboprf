@@ -245,10 +245,10 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
   uint8_t lambda[t+1][t+1][crypto_core_ristretto255_SCALARBYTES];
   invertedVDMmatrix(t+1,indexes,lambda);
 #ifdef UNIT_TEST
-  if(log_file!=NULL && debug) fprintf(log_file,"vdm1\n");
+  if(liboprf_log_file!=NULL && liboprf_debug) fprintf(liboprf_log_file,"vdm1\n");
   for(int i=0;i<t+1;i++) {
     for(int j=0;j<t+1;j++) {
-      if(log_file!=NULL && debug) fprintf(log_file,"\t");
+      if(liboprf_log_file!=NULL && liboprf_debug) fprintf(liboprf_log_file,"\t");
       dump(lambda[i][j], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", i, j);
     }
   }
@@ -282,10 +282,10 @@ int toprf_mpc_vsps_check(const uint8_t t, const uint8_t A[t*2][crypto_core_ristr
   for(uint8_t i=0;i<=t;i++) indexes[i]=(uint8_t) (t+1U+i);
   invertedVDMmatrix(t+1,indexes,lambda);
 #ifdef UNIT_TEST
-  if(log_file!=NULL && debug) fprintf(log_file,"vdm2\n");
+  if(liboprf_log_file!=NULL && liboprf_debug) fprintf(liboprf_log_file,"vdm2\n");
   for(int i=0;i<t+1;i++) {
     for(int j=0;j<t+1;j++) {
-      if(log_file!=NULL && debug) fprintf(log_file,"\t");
+      if(liboprf_log_file!=NULL && liboprf_debug) fprintf(liboprf_log_file,"\t");
       dump(lambda[i][j], crypto_core_ristretto255_SCALARBYTES, "vdm[%d,%d]", i, j);
     }
   }

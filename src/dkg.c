@@ -141,7 +141,7 @@ int dkg_verify_commitment(const uint8_t n,
   // v0 == v1
   if(sodium_memcmp(v0,v1,sizeof v1)!=0) {
     // complain about P_i
-    if(debug) fprintf(stderr, "\x1b[0;31mfailed to verify proof of P_%d in stage 2\x1b[0m\n", i);
+    if(liboprf_debug) fprintf(stderr, "\x1b[0;31mfailed to verify proof of P_%d in stage 2\x1b[0m\n", i);
     return 1;
   }
 
@@ -175,7 +175,7 @@ int dkg_finish(const uint8_t n,
   memset(xi->value, 0, crypto_core_ristretto255_SCALARBYTES);
   for(int i=0;i<n;i++) {
     if(self!=shares[i].index) {
-      if(debug) fprintf(stderr, "\x1b[0;31mbad share i=%d index=%d\x1b[0m\n", i, shares[i].index);
+      if(liboprf_debug) fprintf(stderr, "\x1b[0;31mbad share i=%d index=%d\x1b[0m\n", i, shares[i].index);
       return 1;
     }
     crypto_core_ristretto255_scalar_add(xi->value, xi->value, shares[i].value);
@@ -257,8 +257,8 @@ int __attribute__((visibility("hidden"))) recv_msg(const uint8_t *msg_buf, const
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && !defined(NO_TIME)
   int ret = check_ts(ts_epsilon, last_ts, ntohll(msg->ts));
   if(0!=ret) {
-    if(log_file!=NULL) {
-      fprintf(log_file, "checkts fail: %d, last_ts: %ld, ts: %ld, lt+e: %ld\n", ret, *last_ts, ntohll(msg->ts),*last_ts + ts_epsilon);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file, "checkts fail: %d, last_ts: %ld, ts: %ld, lt+e: %ld\n", ret, *last_ts, ntohll(msg->ts),*last_ts + ts_epsilon);
     }
     return 5;
   }
@@ -283,7 +283,7 @@ int dkg_init_noise_handshake(const uint8_t index,
                              uint8_t *rname,
                              Noise_XK_session_t** session,
                              uint8_t msg[noise_xk_handshake1_SIZE]) {
-  //if(log_file != NULL) fprintf(log_file, "[%d] creating noise session -> %s\n", index, rname);
+  //if(liboprf_log_file != NULL) fprintf(liboprf_log_file, "[%d] creating noise session -> %s\n", index, rname);
   // fixme: damnit this allocates stuff on the heap...
   Noise_XK_peer_t *peer = Noise_XK_device_add_peer(dev, rname, rpk);
   if(!peer) return 1;
@@ -320,7 +320,7 @@ int dkg_respond_noise_handshake(const uint8_t index,
                                 Noise_XK_session_t** session,
                                 uint8_t inmsg[noise_xk_handshake1_SIZE],
                                 uint8_t outmsg[noise_xk_handshake2_SIZE]) {
-  //if(log_file != NULL) fprintf(log_file, "[%d] responding noise session -> %s\n", index, rname);
+  //if(liboprf_log_file != NULL) fprintf(liboprf_log_file, "[%d] responding noise session -> %s\n", index, rname);
   // fixme: damnit this allocates stuff on the heap...
 
   *session = Noise_XK_session_create_responder(dev);
@@ -370,7 +370,7 @@ int dkg_finish_noise_handshake(const uint8_t index,
     return 1;
   }
 
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     // get peer name
     uint32_t peer_id = Noise_XK_session_get_peer_id(*session);
     Noise_XK_peer_t *peer = Noise_XK_device_lookup_peer_by_id(dev, peer_id);
@@ -384,14 +384,14 @@ int dkg_finish_noise_handshake(const uint8_t index,
       Noise_XK_session_free(*session);
       return 3;
     }
-    //fprintf(log_file, "[%d] finishing noise session -> %s\n", index, pinfo);
+    //fprintf(liboprf_log_file, "[%d] finishing noise session -> %s\n", index, pinfo);
     free(pinfo);
   }
 
   Noise_XK_encap_message_t *encap_msg;
   Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, noise_xk_handshake2_SIZE, msg);
   if(!Noise_XK_rcode_is_success(ret)) {
-    if(log_file!=NULL) fprintf(log_file, "session read fail: %d\n", ret.val.case_Error);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "session read fail: %d\n", ret.val.case_Error);
     Noise_XK_session_free(*session);
     return 4;
   }
@@ -452,7 +452,7 @@ int dkg_noise_decrypt(const uint8_t *input,
   Noise_XK_encap_message_t *encap_msg;
   Noise_XK_rcode ret = Noise_XK_session_read(&encap_msg, *session, (uint32_t) input_len, (uint8_t*) input);
   if(!Noise_XK_rcode_is_success(ret)) {
-    if(log_file!=NULL) fprintf(log_file, "session read fail: %d\n", ret.val.case_Error);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "session read fail: %d\n", ret.val.case_Error);
     return 3;
   }
 
@@ -509,14 +509,14 @@ char* dkg_recv_err(const int code) {
 }
 
 void dkg_dump_msg(const uint8_t* ptr, const size_t msglen, const uint8_t type) {
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
      const DKG_Message *msg = (const DKG_Message*) ptr;
      if(type==0) {
-        fprintf(log_file,"[!] msgno: %d, len: %d, from: %d to: %x ", msg->msgno, htonl(msg->len), msg->from, msg->to);
+        fprintf(liboprf_log_file,"[!] msgno: %d, len: %d, from: %d to: %x ", msg->msgno, htonl(msg->len), msg->from, msg->to);
      } else {
-        fprintf(log_file,"[%d] msgno: %d, len: %d, from: %d to: %x ", type, msg->msgno, htonl(msg->len), msg->from, msg->to);
+        fprintf(liboprf_log_file,"[%d] msgno: %d, len: %d, from: %d to: %x ", type, msg->msgno, htonl(msg->len), msg->from, msg->to);
      }
      dump(ptr, msglen, "msg");
-     if(debug==0) fprintf(log_file, "\n");
+     if(liboprf_debug==0) fprintf(liboprf_log_file, "\n");
   }
 }

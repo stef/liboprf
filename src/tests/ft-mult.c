@@ -16,7 +16,7 @@ static void corrupt_ci_good_ci0(const uint8_t n, const uint8_t t,
   secret[31]=0x10;
   //secret[0]=1;
   //crypto_core_ristretto255_scalar_random(secret);
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting sharing of λ_iα_iβ_i %d, C_i0 is correct though\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting sharing of λ_iα_iβ_i %d, C_i0 is correct though\n"NORMAL, peer);
   (void)dkg_vss_share(n, t, secret, commitments, shares, blind);
 }
 
@@ -29,7 +29,7 @@ static void corrupt_random_ci0_ci(const uint8_t n, const uint8_t t,
   // committed by C_i0 the end result will be corrupt.
   uint8_t secret[crypto_core_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_random(secret);
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting with totally random sharing instead of λ_iα_iβ_i %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting with totally random sharing instead of λ_iα_iβ_i %d\n"NORMAL, peer);
   (void)dkg_vss_share(n, t, secret, &commitments[1], shares, blind);
   (void)dkg_vss_commit(secret, blind, commitments[0]);
 }
@@ -39,7 +39,7 @@ static void corrupt_ci0_good_ci(const uint8_t peer, uint8_t commitments[][crypto
   // influence the correctness of the calculation.
   uint8_t secret[crypto_core_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_random(secret);
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting C_i0 λ_iα_iβ_i %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting C_i0 λ_iα_iβ_i %d\n"NORMAL, peer);
   dkg_vss_commit(secret,secret,commitments[0]);
 }
 
@@ -49,14 +49,14 @@ static void corrupt_vsps_t1(const uint8_t n, const uint8_t t, const int8_t delta
                             TOPRF_Share shares[][2],
                             uint8_t commitments[][crypto_core_ristretto255_BYTES],
                             uint8_t blind[crypto_core_ristretto255_SCALARBYTES]) {
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting with wrong degree of the polynom peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting with wrong degree of the polynom peer %d\n"NORMAL, peer);
   (void)dkg_vss_share(n, t+delta, secret, &commitments[1], shares, blind);
   (void)dkg_vss_commit(secret, blind, commitments[0]);
 }
 
 static void corrupt_commitment(const uint8_t peer,
                                uint8_t commitments[][crypto_core_ristretto255_BYTES]) { // corrupts the 1st commitment with the 2nd
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting commitment of peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting commitment of peer %d\n"NORMAL, peer);
   memcpy(commitments[0], commitments[1], crypto_core_ristretto255_BYTES);
 }
 
@@ -65,7 +65,7 @@ static void corrupt_share(const uint8_t peer,
                           const uint8_t share_idx,
                           const uint8_t share_type,
                           TOPRF_Share shares[][2]) {
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share of peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting share of peer %d\n"NORMAL, peer);
   shares[share_idx][share_type].value[2]^=0xff; // flip some bits
 }
 
@@ -78,7 +78,7 @@ static void corrupt_wrongshare_correct_commitment(const uint8_t peer,
   memcpy(&tmp, &shares[share_idx][0], sizeof tmp);
   memcpy(&shares[share_idx][0], &shares[share_idx][1], sizeof tmp);
   memcpy(&shares[share_idx][1], &tmp, sizeof tmp);
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share (but correct commitment) of peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting share (but correct commitment) of peer %d\n"NORMAL, peer);
   dkg_vss_commit(shares[share_idx][0].value,shares[share_idx][1].value,commitments[share_idx]);
 }
 
@@ -165,8 +165,8 @@ int ft_mult(const uint8_t n, const uint8_t t,
     uint8_t r[crypto_scalarmult_ristretto255_SCALARBYTES];
     if(0!=dkg_vss_reconstruct(t, 0, n, &ci_shares[i][0], &ci_commitments[i][1], s, r)) return 1;
     if(0!=memcmp(s, lambda_ai_bi, sizeof s)) {
-      debug=1;dump(s, sizeof s, "reconstructed");
-      dump(lambda_ai_bi, sizeof lambda_ai_bi, "expected     ");debug=0;
+      liboprf_debug=1;dump(s, sizeof s, "reconstructed");
+      dump(lambda_ai_bi, sizeof lambda_ai_bi, "expected     ");liboprf_debug=0;
     }
 
     // c_i0 is correct ablambda, but the shares are of a random sharing.
@@ -204,10 +204,10 @@ int ft_mult(const uint8_t n, const uint8_t t,
 
     uint8_t v[crypto_scalarmult_ristretto255_SCALARBYTES];
     if(0!=dkg_vss_reconstruct(t, 0, n, ci_shares[i], &ci_commitments[i][1], v, NULL)) return 1;
-    debug=1; dump(v, sizeof v, "[%d] λ_iα_iβ_i", i+1);debug=0;
+    liboprf_debug=1; dump(v, sizeof v, "[%d] λ_iα_iβ_i", i+1);liboprf_debug=0;
     if(memcmp(v, lambda_ai_bi, sizeof v)!=0) {
-      fprintf(log_file, RED"failed reconstruction of lambda_ai_bi for %d\n"NORMAL, i+1);
-      debug=1;dump(lambda_ai_bi, sizeof lambda_ai_bi, "correct");debug=0;
+      fprintf(liboprf_log_file, RED"failed reconstruction of lambda_ai_bi for %d\n"NORMAL, i+1);
+      liboprf_debug=1;dump(lambda_ai_bi, sizeof lambda_ai_bi, "correct");liboprf_debug=0;
     }
 
     // send ci_shares[j] to P_j
@@ -218,7 +218,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
   for(unsigned i=0;i<n;i++) {
     for(unsigned j=0;j<dealers;j++) {
       if(dkg_vss_verify_commitment(ci_commitments[j][i+1], ci_shares[j][i])==0) continue;
-      fprintf(log_file, RED"[%d] invalid commitment for share from %d\n"NORMAL, i+1, j+1);
+      fprintf(liboprf_log_file, RED"[%d] invalid commitment for share from %d\n"NORMAL, i+1, j+1);
 
       // aggregate shares/commitments
       TOPRF_Share shares[n][2];
@@ -230,9 +230,9 @@ int ft_mult(const uint8_t n, const uint8_t t,
       TOPRF_Share secret[2];
         if(0!=dkg_vss_reconstruct(t, 0, n, &shares[0], &commitments[0], secret[0].value, secret[1].value)) continue;
         if(dkg_vss_verify_commitment(ci_commitments[j][0],secret)!=0) continue;
-        debug=1;dump(secret[0].value, sizeof secret[0].value, "reconstructed %d", k);debug=0;
+        liboprf_debug=1;dump(secret[0].value, sizeof secret[0].value, "reconstructed %d", k);liboprf_debug=0;
         if(memcmp(secret[1].value, ci_tau[j], crypto_scalarmult_ristretto255_SCALARBYTES)!=0) {
-          fprintf(log_file, RED"tau[%d] != reconstructed tau\n"NORMAL, i);
+          fprintf(liboprf_log_file, RED"tau[%d] != reconstructed tau\n"NORMAL, i);
           continue;
         }
         if(0!=vss_share(n,t,secret[0].value, ci_tau[j], commitments, shares)) return 1;
@@ -354,7 +354,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
       if(crypto_scalarmult_ristretto255(v1, e_i, B_i[i])) return 1;
       crypto_core_ristretto255_add(v1, zk_commitments[i][0], v1);
       if(memcmp(v1, v0, crypto_scalarmult_ristretto255_BYTES)!=0) {
-        fprintf(log_file, RED"[%d] failed ZK proof_B (g^y * h^w   == M * B^e'_i) for dealer %d\n"NORMAL, j, i+1);
+        fprintf(liboprf_log_file, RED"[%d] failed ZK proof_B (g^y * h^w   == M * B^e'_i) for dealer %d\n"NORMAL, j, i+1);
         return 1;
       }
 
@@ -365,7 +365,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
       if(crypto_scalarmult_ristretto255(v1, lambdas[0][i], v1)) return 1;
       crypto_core_ristretto255_add(v1, zk_commitments[i][1], v1);
       if(memcmp(v1, v0, crypto_scalarmult_ristretto255_BYTES)!=0) {
-        fprintf(log_file, RED"[%d] failed ZK proof_A (g^z * h^w_1 == M_1 * A^e'_i) for dealer %d\n"NORMAL, j, i+1);
+        fprintf(liboprf_log_file, RED"[%d] failed ZK proof_A (g^z * h^w_1 == M_1 * A^e'_i) for dealer %d\n"NORMAL, j, i+1);
         return 1;
       }
 
@@ -378,11 +378,11 @@ int ft_mult(const uint8_t n, const uint8_t t,
       if(crypto_scalarmult_ristretto255(v1, e_i, ci_commitments[i][0])) return 1;
       crypto_core_ristretto255_add(v1, zk_commitments[i][2], v1);
       if(memcmp(v1, v0, crypto_scalarmult_ristretto255_BYTES)!=0) {
-        fprintf(log_file, RED"[%d] failed ZK proof_C (B^z * h^w_2 == M_2 * C^e'_i) for dealer %d\n"NORMAL, j, i+1);
+        fprintf(liboprf_log_file, RED"[%d] failed ZK proof_C (B^z * h^w_2 == M_2 * C^e'_i) for dealer %d\n"NORMAL, j, i+1);
 
         TOPRF_Share secret[2];
         if(0!=dkg_vss_reconstruct(t, 0, n, ci_shares[i], &ci_commitments[i][1], secret[0].value, secret[1].value)) return 1;
-        debug=1;dump(secret[0].value, sizeof secret[0].value, "reconstructed");debug=0;
+        liboprf_debug=1;dump(secret[0].value, sizeof secret[0].value, "reconstructed");liboprf_debug=0;
         if(0!=dkg_vss_commit(secret[0].value, secret[1].value, ci_commitments[i][0])) return 1;
         i--;
         break;
@@ -424,7 +424,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
       crypto_core_ristretto255_add(Cx_i, Cx_i, ci_commitments[j][i+1]);
     }
     if(memcmp(Cx_i, C_i[i+1], sizeof Cx_i) != 0) {
-      fprintf(log_file, RED"[%d] failed final commitment\n"NORMAL, i+1);
+      fprintf(liboprf_log_file, RED"[%d] failed final commitment\n"NORMAL, i+1);
     }
   }
   memcpy(C_i, ci_commitments[0][0], crypto_scalarmult_ristretto255_BYTES);
@@ -443,10 +443,10 @@ int ft_mult(const uint8_t n, const uint8_t t,
     // protocol terminates successfully
 
     if(0==toprf_mpc_vsps_check(t-1, C_i)) {
-      fprintf(log_file, GREEN"ft-vsps checks out for C_i\n"NORMAL);
+      fprintf(liboprf_log_file, GREEN"ft-vsps checks out for C_i\n"NORMAL);
     } else {
       fail = 1;
-      fprintf(log_file, RED"[%d] ft-vsps fails for C_i\n"NORMAL, i+1);
+      fprintf(liboprf_log_file, RED"[%d] ft-vsps fails for C_i\n"NORMAL, i+1);
     }
 
     // If the test fails STOP and run MULT from step 2.
@@ -471,19 +471,19 @@ int ft_mult(const uint8_t n, const uint8_t t,
       // expose the secret of P_j through vss reconstruction
       TOPRF_Share s[2];
       for(unsigned t1=t;t1<n;t1++) {
-        fprintf(log_file, "trying degree t+%d\n", t1-t);
+        fprintf(liboprf_log_file, "trying degree t+%d\n", t1-t);
         if(0!=dkg_vss_reconstruct(t1, 0, n, &ci_shares[j][0], &ci_commitments[j][1], s[0].value, s[1].value)) continue;
         if(dkg_vss_verify_commitment(ci_commitments[j][0],s)!=0) continue;
-        debug=1;dump(s[0].value, sizeof s[0].value, "reconstructed");debug=0;
+        liboprf_debug=1;dump(s[0].value, sizeof s[0].value, "reconstructed");liboprf_debug=0;
         if(memcmp(s[1].value, ci_tau[j], crypto_scalarmult_ristretto255_SCALARBYTES)!=0) {
           // tau[j] is only available to the cheater, so this check
           // makes little sense, it is only a sanity test for the test
           // itself.
-          fprintf(log_file, RED"tau[%d] != reconstructed tau\n"NORMAL, j);
-          debug = 1;
+          fprintf(liboprf_log_file, RED"tau[%d] != reconstructed tau\n"NORMAL, j);
+          liboprf_debug = 1;
           dump(s[1].value, 32, "reconstructed tau");
           dump(ci_tau[j], 32, "originalistic tau");
-          debug = 0;
+          liboprf_debug = 0;
         }
         if(0!=vss_share(n,t,s[0].value, ci_tau[j], &ci_commitments[j][1], ci_shares[j])) return 1;
         break;
@@ -533,7 +533,7 @@ int ft_mult(const uint8_t n, const uint8_t t,
 
 int test_interpol(void) {
   fprintf(stderr, "testing interpol()\n");
-  debug = 1;
+  liboprf_debug = 1;
   uint8_t n=13, t=6;
   TOPRF_Share vss_shares[n][2];
   uint8_t commitments[n][crypto_core_ristretto255_BYTES];
@@ -593,8 +593,8 @@ int test_sort_shares(void) {
 }
 
 int main(void) {
-  log_file = stderr;
-  debug = 0;
+  liboprf_log_file = stderr;
+  liboprf_debug = 0;
 
   if(test_sort_shares()!=0) return 1;
   if(test_interpol()!=0) return 1;
@@ -606,7 +606,7 @@ int main(void) {
 
   uint8_t a[crypto_scalarmult_ristretto255_SCALARBYTES];
   if(0!=dkg_vss_reconstruct(t, 0, n, a_shares, a_commitments, a, NULL)) return 1;
-  debug=1; dump(a, sizeof a, "a");debug=0;
+  liboprf_debug=1; dump(a, sizeof a, "a");liboprf_debug=0;
 
   // step 2. generate ρ
   TOPRF_Share b_shares[n][2];
@@ -616,7 +616,7 @@ int main(void) {
 
   uint8_t b[crypto_scalarmult_ristretto255_SCALARBYTES];
   if(0!=dkg_vss_reconstruct(t, 0, n, b_shares, b_commitments, b, NULL)) return 1;
-  debug=1; dump(b, sizeof b, "b");debug=0;
+  liboprf_debug=1; dump(b, sizeof b, "b");liboprf_debug=0;
 
   if(0!=toprf_mpc_vsps_check(t-1, a_commitments)) return 1;
   if(0!=toprf_mpc_vsps_check(t-1, b_commitments)) return 1;
@@ -629,14 +629,14 @@ int main(void) {
 
   uint8_t r[crypto_scalarmult_ristretto255_SCALARBYTES];
   if(0!=dkg_vss_reconstruct(t, 0, n, r_shares, r_commitments, r, NULL)) return 1;
-  debug=1;dump(r, sizeof r, "r  ");debug=0;
+  liboprf_debug=1;dump(r, sizeof r, "r  ");liboprf_debug=0;
 
   uint8_t tmp[crypto_scalarmult_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_mul(tmp, a, b);
-  debug=1;dump(tmp, sizeof tmp, "a*b");debug=0;
+  liboprf_debug=1;dump(tmp, sizeof tmp, "a*b");liboprf_debug=0;
 
   if(memcmp(tmp, r, sizeof tmp)!=0) {
-    fprintf(log_file,RED"fail a*b != ft-mul(a,b)\n"NORMAL);
+    fprintf(liboprf_log_file,RED"fail a*b != ft-mul(a,b)\n"NORMAL);
     return 1;
   }
   fprintf(stderr, GREEN"everything correct!\n"NORMAL);

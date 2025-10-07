@@ -23,7 +23,7 @@ static void corrupt_ci0_good_ci(const uint8_t peer, uint8_t commitments[][crypto
   // it merely fails the zkp *and* the vsps, but the end result is correct!
   uint8_t secret[crypto_core_ristretto255_SCALARBYTES];
   crypto_core_ristretto255_scalar_random(secret);
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting C_i0 λ_iα_iβ_i %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting C_i0 λ_iα_iβ_i %d\n"NORMAL, peer);
   dkg_vss_commit(secret,secret,commitments[0]);
 }
 
@@ -33,14 +33,14 @@ static void corrupt_vsps_t1(const TOPRF_Update_PeerState *ctx,
                             TOPRF_Share (*shares)[][2],
                             uint8_t (*commitments)[][crypto_core_ristretto255_BYTES]) {
   if(ctx->index!=peer) return;
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting with wrong degree of the polynom peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting with wrong degree of the polynom peer %d\n"NORMAL, peer);
   (void)dkg_vss_share(ctx->n, ctx->t+1, NULL, (*commitments), (*shares), NULL);
 }
 
 static void corrupt_mult_vsps_t1(TOPRF_Update_PeerState *ctx,
                                  const uint8_t peer) {
   if(ctx->index!=peer) return;
-  if(log_file!=NULL) fprintf(log_file, RED"[%d] !!! Corrupting mult sharing with degree t+1 polynomial\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] !!! Corrupting mult sharing with degree t+1 polynomial\n"NORMAL, peer);
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
   (void)toprf_mpc_ftmult_step1(dealers, ctx->n, ctx->t+1, ctx->index-1,
                                ctx->kc0_share, ctx->p_share, (*ctx->lambdas),
@@ -51,7 +51,7 @@ static void corrupt_mult_vsps_t1(TOPRF_Update_PeerState *ctx,
 static void corrupt_commitment(TOPRF_Update_PeerState *ctx, const uint8_t peer,
                                uint8_t (*commitments)[][crypto_core_ristretto255_BYTES]) { // corrupts the 1st commitment with the 2nd
   if(ctx->index!=peer) return;
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting commitment of peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting commitment of peer %d\n"NORMAL, peer);
   memcpy((*commitments)[2], (*commitments)[1], crypto_core_ristretto255_BYTES);
 }
 
@@ -66,7 +66,7 @@ static void corrupt_wrongshare_correct_commitment(TOPRF_Update_PeerState *ctx, /
   memcpy(&tmp, &(*shares)[share_idx][0], sizeof tmp);
   memcpy(&(*shares)[share_idx][0], &(*shares)[share_idx][1], sizeof tmp);
   memcpy(&(*shares)[share_idx][1], &tmp, sizeof tmp);
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting share (but correct commitment) of peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting share (but correct commitment) of peer %d\n"NORMAL, peer);
   dkg_vss_commit((*shares)[share_idx][0].value,(*shares)[share_idx][1].value,(*commitments)[share_idx]);
 }
 
@@ -75,12 +75,12 @@ static void corrupt_share(TOPRF_Update_PeerState *ctx, const uint8_t peer,
                           const uint8_t share_type,
                           TOPRF_Share (*shares)[][2]) {
   if(ctx->index!=peer) return;
-  if(log_file!=NULL) {
-    fprintf(log_file, RED"!!! Corrupting share of peer %d\n"NORMAL, peer);
+  if(liboprf_log_file!=NULL) {
+    fprintf(liboprf_log_file, RED"!!! Corrupting share of peer %d\n"NORMAL, peer);
     dump((uint8_t*) (*shares)[share_idx], TOPRF_Share_BYTES * 2, "correct share");
   }
   (*shares)[share_idx][share_type].value[2]^=0xff; // flip some bits
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     dump((uint8_t*) (*shares)[share_idx], TOPRF_Share_BYTES * 2, "corrupt share");
   }
 }
@@ -90,7 +90,7 @@ static void corrupt_false_accuse(TOPRF_Update_PeerState *ctx,
                                  const uint8_t p2,
                                  uint8_t *fails_len, uint8_t *fails) {
   if(ctx->index!=peer) return;
-  if(log_file!=NULL) fprintf(log_file, RED"!!! Corrupting falsely accusing peer %d by peer %d\n"NORMAL, p2, peer);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"!!! Corrupting falsely accusing peer %d by peer %d\n"NORMAL, p2, peer);
   fails[(*fails_len)++]=p2;
 }
 #endif // UNITTEST_CORRUPT
@@ -200,7 +200,7 @@ static int stp_recv_msg(TOPRF_Update_STPState *ctx,
   int ret = toprf_recv_msg(msg_buf, msg_buf_len, msgno, from, to, (*ctx->sig_pks)[from], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[from-1]);
   if(0!=ret) {
     if(stp_add_cheater(ctx, 64+ret, from, to) == NULL) return TOPRF_Update_Err_CheatersFull;
-    if(log_file!=NULL) fprintf(log_file, RED"failed to validate msg %d from %d, err: %d\n"NORMAL, msgno, from, ret);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"failed to validate msg %d from %d, err: %d\n"NORMAL, msgno, from, ret);
     return 1;
   }
   return 0;
@@ -214,7 +214,7 @@ static int peer_recv_msg(TOPRF_Update_PeerState *ctx,
   int ret = toprf_recv_msg(msg_buf, msg_buf_len, msgno, from, to, (*ctx->sig_pks)[from], ctx->sessionid, ctx->ts_epsilon, &ctx->last_ts[from-1]);
   if(0!=ret) {
     if(peer_add_cheater(ctx, 64+ret, from, to) == NULL) return TOPRF_Update_Err_CheatersFull;
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to validate msg %d from %d, err: %d\n"NORMAL, ctx->index, msgno, from, ret);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed to validate msg %d from %d, err: %d\n"NORMAL, ctx->index, msgno, from, ret);
     return 1;
   }
   return 0;
@@ -226,7 +226,7 @@ static TOPRF_Update_Err stp_broadcast(TOPRF_Update_STPState *ctx, const uint8_t 
                                       const size_t msg_size,
                                       const uint8_t msgno,
                                       const TOPRF_Update_STP_Steps next_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
   if(msg_count * msg_size != input_len) return TOPRF_Update_Err_ISize;
   const size_t cheaters = ctx->cheater_len;
   if(sizeof(TOPRF_Update_Message) + input_len != output_len) return TOPRF_Update_Err_OSize;
@@ -256,7 +256,7 @@ static TOPRF_Update_Err stp_route(TOPRF_Update_STPState *ctx, const uint8_t *inp
                                   const uint8_t msgno,
                                   const size_t msg_size,
                                   const TOPRF_Update_STP_Steps next_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
   if(input_len != msg_size * send_count * recv_count) return TOPRF_Update_Err_ISize;
   if(input_len != output_len) return TOPRF_Update_Err_OSize;
   //const size_t cheaters = ctx->cheater_len;
@@ -271,7 +271,7 @@ static TOPRF_Update_Err stp_route(TOPRF_Update_STPState *ctx, const uint8_t *inp
       if(0!=ret) {
         if(stp_add_cheater(ctx, 64+ret, j+1, i+1) == NULL) return TOPRF_Update_Err_CheatersFull;
         const TOPRF_Update_Message *msg = (const TOPRF_Update_Message*) (*inputs)[j][i];
-        fprintf(log_file,"[x] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
+        fprintf(liboprf_log_file,"[x] msgno: %d, from: %d to: %d ", msg->msgno, msg->from, msg->to);
         dump((*inputs)[j][i], msg_size, "msg");
         continue;
       }
@@ -327,8 +327,8 @@ static void handle_complaints(const uint8_t n,
     if(self!=0 && fails[k] == self && ctx_my_complaints_len != NULL && ctx_my_complaints != NULL) {
         ctx_my_complaints[(*ctx_my_complaints_len)++] = accuser;
     }
-    if(log_file!=NULL) {
-      fprintf(log_file,"\x1b[0;31m[%d] peer %d failed to verify commitments from peer %d!\x1b[0m\n", self, accuser, fails[k]);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"\x1b[0;31m[%d] peer %d failed to verify commitments from peer %d!\x1b[0m\n", self, accuser, fails[k]);
     }
   }
 }
@@ -342,7 +342,7 @@ static TOPRF_Update_Err stp_complaint_handler(TOPRF_Update_STPState *ctx, const 
 
                                               const TOPRF_Update_STP_Steps pass_step,
                                               const TOPRF_Update_STP_Steps fail_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] %s\x1b[0m\n", step_title);
 
   if(input_len != msg_size * msg_count) return TOPRF_Update_Err_ISize;
   if(sizeof(TOPRF_Update_Message) + input_len != output_len) return TOPRF_Update_Err_OSize;
@@ -396,7 +396,7 @@ static TOPRF_Update_Err peer_complaint_handler(TOPRF_Update_PeerState *ctx, cons
                                                const uint8_t dealers,
                                                const TOPRF_Update_Peer_Steps pass_step,
                                                const TOPRF_Update_Peer_Steps fail_step) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] %s\x1b[0m\n", ctx->index, step_title);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] %s\x1b[0m\n", ctx->index, step_title);
   if(input_len != sizeof(TOPRF_Update_Message) + msg_size * ctx->n) return TOPRF_Update_Err_ISize;
   //const size_t cheaters = ctx->cheater_len;
 
@@ -438,21 +438,21 @@ static TOPRF_Update_Err ft_or_full_vsps(const uint8_t n, const uint8_t t, const 
   //  for(unsigned j=0;j<n;j++)
   //    dump((*C_ij)[i][j], crypto_core_ristretto255_BYTES, "C_%d,%d", i, j);
 
-  int _debug=debug; debug=0;
+  int _debug=liboprf_debug; liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(t-1, C_i)) {
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] %s\n"NORMAL, self, ft_msg);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] %s\n"NORMAL, self, ft_msg);
     for(uint8_t i=0;i<dealers;i++) {
       if(0!=toprf_mpc_vsps_check(t-1, (*C_ij)[i])) {
-        if(log_file!=NULL) fprintf(log_file, RED"[%d] %s [%d]\n"NORMAL, self, sub_msg, i+1);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] %s [%d]\n"NORMAL, self, sub_msg, i+1);
         fails[(*fails_len)++]=i+1;
       }
     }
     if(*fails_len == 0) {
-      if(log_file!=NULL) fprintf(log_file, RED"[%d] %s\n"NORMAL, self, no_sub_msg);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] %s\n"NORMAL, self, no_sub_msg);
       return TOPRF_Update_Err_NoSubVSPSFail;
     }
   }
-  debug=_debug;
+  liboprf_debug=_debug;
   return TOPRF_Update_Err_OK;
 }
 
@@ -464,7 +464,7 @@ int toprf_update_start_stp(TOPRF_Update_STPState *ctx, const uint64_t ts_epsilon
                            const uint8_t ltssk[crypto_sign_SECRETKEYBYTES],
                            const size_t msg0_len,
                            TOPRF_Update_Message *msg0) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] init 0. start toprf update\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] init 0. start toprf update\x1b[0m\n");
   if(2>n || t>=n || n>128 || n<2*t+1) return 1;
   if(proto_name_len<1) return 2;
   if(proto_name_len>1024) return 3;
@@ -564,7 +564,7 @@ TOPRF_Update_Err toprf_update_start_peer(TOPRF_Update_PeerState *ctx,
                                          const TOPRF_Update_Message *msg0,
                                          uint8_t keyid[toprf_keyid_SIZE],
                                          uint8_t stp_ltpk[crypto_sign_PUBLICKEYBYTES]) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[?] init1 start peer\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[?] init1 start peer\x1b[0m\n");
   //dkg_dump_msg((const uint8_t*) msg0, toprfupdate_stp_start_msg_SIZE, msg0->from);
 
   ctx->ts_epsilon = ts_epsilon;
@@ -661,7 +661,7 @@ int toprf_update_peer_set_bufs(TOPRF_Update_PeerState *ctx,
 
 #define toprfupdate_peer_init_msg_SIZE (sizeof(TOPRF_Update_Message) + dkg_sessionid_SIZE + crypto_core_ristretto255_BYTES)
 static TOPRF_Update_Err peer_step1_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] init2 send msg1 containing session id nonce\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] init2 send msg1 containing session id nonce\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_init_msg_SIZE) return TOPRF_Update_Err_OSize;
 
   uint8_t *wptr = ((TOPRF_Update_Message *) output)->data;
@@ -676,7 +676,7 @@ static TOPRF_Update_Err peer_step1_handler(TOPRF_Update_PeerState *ctx, uint8_t 
 }
 
 static TOPRF_Update_Err stp_step2_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] init3 broadcast msg1 containing session id nonces of peers\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] init3 broadcast msg1 containing session id nonces of peers\x1b[0m\n");
   if(input_len  != toprfupdate_peer_init_msg_SIZE * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_init_msg_SIZE * ctx->n + sizeof(TOPRF_Update_Message)) return TOPRF_Update_Err_OSize;
 
@@ -710,7 +710,7 @@ static TOPRF_Update_Err stp_step2_handler(TOPRF_Update_STPState *ctx, const uint
 
 #define toprfupdate_peer_ake1_msg_SIZE (sizeof(TOPRF_Update_Message) + noise_xk_handshake1_SIZE)
 static TOPRF_Update_Err peer_step3_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] noise1 receive peers session nonces, finalize sessionid, start noise sessions\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] noise1 receive peers session nonces, finalize sessionid, start noise sessions\x1b[0m\n", ctx->index);
   if(input_len != toprfupdate_peer_init_msg_SIZE * ctx->n + sizeof(TOPRF_Update_Message)) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_ake1_msg_SIZE * ctx->n) return TOPRF_Update_Err_OSize;
 
@@ -748,7 +748,7 @@ static TOPRF_Update_Err peer_step3_handler(TOPRF_Update_PeerState *ctx, const ui
 
   crypto_generichash_final(&sid_state,ctx->sessionid,sizeof ctx->sessionid);
   if(memcmp(ctx->sessionid, msg2->sessionid, dkg_sessionid_SIZE)!=0) {
-    if(log_file!=NULL) fprintf(log_file, "invalid sessionid generated\n");
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "invalid sessionid generated\n");
     return TOPRF_Update_Err_InvSessionID;
   }
 
@@ -775,7 +775,7 @@ static TOPRF_Update_Err stp_step4_handler(TOPRF_Update_STPState *ctx, const uint
 
 #define toprfupdate_peer_ake2_msg_SIZE (sizeof(TOPRF_Update_Message) + noise_xk_handshake2_SIZE)
 static TOPRF_Update_Err peer_step5_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] noise3 receive session requests\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] noise3 receive session requests\x1b[0m\n", ctx->index);
   if(input_len != toprfupdate_peer_ake1_msg_SIZE * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_ake2_msg_SIZE * ctx->n) return TOPRF_Update_Err_OSize;
 
@@ -809,7 +809,7 @@ static void hash_commitments(const TOPRF_Update_PeerState *ctx,
                              const uint8_t commitments[c_len][crypto_core_ristretto255_BYTES],
                              uint8_t **wptr) {
   crypto_generichash(*wptr, toprf_update_commitment_HASHBYTES, (uint8_t*) commitments, crypto_core_ristretto255_BYTES*c_len, NULL, 0);
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     dump(*wptr, toprf_update_commitment_HASHBYTES, "[%d] commitment hash", ctx->index);
     dump((uint8_t*) commitments, crypto_core_ristretto255_BYTES*c_len, "[%d] committed", ctx->index);
   }
@@ -836,7 +836,7 @@ static TOPRF_Update_Err dkg1(TOPRF_Update_PeerState *ctx, const uint8_t n,
   //corrupt_share(ctx,5,2,0,ctx->p_shares);
 #endif // UNITTEST_CORRUPT
 
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     dump((const uint8_t*) commitments, crypto_core_ristretto255_BYTES*ctx->n, "[%d] dealer %s commitments", ctx->index, type);
   }
   hash_commitments(ctx,ctx->n,commitments,wptr);
@@ -869,7 +869,7 @@ static void encrypt_shares(const TOPRF_Update_PeerState *ctx,
 
   crypto_stream_xor(ct, (const uint8_t*) share, TOPRF_Share_BYTES*2, nonce, key);
   crypto_auth(hmac, ct, toprf_update_encrypted_shares_SIZE, key);
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     //dump(key, sizeof key, "[%d] key for %s share of p_%d", ctx->index, type, i+1);
     //dump(ct, toprf_update_encrypted_shares_SIZE, "[%d] encrypted %s share of p_%d", ctx->index, type, i+1);
     //dump(hmac, crypto_auth_hmacsha256_BYTES, "[%d] hmac for %s share of p_%d", ctx->index, type, i+1);
@@ -878,7 +878,7 @@ static void encrypt_shares(const TOPRF_Update_PeerState *ctx,
 
 #define toprfupdate_peer_dkg1_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + (toprf_update_commitment_HASHBYTES + ctx->n * crypto_auth_hmacsha256_BYTES))
 static TOPRF_Update_Err peer_dkg1_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] noise5 finish session handshake, start core update with dkg for p\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] noise5 finish session handshake, start core update with dkg for p\x1b[0m\n", ctx->index);
   if(input_len != toprfupdate_peer_ake2_msg_SIZE * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_dkg1_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -951,7 +951,7 @@ static TOPRF_Update_Err stp_dkg1_handler(TOPRF_Update_STPState *ctx, const uint8
 
 #define toprfupdate_peer_dkg2_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + crypto_core_ristretto255_BYTES * ctx->n)
 static TOPRF_Update_Err peer_dkg2_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg2 receive commitment hashes, broadcast commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg2 receive commitment hashes, broadcast commitments\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_dkg1_msg_SIZE(ctx) * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_dkg2_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -977,7 +977,7 @@ static TOPRF_Update_Err peer_dkg2_handler(TOPRF_Update_PeerState *ctx, const uin
       dptr+=crypto_auth_hmacsha256_BYTES;
     }
 
-    if(log_file!=NULL) {
+    if(liboprf_log_file!=NULL) {
       dump((*ctx->p_commitments_hashes)[i], toprf_update_commitment_HASHBYTES, "[%d] p   commitment hash [%d]", ctx->index, i+1);
     }
   }
@@ -1031,13 +1031,13 @@ static TOPRF_Update_Err stp_vsps_check(TOPRF_Update_STPState *ctx,
   }
 
   if(ctx->n - fails_len < 2) {
-    if(log_file!=NULL) fprintf(log_file, RED"[!] less than 2 honest %s dealers: %d \n"NORMAL, type, ctx->n - fails_len);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] less than 2 honest %s dealers: %d \n"NORMAL, type, ctx->n - fails_len);
     if(stp_add_cheater(ctx,2,0,0) == NULL) {
       return TOPRF_Update_Err_CheatersFull;
     }
   }
   if(fails_len >= ctx->t) {
-    if(log_file!=NULL) fprintf(log_file, RED"[!] more than t %s cheaters (t=%d, cheaters=%d)\n"NORMAL, type, ctx->t, fails_len);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] more than t %s cheaters (t=%d, cheaters=%d)\n"NORMAL, type, ctx->t, fails_len);
     if(stp_add_cheater(ctx,3,fails_len,0) == NULL) {
       return TOPRF_Update_Err_CheatersFull;
     }
@@ -1059,7 +1059,7 @@ static TOPRF_Update_Err stp_check_chash(TOPRF_Update_STPState *ctx,
   if(memcmp(chash, (*commitments_hashes)[i], toprf_update_commitment_HASHBYTES)!=0) {
     dump((*commitments_hashes)[i], toprf_update_commitment_HASHBYTES, "[%d] commitment hash", i+1);
     dump(commitments, crypto_core_ristretto255_BYTES*clen, "[%d] committed", i+1);
-    if(log_file!=NULL) fprintf(log_file, RED"[!] failed to verify hash for %s commitments of dealer %d\n"NORMAL, type, i+1);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] failed to verify hash for %s commitments of dealer %d\n"NORMAL, type, i+1);
     if(stp_add_cheater(ctx, 4, i+1, 0) == NULL) {
       return TOPRF_Update_Err_CheatersFull;
     }
@@ -1099,7 +1099,7 @@ static TOPRF_Update_Err stp_dkg2_handler(TOPRF_Update_STPState *ctx, const uint8
                                         + noise_xk_handshake3_SIZE /* 4th&final noise handshake */     \
                                         + toprf_update_encrypted_shares_SIZE                           )
 static TOPRF_Update_Err peer_dkg3_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg4 receive commitments & distribute encrypted shares\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg4 receive commitments & distribute encrypted shares\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_dkg2_msg_SIZE(ctx) * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != ctx->n * toprfupdate_peer_dkg3_msg_SIZE) return TOPRF_Update_Err_OSize;
 
@@ -1115,7 +1115,7 @@ static TOPRF_Update_Err peer_dkg3_handler(TOPRF_Update_PeerState *ctx, const uin
     // extract peer commitments
     const uint8_t *dptr = msg5->data;
     memcpy((*ctx->p_commitments)[i*ctx->n], dptr, crypto_core_ristretto255_BYTES * ctx->n);
-    if(log_file!=NULL) {
+    if(liboprf_log_file!=NULL) {
       dump((*ctx->p_commitments)[i*ctx->n], crypto_core_ristretto255_BYTES*ctx->n, "[%d] p commitments [%d]", ctx->index, i+1);
     }
 
@@ -1123,7 +1123,7 @@ static TOPRF_Update_Err peer_dkg3_handler(TOPRF_Update_PeerState *ctx, const uin
     uint8_t chash[toprf_update_commitment_HASHBYTES];
     crypto_generichash(chash, toprf_update_commitment_HASHBYTES, (*ctx->p_commitments)[i*ctx->n], crypto_core_ristretto255_BYTES*ctx->n, NULL, 0);
     if(memcmp(chash, (*ctx->p_commitments_hashes)[i], toprf_update_commitment_HASHBYTES)!=0) {
-      if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to verify hash for p commitments of dealer %d\n"NORMAL, ctx->index, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed to verify hash for p commitments of dealer %d\n"NORMAL, ctx->index, i+1);
       if(peer_add_cheater(ctx, 2, i+1, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
     }
   }
@@ -1192,25 +1192,25 @@ static void verify_commitments(const TOPRF_Update_PeerState *ctx,
   // verify that the shares match the commitment
   for(uint8_t i=0;i<dealers;i++) {
     if(0!=dkg_vss_verify_commitment(c[i][cidx],(*shares)[i])) {
-      if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[%d] failed to verify %s commitments from %d!\x1b[0m\n", ctx->index, type, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"\x1b[0;31m[%d] failed to verify %s commitments from %d!\x1b[0m\n", ctx->index, type, i+1);
       fails[(*fails_len)++]=i+1;
     }
   }
 
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     if(*fails_len>0) {
-      fprintf(log_file, RED"[%d] %s commitment fails#: %d -> ", ctx->index, type, *fails_len);
-      for(unsigned i=0;i<*fails_len;i++) fprintf(log_file, "%s%d", (i>0)?", ":"", fails[i]);
-      fprintf(log_file, NORMAL"\n");
+      fprintf(liboprf_log_file, RED"[%d] %s commitment fails#: %d -> ", ctx->index, type, *fails_len);
+      for(unsigned i=0;i<*fails_len;i++) fprintf(liboprf_log_file, "%s%d", (i>0)?", ":"", fails[i]);
+      fprintf(liboprf_log_file, NORMAL"\n");
     } else {
-      fprintf(log_file, GREEN"[%d] no %s commitment fails\n"NORMAL, ctx->index, type);
+      fprintf(liboprf_log_file, GREEN"[%d] no %s commitment fails\n"NORMAL, ctx->index, type);
     }
   }
 }
 
 #define toprfupdate_peer_verify_shares_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + (size_t)(ctx->n + 1))
 static TOPRF_Update_Err peer_verify_shares_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg-verify1 DKG step 2 - receive shares, verify commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg-verify1 DKG step 2 - receive shares, verify commitments\x1b[0m\n", ctx->index);
   if(input_len != toprfupdate_peer_dkg3_msg_SIZE * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_verify_shares_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -1271,11 +1271,11 @@ static TOPRF_Update_Err peer_dkg_fork(TOPRF_Update_PeerState *ctx, const uint8_t
 }
 
 static TOPRF_Update_Err peer_defend(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg-defend1 disclose share encryption key\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg-defend1 disclose share encryption key\x1b[0m\n", ctx->index);
   if(output_len != toprf_update_peer_output_size(ctx)) return TOPRF_Update_Err_OSize;
   if(output_len == 0) {
-    if(log_file!=NULL) {
-      fprintf(log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
     }
     ctx->step = TOPRF_Update_Peer_Check_Shares;
     return 0;
@@ -1285,7 +1285,7 @@ static TOPRF_Update_Err peer_defend(TOPRF_Update_PeerState *ctx, uint8_t *output
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
   uint8_t *wptr = msg->data;
   for(int i=0;i<ctx->my_p_complaints_len;i++) {
-    if(log_file!=NULL) fprintf(log_file, "\x1b[0;36m[%d] defending against p complaint from %d\x1b[0m\n", ctx->index, ctx->my_p_complaints[i]);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;36m[%d] defending against p complaint from %d\x1b[0m\n", ctx->index, ctx->my_p_complaints[i]);
 
     *wptr++ = ctx->my_p_complaints[i];
     // reveal key for noise wrapped share sent previously
@@ -1323,15 +1323,15 @@ static TOPRF_Update_Err stp_check_defenses(TOPRF_Update_STPState *ctx,
     const uint8_t *key=(*dptr)+1;
     const uint8_t *shares=key+dkg_noise_key_SIZE;
     *dptr += 1U + dkg_noise_key_SIZE + toprf_update_encrypted_shares_SIZE;
-    if(log_file!=NULL) {
-      fprintf(log_file,"[!] accused: %d, by %d\n", accused, accuser);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"[!] accused: %d, by %d\n", accused, accuser);
       dump(key,dkg_noise_key_SIZE,"key");
       dump(shares,toprf_update_encrypted_shares_SIZE,"encrypted shares");
     }
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_auth_verify((*share_macs)[(accused-1)*ctx->n+(accuser-1)], shares, toprf_update_encrypted_shares_SIZE, key)) {
-      if(log_file!=NULL) fprintf(log_file,RED"[!] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, accused, accuser);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,RED"[!] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, accused, accuser);
       if(stp_add_cheater(ctx, 1, accused, accuser) == NULL) return TOPRF_Update_Err_CheatersFull;
       complaints[(*complaints_len)++]=accuser << 8 | accused;
       continue;
@@ -1350,15 +1350,15 @@ static TOPRF_Update_Err stp_check_defenses(TOPRF_Update_STPState *ctx,
       continue;
     }
     if(0!=dkg_vss_verify_commitment(c[accused-1][accuser-coffset],share)) {
-      if(log_file!=NULL) fprintf(log_file,"\x1b[0;31m[!] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,"\x1b[0;31m[!] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
       TOPRF_Update_Cheater* cheater = stp_add_cheater(ctx, 4, accused, accuser);
       if(cheater == NULL) return TOPRF_Update_Err_CheatersFull;
       cheater->invalid_index = share[0].index;
       complaints[(*complaints_len)++]=accuser << 8 | accused;
       continue;
     } else {
-      if(log_file!=NULL) {
-        fprintf(log_file,GREEN"[!] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
+      if(liboprf_log_file!=NULL) {
+        fprintf(liboprf_log_file,GREEN"[!] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", accused, accuser);
         dump((uint8_t*) share, sizeof share, "share");
         dump(c[accused-1][accuser-coffset], crypto_core_ristretto255_BYTES, "commitment");
       }
@@ -1369,7 +1369,7 @@ static TOPRF_Update_Err stp_check_defenses(TOPRF_Update_STPState *ctx,
 }
 
 static TOPRF_Update_Err stp_broadcast_defenses(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] dkg-defend2 broadcast defenses\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] dkg-defend2 broadcast defenses\x1b[0m\n");
   if(input_len != toprf_update_stp_input_size(ctx)) return TOPRF_Update_Err_ISize;
   if(output_len != toprf_update_stp_output_size(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -1441,15 +1441,15 @@ static TOPRF_Update_Err check_defenses(TOPRF_Update_PeerState *ctx,
     const uint8_t *key=(*dptr)+1;
     const uint8_t *shares=key+dkg_noise_key_SIZE;
     *dptr += 1U + dkg_noise_key_SIZE + toprf_update_encrypted_shares_SIZE;
-    if(log_file!=NULL) {
-      fprintf(log_file,"[%d] accused: %d, by %d\n", ctx->index, accused, accuser);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"[%d] accused: %d, by %d\n", ctx->index, accused, accuser);
       dump(key,dkg_noise_key_SIZE,"key");
       dump(shares,toprf_update_encrypted_shares_SIZE,"encrypted shares");
     }
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     if(0!=crypto_auth_verify((*share_macs)[(accuser-1)*ctx->n+(accused-1)], shares, toprf_update_encrypted_shares_SIZE, key)) {
-      if(log_file!=NULL) fprintf(log_file,RED"[%d] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,RED"[%d] invalid HMAC on shares of accused: %d, by %d\n"NORMAL, ctx->index, accused, accuser);
       if(peer_add_cheater(ctx, 1, accused, accuser) == NULL) return TOPRF_Update_Err_CheatersFull;
       complaints[(*complaints_len)++]=accuser << 8 | accused;
       continue;
@@ -1468,8 +1468,8 @@ static TOPRF_Update_Err check_defenses(TOPRF_Update_PeerState *ctx,
       continue;
     }
     if(0!=dkg_vss_verify_commitment(c[accused-1][accuser-coffset],share)) {
-      if(log_file!=NULL) {
-        fprintf(log_file,"\x1b[0;31m[%d] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
+      if(liboprf_log_file!=NULL) {
+        fprintf(liboprf_log_file,"\x1b[0;31m[%d] failed to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
         dump((uint8_t*) share, sizeof share, "share");
         dump(c[accused-1][accuser-1], crypto_core_ristretto255_BYTES, "commitment");
       }
@@ -1479,7 +1479,7 @@ static TOPRF_Update_Err check_defenses(TOPRF_Update_PeerState *ctx,
       complaints[(*complaints_len)++]=accuser << 8 | accused;
       continue;
     } else {
-      if(log_file!=NULL) fprintf(log_file,GREEN"[%d] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file,GREEN"[%d] succeeded to verify commitment of accused %d by accuser %d!\x1b[0m\n", ctx->index, accused, accuser);
       if(peer_add_cheater(ctx, 5, accuser, accused) == NULL) return TOPRF_Update_Err_CheatersFull;
       //ctx->share_complaints[ctx->share_complaints_len++]=accused;
     }
@@ -1501,7 +1501,7 @@ static TOPRF_Update_Err aggregate_complaints(const uint8_t n, unsigned *ctr, uin
 }
 
 static TOPRF_Update_Err peer_check_shares(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg-defend3 verify disclosed shares\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg-defend3 verify disclosed shares\x1b[0m\n", ctx->index);
   if(input_len != toprf_update_peer_input_size(ctx)) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_bc_transcript_msg_SIZE) return TOPRF_Update_Err_OSize;
 
@@ -1568,15 +1568,15 @@ static TOPRF_Update_Err finalize_dkg(TOPRF_Update_PeerState *ctx,
                                        &fails_len, fails);
   if(ret!=TOPRF_Update_Err_OK) return ret;
   if(ctx->n - fails_len < 2) {
-    if(log_file!=NULL) {
-      fprintf(log_file, RED"[%d] less than 2 honest dealers for %s: %d \n"NORMAL, ctx->index, type, ctx->n - fails_len);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file, RED"[%d] less than 2 honest dealers for %s: %d \n"NORMAL, ctx->index, type, ctx->n - fails_len);
       if(peer_add_cheater(ctx, 6, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
     }
     return TOPRF_Update_Err_NotEnoughDealers;
   }
   if(fails_len >= ctx->t) {
-    if(log_file!=NULL) {
-      fprintf(log_file, RED"[%d] more than t cheaters for %s (t=%d, cheaters=%d)\n"NORMAL, ctx->index, type, ctx->t, fails_len);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file, RED"[%d] more than t cheaters for %s (t=%d, cheaters=%d)\n"NORMAL, ctx->index, type, ctx->t, fails_len);
       if(peer_add_cheater(ctx, 7, fails_len, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
     }
     return TOPRF_Update_Err_TooManyCheaters;
@@ -1598,10 +1598,10 @@ static TOPRF_Update_Err finalize_dkg(TOPRF_Update_PeerState *ctx,
     } else if(peer_add_cheater(ctx, 8, ctx->index, i+1) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
   qual[qual_len]=0;
-  if(log_file!=NULL) {
-    fprintf(log_file,"[%d] %s qual is: ", ctx->index, type);
-    for(unsigned i=0;i<qual_len;i++) fprintf(log_file,"%s%d", ((i==0)?"":", "), qual[i]);
-    fprintf(log_file,"\n");
+  if(liboprf_log_file!=NULL) {
+    fprintf(liboprf_log_file,"[%d] %s qual is: ", ctx->index, type);
+    for(unsigned i=0;i<qual_len;i++) fprintf(liboprf_log_file,"%s%d", ((i==0)?"":", "), qual[i]);
+    fprintf(liboprf_log_file,"\n");
   }
 
   my_share[0].index=ctx->index;
@@ -1613,7 +1613,7 @@ static TOPRF_Update_Err finalize_dkg(TOPRF_Update_PeerState *ctx,
 }
 
 static TOPRF_Update_Err peer_verify_vsps(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg-verify4 VSPS check commitments, calculate share and broadcast transcript and final commitment\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg-verify4 VSPS check commitments, calculate share and broadcast transcript and final commitment\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_bc_transcript_msg_SIZE) return TOPRF_Update_Err_OSize;
 
   TOPRF_Update_Message* msg20 = (TOPRF_Update_Message*) output;
@@ -1636,7 +1636,7 @@ static TOPRF_Update_Err peer_verify_vsps(TOPRF_Update_PeerState *ctx, uint8_t *o
 
 #define toprfupdate_stp_bc_transcript_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + toprfupdate_peer_bc_transcript_msg_SIZE*ctx->n)
 static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] dkg-final1 broadcast DKG transcripts\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] dkg-final1 broadcast DKG transcripts\x1b[0m\n");
 
   if((toprfupdate_peer_bc_transcript_msg_SIZE * ctx->n) != input_len) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_stp_bc_transcript_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
@@ -1655,8 +1655,8 @@ static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, co
     const uint8_t *dptr=msg->data;
 
     if(sodium_memcmp(transcript_hash, dptr, sizeof(transcript_hash))!=0) {
-      if(log_file!=NULL) {
-        fprintf(log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
+      if(liboprf_log_file!=NULL) {
+        fprintf(liboprf_log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
       }
       if(stp_add_cheater(ctx, 1, i+1, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
       continue;
@@ -1669,13 +1669,13 @@ static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, co
   }
   if(ctx->cheater_len>cheaters) return TOPRF_Update_Err_CheatersFound;
 
-  int _debug=debug; debug=0;
+  int _debug=liboprf_debug; liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*ctx->p_commitments))) {
-    debug=1;
-    if(log_file!=NULL) fprintf(log_file, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
+    liboprf_debug=1;
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
     if(stp_add_cheater(ctx, 2, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
-  debug=_debug;
+  liboprf_debug=_debug;
 
   if(0!=toprf_send_msg(output, output_len, toprfupdate_stp_bc_transcript_msg, 0, 0xff, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
 
@@ -1685,7 +1685,7 @@ static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, co
 
 #define toprfupdate_peer_mult1_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + (toprf_update_commitment_HASHBYTES + ctx->n * crypto_auth_hmacsha256_BYTES))
 static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] dkg-final2 receive&check final transcript, receive & VSPS check p commitments\n"NORMAL, ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] dkg-final2 receive&check final transcript, receive & VSPS check p commitments\n"NORMAL, ctx->index);
   if(input_len != toprfupdate_stp_bc_transcript_msg_SIZE(ctx)) return TOPRF_Update_Err_ISize;
   if(output_len != isdealer(ctx->index, ctx->t) * toprfupdate_peer_mult1_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -1702,8 +1702,8 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
     if(peer_recv_msg(ctx,ptr,toprfupdate_peer_bc_transcript_msg_SIZE,toprfupdate_peer_bc_transcript_msg,i+1,0xff)) continue;
 
     if(sodium_memcmp(ctx->transcript, dptr, crypto_generichash_BYTES)!=0) {
-      if(log_file!=NULL) {
-        fprintf(log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
+      if(liboprf_log_file!=NULL) {
+        fprintf(liboprf_log_file,"\x1b[0;31m[!] failed to verify transcript from %d!\x1b[0m\n", i);
       }
       if(peer_add_cheater(ctx, 1, i+1, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
       continue;
@@ -1716,13 +1716,13 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
   // in theory this should not be needed, and not fail. except for the
   // case when the dealer shares were corrupted after calculating a
   // correct commitment for them. but that should also be previously detected.
-  int _debug=debug; debug=0;
+  int _debug=liboprf_debug; liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*pcom))) {
-    debug=1;
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] result of p DKG commitments fail VSPS\n"NORMAL, ctx->index);
+    liboprf_debug=1;
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] result of p DKG commitments fail VSPS\n"NORMAL, ctx->index);
     if(peer_add_cheater(ctx, 2, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
-  debug=_debug;
+  liboprf_debug=_debug;
 
   if(ctx->cheater_len>cheaters) return TOPRF_Update_Err_CheatersFound;
 
@@ -1732,7 +1732,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
   memset(ctx->p_complaints, 0, ctx->n*2);
   memset(ctx->my_p_complaints, 0, ctx->n);
 
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult1 dealers calculate and share λ_iα_iβ_i\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult1 dealers calculate and share λ_iα_iβ_i\x1b[0m\n", ctx->index);
 
   // todo dealers based on cheaters and knowledge of kc0
   const uint8_t dealers = (uint8_t) ((ctx->t-1)*2 + 1);
@@ -1757,7 +1757,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
                                ctx->kc0_share, ctx->p_share, (*ctx->lambdas),
                                // we reuse p_shares as we need to store n shares, and k0p_shares has only dealer entries
                                (*ctx->p_shares), (*ctx->k0p_commitments), ctx->k0p_tau)) {
-      if(log_file!=NULL) fprintf(log_file, "[%d] failed toprf_mpc_ftmult_step1\n", ctx->index);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] failed toprf_mpc_ftmult_step1\n", ctx->index);
       return TOPRF_Update_Err_FTMULTStep1;
   }
 #ifdef UNITTEST_CORRUPT
@@ -1818,7 +1818,7 @@ static TOPRF_Update_Err stp_step25_handler(TOPRF_Update_STPState *ctx, const uin
 #define toprfupdate_peer_mult_coms_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + crypto_core_ristretto255_BYTES * (ctx->n+1U) * 2)
 static TOPRF_Update_Err peer_mult2_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1)*2 + 1);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult3 receive commitment hashes, broadcast commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult3 receive commitment hashes, broadcast commitments\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_mult1_msg_SIZE(ctx) * dealers) return TOPRF_Update_Err_ISize;
   if(output_len != isdealer(ctx->index, ctx->t) * toprfupdate_peer_mult_coms_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -1845,7 +1845,7 @@ static TOPRF_Update_Err peer_mult2_handler(TOPRF_Update_PeerState *ctx, const ui
       dptr+=crypto_auth_hmacsha256_BYTES;
     }
 
-    if(log_file!=NULL) {
+    if(liboprf_log_file!=NULL) {
       dump((*ctx->p_commitments_hashes)[i], toprf_update_commitment_HASHBYTES, "[%d] p   commitment hash [%d]", ctx->index, i+1);
     }
   }
@@ -1860,7 +1860,7 @@ static TOPRF_Update_Err peer_mult2_handler(TOPRF_Update_PeerState *ctx, const ui
   uint8_t *wptr = msg->data;
   // we stashed our commitments temporarily in k_commitments
   memcpy(wptr, (*ctx->k0p_commitments), (ctx->n+1U) * crypto_core_ristretto255_BYTES);
-  if(log_file!=NULL) dump((uint8_t*)(*ctx->k0p_commitments), (ctx->n+1U) * crypto_core_ristretto255_BYTES, "[%d] commitments", ctx->index);
+  if(liboprf_log_file!=NULL) dump((uint8_t*)(*ctx->k0p_commitments), (ctx->n+1U) * crypto_core_ristretto255_BYTES, "[%d] commitments", ctx->index);
   //broadcast dealer_commitments
   if(0!=toprf_send_msg(output, toprfupdate_peer_mult_coms_msg_SIZE(ctx), toprfupdate_peer_mult_coms_msg, ctx->index, 0xff, ctx->sig_sk, ctx->sessionid)) return TOPRF_Update_Err_Send;
 
@@ -1900,7 +1900,7 @@ static TOPRF_Update_Err stp_mult_com_handler(TOPRF_Update_STPState *ctx, const u
 #define toprfupdate_peer_mult2_msg_SIZE (sizeof(TOPRF_Update_Message) + sizeof(TOPRF_Share) * 4)
 static TOPRF_Update_Err peer_step26_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1)*2 + 1);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult5 receive Mul commitments & distribute encrypted Mult shares\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult5 receive Mul commitments & distribute encrypted Mult shares\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_mult_coms_msg_SIZE(ctx) * dealers) return TOPRF_Update_Err_ISize;
   if(output_len != isdealer(ctx->index, ctx->t) * ctx->n * toprfupdate_peer_mult2_msg_SIZE) return TOPRF_Update_Err_OSize;
 
@@ -1922,7 +1922,7 @@ static TOPRF_Update_Err peer_step26_handler(TOPRF_Update_PeerState *ctx, const u
     uint8_t chash[toprf_update_commitment_HASHBYTES];
     crypto_generichash(chash, toprf_update_commitment_HASHBYTES, (*ctx->k0p_commitments)[i*(ctx->n+1U)], crypto_core_ristretto255_BYTES*(ctx->n+1U), NULL, 0);
     if(memcmp(chash, (*ctx->p_commitments_hashes)[i], toprf_update_commitment_HASHBYTES)!=0) {
-      if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to verify hash for k0p commitments of dealer %d\n"NORMAL, ctx->index, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed to verify hash for k0p commitments of dealer %d\n"NORMAL, ctx->index, i+1);
       if(peer_add_cheater(ctx, 1, i+1, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
     }
   }
@@ -1956,7 +1956,7 @@ static TOPRF_Update_Err stp_step27_handler(TOPRF_Update_STPState *ctx, const uin
 #define toprfupdate_peer_verify_mult_shares_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + 2U + (size_t)((ctx->t-1U)*2 + 1U) * 2)
 static TOPRF_Update_Err peer_step28_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult7 receive k0*p shares, starts checking of commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult7 receive k0*p shares, starts checking of commitments\x1b[0m\n", ctx->index);
   if(input_len != dealers * toprfupdate_peer_mult2_msg_SIZE) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_verify_mult_shares_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -2022,11 +2022,11 @@ static TOPRF_Update_Err peer_mult_fork(TOPRF_Update_PeerState *ctx, const uint8_
 }
 
 static TOPRF_Update_Err peer_mult_defend(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult-defend1 disclose share encryption key for contested Mult shares\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult-defend1 disclose share encryption key for contested Mult shares\x1b[0m\n", ctx->index);
   if(output_len != toprf_update_peer_output_size(ctx)) return TOPRF_Update_Err_OSize;
   if(output_len == 0) {
-    if(log_file!=NULL) {
-      fprintf(log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
+    if(liboprf_log_file!=NULL) {
+      fprintf(liboprf_log_file,"[%d] nothing to defend against, no message to send\n", ctx->index);
     }
     ctx->step = TOPRF_Update_Peer_Check_Mult_Shares;
     return 0;
@@ -2036,7 +2036,7 @@ static TOPRF_Update_Err peer_mult_defend(TOPRF_Update_PeerState *ctx, uint8_t *o
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
   uint8_t *wptr = msg->data;
   for(int i=0;i<ctx->my_p_complaints_len;i++) {
-    if(log_file!=NULL) fprintf(log_file, "\x1b[0;36m[%d] defending against k0p complaint from %d\x1b[0m\n", ctx->index, ctx->my_p_complaints[i]);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;36m[%d] defending against k0p complaint from %d\x1b[0m\n", ctx->index, ctx->my_p_complaints[i]);
 
     *wptr++ = ctx->my_p_complaints[i];
     // reveal key for noise wrapped share sent previously
@@ -2055,7 +2055,7 @@ static TOPRF_Update_Err peer_mult_defend(TOPRF_Update_PeerState *ctx, uint8_t *o
 
 static TOPRF_Update_Err stp_broadcast_mult_defenses(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] mult-defend2 broadcast mult defenses\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] mult-defend2 broadcast mult defenses\x1b[0m\n");
   if(input_len != toprf_update_stp_input_size(ctx)) return TOPRF_Update_Err_ISize;
   if(output_len != toprf_update_stp_output_size(ctx)) return TOPRF_Update_Err_OSize;
 
@@ -2111,7 +2111,7 @@ static TOPRF_Update_Err stp_broadcast_mult_defenses(TOPRF_Update_STPState *ctx, 
 
 static TOPRF_Update_Err peer_check_mult_shares(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult-defend3 verify disclosed mult shares\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult-defend3 verify disclosed mult shares\x1b[0m\n", ctx->index);
   if(input_len != toprf_update_peer_input_size(ctx)) return TOPRF_Update_Err_ISize;
 
   // verify STP message envelope
@@ -2192,7 +2192,7 @@ static TOPRF_Update_Err disclose_shares(const uint8_t n,
 #define toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message)                                  \
                                                             + unique_p_complaints(ctx) * toprf_update_encrypted_shares_SIZE)
 static TOPRF_Update_Err peer_disclose_mult_shares(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult-reconst1 disclose shares to reconstruct Mult secrets of cheaters\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult-reconst1 disclose shares to reconstruct Mult secrets of cheaters\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
@@ -2230,10 +2230,10 @@ static TOPRF_Update_Err reconstruct(const uint8_t n, const uint8_t t,
     if(seen[accused-1]) continue;
     seen[accused-1]=1;
 
-    if(log_file!=NULL) fprintf(log_file, "[!] reconstructing %s share/commitment of dealer %d accused by %d\n", type, accused, accuser);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] reconstructing %s share/commitment of dealer %d accused by %d\n", type, accused, accuser);
     uint8_t t1=t;
     for(t1=t;t1<n;t1++) {
-      fprintf(log_file, "trying degree t+%d\n", t1-t);
+      fprintf(liboprf_log_file, "trying degree t+%d\n", t1-t);
       if(0!=dkg_vss_reconstruct(t1, 0, n, shares[share_idx], &(*commitments)[(n+1) * (accused - 1) + 1], r[0].value, r[1].value)) continue;
       if(0!=dkg_vss_verify_commitment((*c)[accused-1][0],r)) continue;
       break;
@@ -2249,7 +2249,7 @@ static TOPRF_Update_Err reconstruct(const uint8_t n, const uint8_t t,
     dump((uint8_t*) &r, sizeof r, "[!] reconstructed share of %d - accused by %d", accused, accuser);
 
     if(0!=dkg_vss_verify_commitment((*c)[accused-1][accuser],r)) {
-      if(log_file!=NULL) fprintf(log_file, RED"[!] failed to validate commitment for reconstructed %s share from %d\n"NORMAL, type, accused);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] failed to validate commitment for reconstructed %s share from %d\n"NORMAL, type, accused);
       dump((*c)[accused-1][accuser], 32, "[!] commitment", accuser);
       if(0!=dkg_vss_commit(r[0].value, r[1].value,(*c)[accused-1][accuser])) return TOPRF_Update_Err_VSSCommit;
       dump((*c)[accused-1][accuser], 32, "[!] corrected ", accuser);
@@ -2310,10 +2310,10 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
     if(seen[accused-1]) continue;
     seen[accused-1]=1;
 
-    if(log_file!=NULL) fprintf(log_file, "[%d] reconstructing %s share/commitment of dealer %d accused by %d\n", ctx->index, type, accused, accuser);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] reconstructing %s share/commitment of dealer %d accused by %d\n", ctx->index, type, accused, accuser);
     uint8_t t1=ctx->t;
     for(t1=ctx->t;t1<ctx->n;t1++) {
-      fprintf(log_file, "trying degree t+%d\n", t1-ctx->t);
+      fprintf(liboprf_log_file, "trying degree t+%d\n", t1-ctx->t);
       if(0!=dkg_vss_reconstruct(t1, 0, ctx->n, shares[share_idx], &(*commitments)[(ctx->n+1) * (accused - 1) + 1], r[0].value, r[1].value)) continue;
       if(0!=dkg_vss_verify_commitment((*c)[accused-1][0],r)) continue;
       break;
@@ -2324,7 +2324,7 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
     dump((uint8_t*) &r, sizeof r, "[%d] reconstructed share of %d - accused by %d", ctx->index, accused, accuser);
 
     if(0!=dkg_vss_verify_commitment((*c)[accused-1][accuser],r)) {
-      if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to validate commitment for reconstructed %s share from %d\n"NORMAL, ctx->index, type, accused);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed to validate commitment for reconstructed %s share from %d\n"NORMAL, ctx->index, type, accused);
       dump((*c)[accused-1][accuser], 32, "[%d] commitment", ctx->index);
       if(0!=dkg_vss_commit(r[0].value, r[1].value, (*c)[accused-1][accuser])) return TOPRF_Update_Err_VSSCommit;
       dump((*c)[accused-1][accuser], 32, "[%d] corrected ", ctx->index);
@@ -2349,7 +2349,7 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
     const int diff = (memcmp(r[0].value, my_shares[accused - 1][0].value, 32)!=0) |  (memcmp(r[1].value, my_shares[accused - 1][1].value, 32)!=0) << 1;
     if(diff!=0) {
       if(!incorrect) {
-        if(log_file!=NULL) fprintf(log_file, RED"[%d] reconstructed a different %s share from %d than " \
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] reconstructed a different %s share from %d than " \
                                    "was previously validated using its commitment, was accused by %d\n"NORMAL, ctx->index, type, accused, accuser);
         return TOPRF_Update_Err_BadReconstruct;
       }
@@ -2371,7 +2371,7 @@ static TOPRF_Update_Err peer_reconstruct(TOPRF_Update_PeerState *ctx,
 
 static TOPRF_Update_Err peer_send_zk_chalcoms(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len);
 static TOPRF_Update_Err peer_reconst_mult_shares(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] mult-reconst3 reconstruct secrets of cheating mult dealers\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] mult-reconst3 reconstruct secrets of cheating mult dealers\x1b[0m\n", ctx->index);
   if(input_len!= sizeof(TOPRF_Update_Message) + toprfupdate_peer_reconst_mult_shares_msg_SIZE(ctx) * ctx->n) return TOPRF_Update_Err_ISize;
 
   // verify STP message envelope
@@ -2403,7 +2403,7 @@ static TOPRF_Update_Err peer_reconst_mult_shares(TOPRF_Update_PeerState *ctx, co
 //ctx->step = TOPRF_Update_Peer_Send_ZK_Challenge_Commitments;
 #define toprfupdate_peer_zkp1_msg_SIZE (sizeof(TOPRF_Update_Message) + crypto_scalarmult_ristretto255_BYTES)
 static TOPRF_Update_Err peer_send_zk_chalcoms(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk1 send ZK challenge commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk1 send ZK challenge commitments\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_zkp1_msg_SIZE) return TOPRF_Update_Err_OSize;
 
   // generate 2x nonces for ZK proof challenge, broadcast a commitment to it.
@@ -2428,7 +2428,7 @@ static TOPRF_Update_Err stp_step29_handler(TOPRF_Update_STPState *ctx, const uin
 #define toprfupdate_peer_zkp2_msg_SIZE (sizeof(TOPRF_Update_Message) + 2 * 3 * crypto_scalarmult_ristretto255_SCALARBYTES)
 static TOPRF_Update_Err peer_step30_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk2 everyone receives all e_j nonces, dealers broadcast ZK commitments\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk2 everyone receives all e_j nonces, dealers broadcast ZK commitments\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp1_msg_SIZE * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != isdealer(ctx->index, ctx->t) * toprfupdate_peer_zkp2_msg_SIZE) return TOPRF_Update_Err_OSize;
   const size_t cheaters = ctx->cheater_len;
@@ -2508,7 +2508,7 @@ static TOPRF_Update_Err stp_step31_handler(TOPRF_Update_STPState *ctx, const uin
 #define toprfupdate_peer_zkp3_msg_SIZE (sizeof(TOPRF_Update_Message) + 4*crypto_scalarmult_ristretto255_SCALARBYTES)
 static TOPRF_Update_Err peer_step32_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk4 receive dealers ZK commitments, broadcast zk nonce\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk4 receive dealers ZK commitments, broadcast zk nonce\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp2_msg_SIZE * dealers) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_peer_zkp3_msg_SIZE) return TOPRF_Update_Err_OSize;
   const size_t cheaters = ctx->cheater_len;
@@ -2596,12 +2596,12 @@ static TOPRF_Update_Err aggregate_zk_challenges(TOPRF_Update_PeerState *ctx,
     for(uint8_t i=0;i<n;i++) {
       if(dealer==i) continue;
       if(0!=dkg_vss_commit(zk_challenge_nonces[i][0], zk_challenge_nonces[i][1], zk_challenge_commitment)) {
-        if(log_file!=NULL) fprintf(log_file, "vss-commit got an invalid point %d\n",i);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "vss-commit got an invalid point %d\n",i);
         return TOPRF_Update_Err_VSSCommit;
       }
       if(memcmp(zk_challenge_commitment, zk_challenge_nonce_commitments[i], crypto_scalarmult_ristretto255_BYTES)!=0) {
         if(peer_add_cheater(ctx, 1, i+1, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
-        if(log_file!=NULL) fprintf(log_file, "invalid e_i nonce commitment from %d\n",i);
+        if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "invalid e_i nonce commitment from %d\n",i);
         dump((const uint8_t*)zk_challenge_nonces[i], 2*crypto_scalarmult_ristretto255_SCALARBYTES, "zk_nonce[%d]", i+1);
         dump(zk_challenge_nonce_commitments[i], crypto_scalarmult_ristretto255_BYTES, "zk_challenge_commmitments[%d]", i+1);
       }
@@ -2653,7 +2653,7 @@ static uint8_t* gen_zk_witnesses(const uint8_t self, const uint8_t dealers,
 #define toprfupdate_peer_zkp4_msg_SIZE (sizeof(TOPRF_Update_Message) + 5 * crypto_scalarmult_ristretto255_SCALARBYTES)
 static TOPRF_Update_Err peer_step34_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk6 receive ZK nonces, dealers broadcast zk proof\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk6 receive ZK nonces, dealers broadcast zk proof\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp3_msg_SIZE * ctx->n) return TOPRF_Update_Err_ISize;
   if(output_len != isdealer(ctx->index, ctx->t) * toprfupdate_peer_zkp4_msg_SIZE) return TOPRF_Update_Err_OSize;
   const size_t cheaters = ctx->cheater_len;
@@ -2723,7 +2723,7 @@ static TOPRF_Update_Err zk_verify_proof(TOPRF_Update_PeerState *ctx,
   if(crypto_scalarmult_ristretto255(v1, e_i, B_i)) return TOPRF_Update_Err_InvPoint;
   crypto_core_ristretto255_add(v1, M, v1);
   if(memcmp(v1, v0, crypto_scalarmult_ristretto255_BYTES)!=0) {
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] failed g^y * h^w   == M * B^e'_i for dealer %d\n"NORMAL, self, prover+1);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed g^y * h^w   == M * B^e'_i for dealer %d\n"NORMAL, self, prover+1);
     dump(v1, crypto_scalarmult_ristretto255_BYTES, "lhs");
     dump(v0, crypto_scalarmult_ristretto255_BYTES, "rhs");
     fails[1+fails[0]++]=prover+1;
@@ -2737,7 +2737,7 @@ static TOPRF_Update_Err zk_verify_proof(TOPRF_Update_PeerState *ctx,
   if(crypto_scalarmult_ristretto255(v1, lambda, v1)) return TOPRF_Update_Err_InvPoint;
   crypto_core_ristretto255_add(v1, M1, v1);
   if(memcmp(v1, v0, crypto_scalarmult_ristretto255_BYTES)!=0) {
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] failed g^z * h^w_1 == M_1 * A^e'_i for dealer %d\n"NORMAL, self, prover+1);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed g^z * h^w_1 == M_1 * A^e'_i for dealer %d\n"NORMAL, self, prover+1);
     dump(v1, crypto_scalarmult_ristretto255_BYTES, "lhs");
     dump(v0, crypto_scalarmult_ristretto255_BYTES, "rhs");
     fails[1+fails[0]++]=prover+1;
@@ -2754,7 +2754,7 @@ static TOPRF_Update_Err zk_verify_proof(TOPRF_Update_PeerState *ctx,
   if(crypto_scalarmult_ristretto255(v1, e_i, C_i0)) return TOPRF_Update_Err_InvPoint;
   crypto_core_ristretto255_add(v1, M2, v1);
   if(memcmp(v1, v0, crypto_scalarmult_ristretto255_BYTES)!=0) {
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] failed B^z * h^w_2 == M_2 * C^e'_i for dealer %d\n"NORMAL, self, prover+1);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed B^z * h^w_2 == M_2 * C^e'_i for dealer %d\n"NORMAL, self, prover+1);
     dump(v1, crypto_scalarmult_ristretto255_BYTES, "lhs");
     dump(v0, crypto_scalarmult_ristretto255_BYTES, "rhs");
     fails[1+fails[0]++]=prover+1;
@@ -2816,7 +2816,7 @@ static TOPRF_Update_Err stp_step35_handler(TOPRF_Update_STPState *ctx, const uin
 
 static TOPRF_Update_Err peer_step36_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk8 verify ZK proofs, accuse cheaters\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk8 verify ZK proofs, accuse cheaters\x1b[0m\n", ctx->index);
   if(input_len != sizeof(TOPRF_Update_Message) + toprfupdate_peer_zkp4_msg_SIZE * dealers) return TOPRF_Update_Err_ISize;
   //const size_t cheaters = ctx->cheater_len;
 
@@ -2869,7 +2869,7 @@ static TOPRF_Update_Err peer_step36_handler(TOPRF_Update_PeerState *ctx, const u
 #define toprfupdate_peer_zk_disclose_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message)                         \
                                                     +  ctx->p_complaints_len * TOPRF_Share_BYTES * 2     )
 static TOPRF_Update_Err peer_zkproof_disclose(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk-reconst1 disclose shares of dealers unable to prove c=a*b\n"NORMAL, ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk-reconst1 disclose shares of dealers unable to prove c=a*b\n"NORMAL, ctx->index);
   if(output_len != toprf_update_peer_output_size(ctx)) return TOPRF_Update_Err_OSize;
 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
@@ -2919,7 +2919,7 @@ static TOPRF_Update_Err stp_bc_zk_disclosures(TOPRF_Update_STPState *ctx, const 
 
 static TOPRF_Update_Err peer_step39_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len);
 static TOPRF_Update_Err peer_reconst_zk_shares(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] zk-reconst3 reconstruct secrets of dealers failing ZK proof\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] zk-reconst3 reconstruct secrets of dealers failing ZK proof\x1b[0m\n", ctx->index);
   if(input_len!= sizeof(TOPRF_Update_Message) + toprfupdate_peer_zk_disclose_msg_SIZE(ctx) * ctx->n) return TOPRF_Update_Err_ISize;
 
   // verify STP message envelope
@@ -2987,7 +2987,7 @@ static TOPRF_Update_Err compute_mul_share(const uint8_t dealers,
 #define toprfupdate_peer_mult3_msg_SIZE (sizeof(TOPRF_Update_Message) + crypto_scalarmult_ristretto255_BYTES)
 static TOPRF_Update_Err peer_step39_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] final1 aggregate shares into final results and broadcast their commitment\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] final1 aggregate shares into final results and broadcast their commitment\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_mult3_msg_SIZE) return TOPRF_Update_Err_OSize;
 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
@@ -3004,7 +3004,7 @@ static TOPRF_Update_Err peer_step39_handler(TOPRF_Update_PeerState *ctx, uint8_t
   }
   // todo this check might not be needed
   if(memcmp(Cx_i, ctx->k0p_commitment, sizeof Cx_i) != 0) {
-    if(log_file!=NULL) fprintf(log_file, RED"[%d] failed to verify commitment for k0p share"NORMAL, ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] failed to verify commitment for k0p share"NORMAL, ctx->index);
     // todo cheater handling? who would be the cheater here?
     return TOPRF_Update_Err_CommmitmentsMismatch; // probably cannot happen?
   }
@@ -3018,7 +3018,7 @@ static TOPRF_Update_Err peer_step39_handler(TOPRF_Update_PeerState *ctx, uint8_t
 #define toprfupdate_stp_bc_mult3_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message) + toprfupdate_peer_mult3_msg_SIZE * ctx->n)
 static TOPRF_Update_Err stp_step40_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] final2 broadcast final mult commitments\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] final2 broadcast final mult commitments\x1b[0m\n");
   if(input_len != ctx->n * toprfupdate_peer_mult3_msg_SIZE) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_stp_bc_mult3_msg_SIZE(ctx)) return TOPRF_Update_Err_OSize;
   //const size_t cheaters = ctx->cheater_len;
@@ -3070,7 +3070,7 @@ static TOPRF_Update_Err stp_step40_handler(TOPRF_Update_STPState *ctx, const uin
 
 static TOPRF_Update_Err peer_step41_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len) {
   const uint8_t dealers = (uint8_t) ((ctx->t-1U)*2 + 1U);
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] final3 receive final mult commitments, fast-track VSPS final results\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] final3 receive final mult commitments, fast-track VSPS final results\x1b[0m\n", ctx->index);
   if(input_len != toprfupdate_stp_bc_mult3_msg_SIZE(ctx)) return TOPRF_Update_Err_ISize;
   const size_t cheaters = ctx->cheater_len;
 
@@ -3090,13 +3090,13 @@ static TOPRF_Update_Err peer_step41_handler(TOPRF_Update_PeerState *ctx, const u
   uint8_t fails[dealers+1];
   memset(fails, 0, sizeof fails);
 
-  //debug=0;
+  //liboprf_debug=0;
   //for(unsigned i=0;i<dealers;i++) {
   //  if(0!=toprf_mpc_vsps_check(ctx->t-1, (const uint8_t (*)[crypto_core_ristretto255_BYTES]) (*ctx->k0p_commitments)[i*(ctx->n+1)])) {
-  //    if(log_file!=NULL) fprintf(log_file, RED"[%d] k0p vsps fails [%d]\n"NORMAL, ctx->index, i+1);
+  //    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] k0p vsps fails [%d]\n"NORMAL, ctx->index, i+1);
   //  }
   //}
-  //debug=1;
+  //liboprf_debug=1;
 
   uint8_t (*c)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES] = (uint8_t (*)[dealers][ctx->n+1][crypto_core_ristretto255_BYTES]) ctx->k0p_commitments;
   ret = ft_or_full_vsps(ctx->n+1, ctx->t, dealers, ctx->index, C_i, c,
@@ -3125,7 +3125,7 @@ static TOPRF_Update_Err peer_step41_handler(TOPRF_Update_PeerState *ctx, const u
 #define toprfupdate_peer_vsps_disclose_msg_SIZE(ctx) (sizeof(TOPRF_Update_Message)                         \
                                                       +  ctx->p_complaints_len * TOPRF_Share_BYTES * 2     )
 static TOPRF_Update_Err peer_vsps_disclose(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] final-reconst1 disclose shares of dealers failing vsps\n"NORMAL, ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] final-reconst1 disclose shares of dealers failing vsps\n"NORMAL, ctx->index);
   if(output_len != toprf_update_peer_output_size(ctx)) return TOPRF_Update_Err_OSize;
 
   TOPRF_Update_Message* msg = (TOPRF_Update_Message*) output;
@@ -3201,11 +3201,11 @@ static TOPRF_Update_Err stp_reshare(TOPRF_Update_STPState *ctx
     if(vss_reshare(ctx->n, ctx->t, ctx->sessionid, secrets[i][0], reshares, &(*commitments)[1], secrets[i][1])) return TOPRF_Update_Err_VSSShare;
     if(0!=dkg_vss_commit(secrets[i][0], secrets[i][1], (*commitments)[0])) return 1;
 
-    int _debug=debug; debug=0;
+    int _debug=liboprf_debug; liboprf_debug=0;
     if(0!=toprf_mpc_vsps_check(ctx->t-1, (*commitments))) {
-      if(log_file!=NULL) fprintf(log_file, RED"[!] VSPS asdfasdf failed k0p\n"NORMAL);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] VSPS asdfasdf failed k0p\n"NORMAL);
     }
-    debug=_debug;
+    liboprf_debug=_debug;
     dump((uint8_t*) (*commitments), (ctx->n+1U)*crypto_core_ristretto255_BYTES, "reshared k0p commitments");
   }
   return TOPRF_Update_Err_OK;
@@ -3264,11 +3264,11 @@ static TOPRF_Update_Err peer_reshare(TOPRF_Update_PeerState *ctx
     if(vss_reshare(ctx->n, ctx->t, ctx->sessionid, secrets[i][0], reshares, &(*commitments)[1], secrets[i][1])) return TOPRF_Update_Err_VSSShare;
     if(0!=dkg_vss_commit(secrets[i][0], secrets[i][1], (*commitments)[0])) return 1;
 
-    int _debug=debug; debug=0;
+    int _debug=liboprf_debug; liboprf_debug=0;
     if(0!=toprf_mpc_vsps_check(ctx->t-1, (*commitments))) {
-      if(log_file!=NULL) fprintf(log_file, RED"[!] VSPS asdfasdf failed k0p\n"NORMAL);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] VSPS asdfasdf failed k0p\n"NORMAL);
     }
-    debug=_debug;
+    liboprf_debug=_debug;
     dump((uint8_t*) (*commitments), (ctx->n+1U)*crypto_core_ristretto255_BYTES, "reshared k0p commitments");
 
     const uint8_t accused = (uint8_t) (complaints[i] & 0xff);
@@ -3289,7 +3289,7 @@ static TOPRF_Update_Err peer_reshare(TOPRF_Update_PeerState *ctx
 
 static int peer_step44_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len);
 static TOPRF_Update_Err peer_reconst_vsps_shares(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] final-reconst3 reconstruct secrets of dealers failing VSPS check\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] final-reconst3 reconstruct secrets of dealers failing VSPS check\x1b[0m\n", ctx->index);
   if(input_len!= sizeof(TOPRF_Update_Message) + toprfupdate_peer_zk_disclose_msg_SIZE(ctx) * ctx->n) return TOPRF_Update_Err_ISize;
 
   // verify STP message envelope
@@ -3321,7 +3321,7 @@ static TOPRF_Update_Err peer_reconst_vsps_shares(TOPRF_Update_PeerState *ctx, co
 #define toprfupdate_peer_end2_msg_SIZE (sizeof(TOPRF_Update_Message) + 2 * TOPRF_Share_BYTES)
 static int peer_step44_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, const size_t output_len) {
   // todo maybe check the global transcript before sending the r & r' shares to stp?
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] final4 send final shared p to STP\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] final4 send final shared p to STP\x1b[0m\n", ctx->index);
   if(output_len != toprfupdate_peer_end2_msg_SIZE) return TOPRF_Update_Err_OSize;
 
   TOPRF_Update_Message* msg41 = (TOPRF_Update_Message*) output;
@@ -3335,7 +3335,7 @@ static int peer_step44_handler(TOPRF_Update_PeerState *ctx, uint8_t *output, con
 
 #define toprfupdate_stp_bc_end3_msg_SIZE (sizeof(TOPRF_Update_Message) + 1)
 static int stp_step45_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, const size_t input_len, uint8_t *output, const size_t output_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[!] final5. reconstruct delta\x1b[0m\n");
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[!] final5. reconstruct delta\x1b[0m\n");
   if(input_len != ctx->n * toprfupdate_peer_end2_msg_SIZE) return TOPRF_Update_Err_ISize;
   if(output_len != toprfupdate_stp_bc_end3_msg_SIZE) return TOPRF_Update_Err_OSize;
   const size_t cheaters = ctx->cheater_len;
@@ -3353,16 +3353,16 @@ static int stp_step45_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, 
   uint8_t *fail=outmsg->data;
   *fail = 0;
 
-  int _debug=debug; debug=0;
+  int _debug=liboprf_debug; liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*ctx->p_commitments))) {
-    if(log_file!=NULL) fprintf(log_file, RED"[!] VSPS failed k0p\n"NORMAL);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] VSPS failed k0p\n"NORMAL);
     *fail=1;
   }
-  debug=_debug;
+  liboprf_debug=_debug;
 
   for(unsigned i=0;i<ctx->n;i++) {
     if(0!=dkg_vss_verify_commitment((*ctx->p_commitments)[i], p_shares[i])) {
-      if(log_file!=NULL) fprintf(log_file, RED"[!] failed to verify commitment for p share %d\n"NORMAL, i+1);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] failed to verify commitment for p share %d\n"NORMAL, i+1);
       dump((*ctx->p_commitments)[i], crypto_scalarmult_ristretto255_BYTES, "[!] C[%d]", i+1);
       dump((uint8_t*) p_shares[i], 2*TOPRF_Share_BYTES, "[!] s[%d]", i+1);
       *fail=1;
@@ -3382,7 +3382,7 @@ static int stp_step45_handler(TOPRF_Update_STPState *ctx, const uint8_t *input, 
 }
 
 static TOPRF_Update_Err peer_step46_handler(TOPRF_Update_PeerState *ctx, const uint8_t *input, const size_t input_len) {
-  if(log_file!=NULL) fprintf(log_file, "\x1b[0;33m[%d] final6. receive final confirmation from STP\x1b[0m\n", ctx->index);
+  if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;33m[%d] final6. receive final confirmation from STP\x1b[0m\n", ctx->index);
   if(input_len != toprfupdate_stp_bc_end3_msg_SIZE) return TOPRF_Update_Err_ISize;
 
   // verify STP message envelope
@@ -3391,10 +3391,10 @@ static TOPRF_Update_Err peer_step46_handler(TOPRF_Update_PeerState *ctx, const u
   if(0!=ret) return TOPRF_Update_Err_BroadcastEnv+ret;
 
   if(msg->data[0]!=0) {
-      if(log_file!=NULL) fprintf(log_file, RED"[%d] STP indicated failure at final step discarding all results, keeping old key\n"NORMAL, ctx->index);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] STP indicated failure at final step discarding all results, keeping old key\n"NORMAL, ctx->index);
       return TOPRF_Update_Err_Proto;
   } else {
-      if(log_file!=NULL) fprintf(log_file, "\x1b[0;32m[%d] STP indicated full success updating old key to new key\n"NORMAL, ctx->index);
+      if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "\x1b[0;32m[%d] STP indicated full success updating old key to new key\n"NORMAL, ctx->index);
   }
 
   ctx->step = TOPRF_Update_Peer_Done;
@@ -3517,7 +3517,7 @@ int toprf_update_stp_input_sizes(const TOPRF_Update_STPState *ctx, size_t *sizes
   case TOPRF_Update_STP_Broadcast_VSPS_Disclosures: { item = toprfupdate_peer_vsps_disclose_msg_SIZE(ctx); break; }
   case TOPRF_Update_STP_Reconstruct_Delta: { item = toprfupdate_peer_end2_msg_SIZE; break; }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] isize invalid stp step: %d\n", ctx->step);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] isize invalid stp step: %d\n", ctx->step);
   }
   }
 
@@ -3557,7 +3557,7 @@ size_t toprf_update_stp_output_size(const TOPRF_Update_STPState *ctx) {
   case TOPRF_Update_STP_Broadcast_Mult_Ci: return toprfupdate_stp_bc_mult3_msg_SIZE(ctx);
   case TOPRF_Update_STP_Broadcast_VSPS_Disclosures: return toprfupdate_stp_bc_vsps_disclose_msg_SIZE(ctx);
   case TOPRF_Update_STP_Reconstruct_Delta: return toprfupdate_stp_bc_end3_msg_SIZE;
-  default: if(log_file!=NULL) fprintf(log_file, "[!] osize invalid stp step: %d\n", ctx->step);
+  default: if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] osize invalid stp step: %d\n", ctx->step);
   }
   return 0;
 }
@@ -3711,13 +3711,13 @@ int toprf_update_stp_peer_msg(const TOPRF_Update_STPState *ctx, const uint8_t *b
     break;
   }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] invalid stp step in toprf_update_stp_peer_msg\n");
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] invalid stp step in toprf_update_stp_peer_msg\n");
     return 1;
   }
   }
 
   if(base+base_size < *msg + *len) {
-    if(log_file!=NULL) fprintf(log_file, "buffer overread detected in toprf_update_stp_peer_msg %ld\n", (base+base_size) - (*msg + *len));
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "buffer overread detected in toprf_update_stp_peer_msg %ld\n", (base+base_size) - (*msg + *len));
     return 2;
   }
 
@@ -3794,7 +3794,7 @@ size_t toprf_update_peer_input_size(const TOPRF_Update_PeerState *ctx) {
   case TOPRF_Update_Peer_Send_k0p_Share: return 0;
   case TOPRF_Update_Peer_Final_OK: return toprfupdate_stp_bc_end3_msg_SIZE;
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[%d] peer input size invalid step\n", ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] peer input size invalid step\n", ctx->index);
   }
   }
   return 1;
@@ -3849,7 +3849,7 @@ size_t toprf_update_peer_output_size(const TOPRF_Update_PeerState *ctx) {
   case TOPRF_Update_Peer_Send_k0p_Share: return toprfupdate_peer_end2_msg_SIZE;
   case TOPRF_Update_Peer_Final_OK: return 0;
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[%d] peer output size invalid step\n", ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] peer output size invalid step\n", ctx->index);
   }
   }
   return 1;
@@ -3890,7 +3890,7 @@ int toprf_update_stp_next(TOPRF_Update_STPState *ctx, const uint8_t *input, cons
   case TOPRF_Update_STP_Broadcast_VSPS_Disclosures: { ret = stp_bc_vsps_disclosures(ctx, input, input_len, output, output_len); break;}
   case TOPRF_Update_STP_Reconstruct_Delta: { ret = stp_step45_handler(ctx, input, input_len, output, output_len); break;}
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[!] stp next invalid step\n");
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[!] stp next invalid step\n");
     return 99;
   }
   }
@@ -3950,7 +3950,7 @@ int toprf_update_peer_next(TOPRF_Update_PeerState *ctx, const uint8_t *input, co
     break;
   }
   default: {
-    if(log_file!=NULL) fprintf(log_file, "[%d] peer next invalid step\n", ctx->index);
+    if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, "[%d] peer next invalid step\n", ctx->index);
     ret = 99;
   }
   }
