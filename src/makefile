@@ -5,7 +5,7 @@ CFLAGS?=-Wall -O2 -g -ffunction-sections -fdata-sections \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES)
+		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS)
 
 LIBS=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
@@ -59,6 +59,11 @@ else
    CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
+all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
+
+android:
+	$(MAKE) EXTRA_SOURCES+=jni.c EXTRA_CFLAGS+='-I/usr/lib/jvm/java-21-openjdk/include/ -I/usr/lib/jvm/java-21-openjdk/include/linux/' liboprf.$(SOEXT)
+
 LIBOPRF_SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c
 SOURCES=$(LIBOPRF_SOURCES) $(EXTRA_SOURCES)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
@@ -69,12 +74,6 @@ OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 # Terminal colors: purely for UX, comment out if causing problems
 decor = $(shell [ -t 0 ] && printf "\033[38;5;2m====" || printf "====")
 endDecor = $(shell [ -t 0 ] && printf "====\033[0m" || printf "====")
-
-android: CFLAGS+=-I$(SODIUM) -I$(SODIUM)/sodium -L.
-android: EXTRA_SOURCES+=jni.c
-android: liboprf.$(SOEXT)
-
-all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
 debug: DEFINES=-DTRACE
 debug: all
