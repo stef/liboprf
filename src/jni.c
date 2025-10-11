@@ -309,7 +309,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_next(JNIEnv 
 	return ret == 0 ? result : NULL;
 }
 
-JNIEXPORT jlongArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getInputSizes(JNIEnv *env, jobject ctxObj) {
+JNIEXPORT jobject JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getInputSizes(JNIEnv *env, jobject ctxObj) {
 	const jclass ctxClass = (*env)->FindClass(env, "org/hsbp/androsphinx/TpdkgContext");
 	const jfieldID ctxField = (*env)->GetFieldID(env, ctxClass, "ctx", "J");
 	const jlong ctxValue = (*env)->GetLongField(env, ctxObj, ctxField);
@@ -323,7 +323,13 @@ JNIEXPORT jlongArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getInputSize
 		bufferResult[i] = sizes[i];
 	}
 	(*env)->ReleaseLongArrayElements(env, result, bufferResult, 0);
-	return result;
+	jclass clazz = (*env)->FindClass(env, "kotlin/Pair");
+	jmethodID constructor = (*env)->GetMethodID(env, clazz, "<init>", "(Ljava/lang/Object;Ljava/lang/Object;)V");
+	jclass boolCls = (*env)->FindClass(env, "java/lang/Boolean");
+	jfieldID field = (*env)->GetStaticFieldID(env, boolCls, ret == 0 ? "FALSE" : "TRUE", "Ljava/lang/Boolean;");
+	jobject boolObj = (*env)->GetStaticObjectField(env, boolCls, field);
+	jobject pair = (*env)->NewObject(env, clazz, constructor, boolObj, result);
+	return pair;
 }
 
 JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getSessionId(JNIEnv *env, jobject ctxObj) {
@@ -516,4 +522,157 @@ JNIEXPORT void JNICALL Java_org_hsbp_androsphinx_TpdkgPeerContext_dispose(JNIEnv
 	free(state->last_ts);
 	free((void*)buf);
 	fprintf(stderr, "PC dispose() finished\n");
+}
+
+/* ======== generic libsodium bindings ========= */
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_genericHash(JNIEnv *env, jobject ignore, jbyteArray msg, jbyteArray salt, jint outlen) {
+	if (outlen <= 0) return NULL;
+
+	jbyte* bufferPtrMsg  = (*env)->GetByteArrayElements(env, msg,  NULL);
+	jbyte* bufferPtrSalt = salt == NULL ? NULL : (*env)->GetByteArrayElements(env, salt, NULL);
+	jsize msgLen = (*env)->GetArrayLength(env, msg);
+	jsize saltLen = salt == NULL ? 0 : (*env)->GetArrayLength(env, salt);
+
+	jbyteArray hash = (*env)->NewByteArray(env, outlen);
+	jbyte* bufferPtrHash = (*env)->GetByteArrayElements(env, hash, NULL);
+
+	crypto_generichash(bufferPtrHash, outlen,
+			bufferPtrMsg, msgLen, bufferPtrSalt, saltLen);
+
+	(*env)->ReleaseByteArrayElements(env, msg,  bufferPtrMsg, JNI_ABORT);
+	if (salt != NULL) {
+		(*env)->ReleaseByteArrayElements(env, salt, bufferPtrSalt, JNI_ABORT);
+	}
+	(*env)->ReleaseByteArrayElements(env, hash, bufferPtrHash, 0);
+
+	return hash;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_randomBytes(JNIEnv *env, jobject ignore, jint length) {
+	jbyteArray result = (*env)->NewByteArray(env, length);
+	jbyte* bufferPtrResult = (*env)->GetByteArrayElements(env, result, NULL);
+
+	randombytes_buf(bufferPtrResult, length);
+
+	(*env)->ReleaseByteArrayElements(env, result, bufferPtrResult, 0);
+
+	return result;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_cryptoSignSeedKeypair(JNIEnv *env, jobject ignore, jbyteArray seed) {
+	unsigned char ignored_pk[crypto_sign_PUBLICKEYBYTES];
+
+	jbyteArray result = (*env)->NewByteArray(env, crypto_sign_SECRETKEYBYTES);
+	jbyte* bufferPtrResult = (*env)->GetByteArrayElements(env, result, NULL);
+	jbyte* bufferPtrSeed = (*env)->GetByteArrayElements(env, seed, NULL);
+
+	crypto_sign_seed_keypair(ignored_pk, bufferPtrResult, bufferPtrSeed);
+
+	(*env)->ReleaseByteArrayElements(env, result, bufferPtrResult, 0);
+	(*env)->ReleaseByteArrayElements(env, seed, bufferPtrSeed, JNI_ABORT);
+
+	return result;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_cryptoSignEd25519SkToPk(JNIEnv *env, jobject ignore, jbyteArray sk) {
+	jbyteArray result = (*env)->NewByteArray(env, crypto_sign_PUBLICKEYBYTES);
+	jbyte* bufferPtrResult = (*env)->GetByteArrayElements(env, result, NULL);
+	jbyte* bufferPtrSk = (*env)->GetByteArrayElements(env, sk, NULL);
+
+	crypto_sign_ed25519_sk_to_pk(bufferPtrResult, bufferPtrSk);
+
+	(*env)->ReleaseByteArrayElements(env, result, bufferPtrResult, 0);
+	(*env)->ReleaseByteArrayElements(env, sk, bufferPtrSk, JNI_ABORT);
+
+	return result;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_cryptoSignDetached(JNIEnv *env, jobject ignore, jbyteArray sk, jbyteArray msg) {
+	jbyteArray result = (*env)->NewByteArray(env, crypto_sign_BYTES);
+	jbyte* bufferPtrResult = (*env)->GetByteArrayElements(env, result, NULL);
+	jbyte* bufferPtrSk = (*env)->GetByteArrayElements(env, sk, NULL);
+	jbyte* bufferPtrMsg = (*env)->GetByteArrayElements(env, msg, NULL);
+	jsize msgLen = (*env)->GetArrayLength(env, msg);
+
+	unsigned long long ignored_siglen = crypto_sign_BYTES;
+
+	crypto_sign_detached(bufferPtrResult, &ignored_siglen, bufferPtrMsg, msgLen, bufferPtrSk);
+
+	(*env)->ReleaseByteArrayElements(env, result, bufferPtrResult, 0);
+	(*env)->ReleaseByteArrayElements(env, sk, bufferPtrSk, JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, msg, bufferPtrMsg, JNI_ABORT);
+
+	return result;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_cryptoAeadXchachaPoly1305IetfEasy(JNIEnv *env, jobject ignore, jbyteArray msg, jbyteArray ad, jbyteArray key) {
+	jbyte* bufferPtrKey = (*env)->GetByteArrayElements(env, key, NULL);
+	jbyte* bufferPtrMsg = (*env)->GetByteArrayElements(env, msg, NULL);
+	jbyte* bufferPtrAd  = (*env)->GetByteArrayElements(env,  ad, NULL);
+	jsize msgLen = (*env)->GetArrayLength(env, msg);
+	jsize  adLen = (*env)->GetArrayLength(env,  ad);
+
+	jbyteArray result = (*env)->NewByteArray(env, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES + msgLen + crypto_aead_xchacha20poly1305_ietf_ABYTES);
+	jbyte* bufferPtrResult = (*env)->GetByteArrayElements(env, result, NULL);
+
+	randombytes_buf(bufferPtrResult, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+
+	int sodium_result = crypto_aead_xchacha20poly1305_ietf_encrypt(bufferPtrResult + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+			NULL, bufferPtrMsg, msgLen, bufferPtrAd, adLen, NULL, bufferPtrResult, bufferPtrKey);
+
+	(*env)->ReleaseByteArrayElements(env, result, bufferPtrResult, sodium_result ? JNI_ABORT : 0);
+	(*env)->ReleaseByteArrayElements(env,  ad, bufferPtrAd , JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, msg, bufferPtrMsg, JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, key, bufferPtrKey, JNI_ABORT);
+
+	return sodium_result ? NULL : result;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_cryptoAeadXchachaPoly1305IetfOpenEasy(JNIEnv *env, jobject ignore, jbyteArray msg, jbyteArray ad, jbyteArray key) {
+	jbyte* bufferPtrKey = (*env)->GetByteArrayElements(env, key, NULL);
+	jbyte* bufferPtrMsg = (*env)->GetByteArrayElements(env, msg, NULL);
+	jbyte* bufferPtrAd  = (*env)->GetByteArrayElements(env,  ad, NULL);
+	jsize msgLen = (*env)->GetArrayLength(env, msg);
+	jsize  adLen = (*env)->GetArrayLength(env,  ad);
+
+	jbyteArray result = (*env)->NewByteArray(env, msgLen - (crypto_aead_xchacha20poly1305_ietf_NPUBBYTES + crypto_aead_xchacha20poly1305_ietf_ABYTES));
+	jbyte* bufferPtrResult = (*env)->GetByteArrayElements(env, result, NULL);
+
+	int sodium_result = crypto_aead_xchacha20poly1305_ietf_decrypt(bufferPtrResult,
+			NULL, NULL, bufferPtrMsg + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+			msgLen - crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+			bufferPtrAd, adLen, bufferPtrMsg, bufferPtrKey);
+
+	(*env)->ReleaseByteArrayElements(env, result, bufferPtrResult, sodium_result ? JNI_ABORT : 0);
+	(*env)->ReleaseByteArrayElements(env,  ad, bufferPtrAd , JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, msg, bufferPtrMsg, JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, key, bufferPtrKey, JNI_ABORT);
+
+	return sodium_result ? NULL : result;
+}
+
+JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_Sodium_passwordHash(JNIEnv *env, jobject ignore, jint outlen, jbyteArray passwd, jbyteArray salt) {
+	if (outlen <= 0 || passwd == NULL || salt == NULL ||
+			(*env)->GetArrayLength(env, salt) != crypto_pwhash_SALTBYTES) return NULL;
+
+	const jbyte* bufferPtrPasswd  = (*env)->GetByteArrayElements(env, passwd,  NULL);
+	const jbyte* bufferPtrSalt = (*env)->GetByteArrayElements(env, salt, NULL);
+	const jsize passwdLen = (*env)->GetArrayLength(env, passwd);
+	jbyteArray hash = (*env)->NewByteArray(env, outlen);
+	jbyte* bufferPtrHash = (*env)->GetByteArrayElements(env, hash, NULL);
+
+	int sodium_result = crypto_pwhash((unsigned char * const)bufferPtrHash,
+			(unsigned long long)outlen,
+			(const char* const)bufferPtrPasswd,
+			(unsigned long long)passwdLen,
+			(const unsigned char* const)bufferPtrSalt,
+			crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
+			crypto_pwhash_ALG_DEFAULT);
+
+	(*env)->ReleaseByteArrayElements(env, passwd,  bufferPtrPasswd, JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, salt, bufferPtrSalt, JNI_ABORT);
+	(*env)->ReleaseByteArrayElements(env, hash, bufferPtrHash, sodium_result ? JNI_ABORT : 0);
+
+	return sodium_result ? NULL : hash;
 }
