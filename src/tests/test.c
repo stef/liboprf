@@ -5,10 +5,10 @@
 #include "../oprf.h"
 #include "../utils.h"
 
-extern int debug;
+extern int liboprf_debug;
 
 int main(void) {
-  debug = 1;
+  liboprf_debug = 1;
   int res;
 
   uint8_t r[crypto_core_ristretto255_SCALARBYTES];

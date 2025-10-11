@@ -3,7 +3,7 @@
 #include "toprf.h"
 #include "utils.h"
 
-extern int debug;
+extern int liboprf_debug;
 
 typedef struct {
   uint8_t index;
@@ -71,7 +71,7 @@ static int test_dkg_finish(const uint8_t n, const TOPRF_Share shares[n]) {
 }
 
 int main(void) {
-  debug = 1;
+  liboprf_debug = 1;
   uint8_t n=5, threshold=3;
   uint8_t commitments[n][threshold][crypto_core_ristretto255_BYTES];
   TOPRF_Share shares[n][n];
@@ -80,7 +80,7 @@ int main(void) {
     if(dkg_start(n, threshold, commitments[i], shares[i])) {
       return 1;
     }
-    if(debug) {
+    if(liboprf_debug) {
       for(int j=0;j<n;j++) {
         dump((uint8_t*) &shares[i][j], sizeof(TOPRF_Share), "s[%d,%d] ", i+1, j+1);
       }
@@ -96,7 +96,7 @@ int main(void) {
   for(int i=0;i<n;i++) {
     for(int j=0;j<n;j++) {
       memcpy(&sent_shares[j], &shares[j][i], sizeof(TOPRF_Share));
-      if(debug) {
+      if(liboprf_debug) {
          fprintf(stderr, "\nsent to peer %d\n",i+1);
          dump((uint8_t*) &sent_shares[j], sizeof(TOPRF_Share), "s[%d,%d] ", i+1, j+1);
       }

@@ -28,8 +28,8 @@
     // internet connectivity.
     .dependencies = .{
         .libsodium = .{
-            .url = "git+https://github.com/jedisct1/libsodium.git#c3905104847c760fa61037aad4373e6a67b41f68",
-            .hash = "N-V-__8AALhNYQC9TJgpQpvXskW-_pvYvZrPO5KzmD39rVWX",
+            .url = "git+https://github.com/jedisct1/libsodium.git#09e995c0c85a0026510704b8ce7f5867a09a3841",
+            .hash = "N-V-__8AAONJYQCM2EvfTRcbTy_p9_e6hTjX34KAk0MItmwe",
         },
     },
     .paths = .{

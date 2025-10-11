@@ -40,7 +40,7 @@ static int verify_shares(const uint8_t n, const TOPRF_Share shares[n], const uin
 
   uint8_t indexes[n];
   for(uint8_t i=0;i<n;i++) indexes[i]=i;
-  if(log_file!=NULL) {
+  if(liboprf_log_file!=NULL) {
     fprintf(stderr, "order: ");
     for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
   }
@@ -54,7 +54,7 @@ static int verify_shares(const uint8_t n, const TOPRF_Share shares[n], const uin
   for(int k=0;k<t-1;k++) {
     uint8_t v1[crypto_scalarmult_ristretto255_BYTES]={0};
     shuffle(indexes,n);
-    if(log_file!=NULL) {
+    if(liboprf_log_file!=NULL) {
       fprintf(stderr, "order: ");
       for(int i=0;i<t;i++) fprintf(stderr, "%2d, ",indexes[i]);
     }
@@ -353,8 +353,8 @@ static int fuzz_loop(const uint8_t step, TP_DKG_TPState *tp, TP_DKG_PeerState *p
 int main(const int argc, const char **argv) {
   int ret;
   // enable logging
-  log_file = stderr;
-  debug = 1;
+  liboprf_log_file = stderr;
+  liboprf_debug = 1;
 
   if(argc<3) {
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)

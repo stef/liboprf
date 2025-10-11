@@ -18,7 +18,7 @@ int test_mpmul(void) {
   // split k into shares
   uint8_t shares0[peers][TOPRF_Share_BYTES];
   toprf_create_shares(k0, peers, threshold, shares0);
-  if(debug) {
+  if(liboprf_debug) {
     for(unsigned j=0;j<peers;j++)
       dump(shares0[j], TOPRF_Share_BYTES, "shares0[%d]", j);
     printf("\n");
@@ -32,7 +32,7 @@ int test_mpmul(void) {
   // split k into shares
   uint8_t shares1[peers][TOPRF_Share_BYTES];
   toprf_create_shares(k1, peers, threshold, shares1);
-  if(debug) {
+  if(liboprf_debug) {
     for(unsigned j=0;j<peers;j++)
       dump(shares1[j], TOPRF_Share_BYTES, "shares1[%d]", j);
     printf("\n");
@@ -205,9 +205,9 @@ int test_vsps(void) {
 }
 
 int main(void) {
-  debug = 0; // is a global variable from utils.h
+  liboprf_debug = 0; // is a global variable from utils.h
   if(0!=test_mpmul()) return 1;
-  debug = 1; // is a global variable from utils.h
+  liboprf_debug = 1; // is a global variable from utils.h
   if(0!=test_vsps()) return 1;
 
   fprintf(stderr, "\e[0;32mgreat success!!5!\e[0m\n");

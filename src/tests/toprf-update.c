@@ -68,7 +68,7 @@ static uint8_t dkg_vss_verify_commitments(const uint8_t n,
       //return 1;
     } else {
 #ifdef UNIT_TEST
-      if(debug) fprintf(stderr, "\x1b[0;32mP_%d stage 1 correct!\x1b[0m\n", i);
+      if(liboprf_debug) fprintf(stderr, "\x1b[0;32mP_%d stage 1 correct!\x1b[0m\n", i);
 #endif // UNIT_TEST
     }
   }
@@ -358,8 +358,8 @@ static int fuzz_loop(const uint8_t step, TOPRF_Update_STPState *stp, TOPRF_Updat
 int main(const int argc, const char **argv) {
   int ret=0;
   // enable logging
-  log_file = stderr;
-  debug = 0;
+  liboprf_log_file = stderr;
+  liboprf_debug = 0;
 
   if(argc<3) {
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) || defined(FUZZ_DUMP)
@@ -391,7 +391,7 @@ int main(const int argc, const char **argv) {
   uint8_t k0_commitments[n][crypto_core_ristretto255_BYTES];
   if(0!=dkg_vss(n,t, k0_shares, k0_commitments)) return 1;
   if(0!=toprf_mpc_vsps_check(t-1, k0_commitments)) return 1;
-  debug = 1;
+  liboprf_debug = 1;
   for(int i=0;i<n;i++) {
     dump((uint8_t*) k0_shares[i], sizeof(TOPRF_Share)*2, "k0[%d]", i+1);
     dump(k0_commitments[i], crypto_core_ristretto255_BYTES, "A[%d]", i+1);

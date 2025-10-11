@@ -63,6 +63,7 @@ pub fn build(b: *std.Build) !void {
 
         const name = entry.basename;
         if(mem.eql(u8, name, "xk-ex.c")) continue;
+        if(mem.eql(u8, name, "jni.c")) continue;
 
         if (mem.endsWith(u8, name, ".c")) {
             const full_path = try fmt.allocPrint(allocator, "{s}/{s}", .{ src_path, entry.path });

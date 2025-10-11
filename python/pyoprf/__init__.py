@@ -28,12 +28,13 @@ All rights reserved.
 import ctypes
 import ctypes.util
 import pysodium, os
-import platform
+import platform, sys
 from typing import List, Tuple
 from itertools import zip_longest
 
 if "BYZANTINE_DKG" in os.environ:
     liboprf = ctypes.cdll.LoadLibrary(os.environ['BYZANTINE_DKG'])
+    print("\x1b[1m\x1b[31mwarning: loading intentionally corrupting version of liboprf, only use this for testing!\x1b[0m", file=sys.stderr)
 else:
     liboprf = ctypes.cdll.LoadLibrary(ctypes.util.find_library('oprf') or ctypes.util.find_library('liboprf'))
 
