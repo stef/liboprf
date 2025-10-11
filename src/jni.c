@@ -309,7 +309,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_next(JNIEnv 
 	return ret == 0 ? result : NULL;
 }
 
-JNIEXPORT jlongArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getInputSizes(JNIEnv *env, jobject ctxObj) {
+JNIEXPORT jobject JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getInputSizes(JNIEnv *env, jobject ctxObj) {
 	const jclass ctxClass = (*env)->FindClass(env, "org/hsbp/androsphinx/TpdkgContext");
 	const jfieldID ctxField = (*env)->GetFieldID(env, ctxClass, "ctx", "J");
 	const jlong ctxValue = (*env)->GetLongField(env, ctxObj, ctxField);
@@ -323,7 +323,13 @@ JNIEXPORT jlongArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getInputSize
 		bufferResult[i] = sizes[i];
 	}
 	(*env)->ReleaseLongArrayElements(env, result, bufferResult, 0);
-	return result;
+	jclass clazz = (*env)->FindClass(env, "kotlin/Pair");
+	jmethodID constructor = (*env)->GetMethodID(env, clazz, "<init>", "(Ljava/lang/Object;Ljava/lang/Object;)V");
+	jclass boolCls = (*env)->FindClass(env, "java/lang/Boolean");
+	jfieldID field = (*env)->GetStaticFieldID(env, boolCls, ret == 0 ? "FALSE" : "TRUE", "Ljava/lang/Boolean;");
+	jobject boolObj = (*env)->GetStaticObjectField(env, boolCls, field);
+	jobject pair = (*env)->NewObject(env, clazz, constructor, boolObj, result);
+	return pair;
 }
 
 JNIEXPORT jbyteArray JNICALL Java_org_hsbp_androsphinx_TpdkgContext_getSessionId(JNIEnv *env, jobject ctxObj) {
