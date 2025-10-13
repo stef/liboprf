@@ -10,9 +10,12 @@ CFLAGS?=-Wall -O2 -g -ffunction-sections -fdata-sections \
 LIBS=-lsodium -loprf-noiseXK -Lnoise_xk
 CC?=gcc
 LD?=ld
+OBJCOPY?=objcopy
+STRIP?=strip
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
+DEBUGDIR?=lib/debug/usr/lib
 
 # To statically link the noiseXK library, use these LIBS (and comment out the other LIBS)
 #LIBS=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
@@ -100,6 +103,11 @@ aux_/kdf_hkdf_sha256.o: aux_/kdf_hkdf_sha256.c
 liboprf.$(SOEXT): liboprf_merged.o noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build dynamic release library: $@ $(endDecor))
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $(SOFLAGS) -o $@ liboprf_merged.o $(LDFLAGS) $(LIBS)
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(STRIP) --strip-debug --strip-unneeded $@
+	$(OBJCOPY) --add-gnu-debuglink=$@.debug $@
+
+liboprf.$(SOEXT).debug: liboprf.$(SOEXT)
 
 liboprf-corrupt-dkg.$(SOEXT): $(SOURCES) noise_xk/liboprf-noiseXK.$(SOEXT)
 	$(info $(decor) Build unit test library: $@ $(endDecor))
@@ -141,6 +149,7 @@ clean:
 install: install-oprf install-noiseXK
 
 install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
+	$(DESTDIR)$(PREFIX)/$(DEBUGDIR)/liboprf.$(SOEXT).debug \
 	$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT) \
 	$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc \
 	$(DESTDIR)$(PREFIX)/include/oprf/oprf.h \
@@ -166,6 +175,7 @@ uninstall-oprf:
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/dkg.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h'
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/utils.h' '$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc'
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/tp-dkg.h' '$(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h'
+	rm -vf  '$(DESTDIR)$(PREFIX)/$(DEBUGDIR)/liboprf.$(SOEXT).debug'
 	rmdir -v '$(DESTDIR)$(PREFIX)/include/oprf/'
 
 uninstall-noiseXK:
@@ -210,6 +220,10 @@ $(DESTDIR)$(PREFIX)/include/oprf/stp-dkg.h: stp-dkg.h
 
 $(DESTDIR)$(PREFIX)/include/oprf/utils.h: utils.h
 	mkdir -p $(DESTDIR)$(PREFIX)/include/oprf
+	cp $< $@
+
+$(DESTDIR)$(PREFIX)/$(DEBUGDIR)/liboprf.$(SOEXT).debug: liboprf.$(SOEXT).debug
+	mkdir -p $(DESTDIR)$(PREFIX)/$(DEBUGDIR)
 	cp $< $@
 
 test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK.$(STATICEXT)
