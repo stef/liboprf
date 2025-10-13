@@ -62,7 +62,7 @@ endif
 all: liboprf.$(SOEXT) liboprf_release.$(STATICEXT) noise_xk/liboprf-noiseXK.$(SOEXT) liboprf.pc
 
 android:
-	$(MAKE) EXTRA_SOURCES+=jni.c EXTRA_CFLAGS+='-I/usr/lib/jvm/java-21-openjdk/include/ -I/usr/lib/jvm/java-21-openjdk/include/linux/' liboprf.$(SOEXT)
+	$(MAKE) EXTRA_SOURCES+=jni.c liboprf.$(SOEXT)
 
 LIBOPRF_SOURCES=oprf.c toprf.c dkg.c dkg-vss.c utils.c tp-dkg.c mpmult.c stp-dkg.c toprf-update.c
 SOURCES=$(LIBOPRF_SOURCES) $(EXTRA_SOURCES)
