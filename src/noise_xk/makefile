@@ -22,7 +22,7 @@ ifeq ($(UNAME),Darwin)
    SOEXT=dylib
    SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT)
 else
-   ifeq ($(shell uname),Linux)
+   ifeq ($(UNAME),Linux)
 	CFLAGS 	+= -Wl,--error-unresolved-symbols -Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,liboprf-noiseXK.$(SOEXT).$(SOVER)
