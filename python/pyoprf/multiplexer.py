@@ -178,7 +178,7 @@ class BLEPeer:
         self.state == "disconnected"
 
     def connect(self):
-        asyncio.get_event_loop().set_debug(True)
+        #asyncio.get_event_loop().set_debug(True)
         asyncio.get_event_loop().run_until_complete(self._connect())
         while not self.connected(): time.sleep(0.001)
 
@@ -260,7 +260,9 @@ class Serial(asyncio.Protocol):
            ret.append(self.rx_buffer.pop(0))
            rsize+=len(ret[-1])
         ret = b''.join(ret)
-        if(size<len(ret)): print(f"XXXX read size: {len(ret)}", file=sys.stderr)
+        #if(size<len(ret)):
+            # can happen when "OK" is expected but b'\x00\x04fail" is sent 18 vs 22
+            #print(f"XXXX expected size {size} < read size: {len(ret)}", file=sys.stderr)
         self.rx_pected = 0
         self.rx_len -= rsize
         self.rx_available.clear()
@@ -311,7 +313,7 @@ class USBPeer:
         self.path = self.find_usb_port()
         #print(f"connecting to {self.path}",file=sys.stderr)
         loop = asyncio.get_event_loop()
-        loop.set_debug(True)
+        #loop.set_debug(True)
         coro = create_serial_connection(loop, Serial, self.path, baudrate=115200)
         self.transport, self.protocol = loop.run_until_complete(coro)
         loop.run_until_complete(self._connect())
