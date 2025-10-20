@@ -447,12 +447,12 @@ static TOPRF_Update_Err ft_or_full_vsps(const uint8_t n, const uint8_t t, const 
         fails[(*fails_len)++]=i+1;
       }
     }
+    liboprf_debug=_debug;
     if(*fails_len == 0) {
       if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] %s\n"NORMAL, self, no_sub_msg);
       return TOPRF_Update_Err_NoSubVSPSFail;
     }
   }
-  liboprf_debug=_debug;
   return TOPRF_Update_Err_OK;
 }
 
@@ -1671,7 +1671,7 @@ static TOPRF_Update_Err stp_bc_transcript_handler(TOPRF_Update_STPState *ctx, co
 
   int _debug=liboprf_debug; liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*ctx->p_commitments))) {
-    liboprf_debug=1;
+    liboprf_debug=_debug;
     if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[!] result of DKG final commitments fail VSPS\n"NORMAL);
     if(stp_add_cheater(ctx, 2, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
@@ -1718,7 +1718,7 @@ static TOPRF_Update_Err peer_final_handler(TOPRF_Update_PeerState *ctx, const ui
   // correct commitment for them. but that should also be previously detected.
   int _debug=liboprf_debug; liboprf_debug=0;
   if(0!=toprf_mpc_vsps_check(ctx->t-1, (*pcom))) {
-    liboprf_debug=1;
+    liboprf_debug=_debug;
     if(liboprf_log_file!=NULL) fprintf(liboprf_log_file, RED"[%d] result of p DKG commitments fail VSPS\n"NORMAL, ctx->index);
     if(peer_add_cheater(ctx, 2, 0, 0) == NULL) return TOPRF_Update_Err_CheatersFull;
   }
