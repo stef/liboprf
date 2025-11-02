@@ -537,9 +537,9 @@ static STP_DKG_Err peer_init1_handler(STP_DKG_PeerState *ctx, const uint8_t *inp
   if(ctx->keyloader_cb!=NULL) {
     const uint8_t (*peerids)[crypto_generichash_BYTES]=(const uint8_t (*)[crypto_generichash_BYTES]) msg1->data;
     for(unsigned i=0;i<ctx->n;i++) {
-        if(0!=ctx->keyloader_cb(peerids[i],ctx->keyloader_cb_arg,(*ctx->sig_pks)[i+1],(*ctx->peer_noise_pks)[i])) {
-          return 23; // todo
-        }
+      if(0!=ctx->keyloader_cb(peerids[i],ctx->keyloader_cb_arg,(*ctx->sig_pks)[i+1],(*ctx->peer_noise_pks)[i])) {
+        return 23; // todo
+      }
     }
   }
 
