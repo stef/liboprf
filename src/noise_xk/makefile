@@ -4,7 +4,7 @@ SOURCES=src/Noise_XK.c src/XK.c
 INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
 CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-Wno-unknown-warning-option -Wno-unused-but-set-variable \
-				-Wno-unused-parameter -Wno-infinite-recursion -fpic \
+				-Wno-unused-parameter -Wno-infinite-recursion -Wno-maybe-uninitialized \
 				-fwrapv -D_BSD_SOURCE -D_DEFAULT_SOURCE -DWITH_SODIUM \
 				-O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic \
