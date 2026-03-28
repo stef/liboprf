@@ -147,7 +147,7 @@ clean:
 	make -C tests clean
 	make -C noise_xk clean
 
-install: install-oprf install-noiseXK
+install: liboprf.pc install-oprf install-noiseXK
 
 install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
 	$(DESTDIR)$(PREFIX)/$(DEBUGDIR)/liboprf.$(SOEXT).debug \
@@ -234,4 +234,4 @@ test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
 
-PHONY: clean
+.PHONY: clean liboprf.pc
