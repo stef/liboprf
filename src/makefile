@@ -166,13 +166,14 @@ install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
 install-noiseXK:
 	make -C noise_xk install
 
-uninstall: uninstall-noiseXK uninstall-oprf
+uninstall: uninstall-dircheck uninstall-noiseXK uninstall-oprf
 
-uninstall-oprf:
+uninstall-dircheck:
 	@ \
 	if [ ! '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is empty!' && exit 1; fi; \
 	if [ ! -d '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is not a folder' && exit 1; fi;
 
+uninstall-oprf:
 	rm -vf  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)' \
 	        '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT).$(SOVER)' \
 	        '$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT)'
