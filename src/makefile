@@ -5,10 +5,9 @@ CFLAGS?=-Wall -O2 -g -ffunction-sections -fdata-sections \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS) \
-		  $(shell pkgconf --cflags libsodium)
+		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS) 
 
-LIBS=$(shell pkgconf --libs libsodium) -loprf-noiseXK -Lnoise_xk
+LIBS=-loprf-noiseXK -Lnoise_xk
 CC?=gcc
 LD?=ld
 OBJCOPY?=objcopy
@@ -19,7 +18,7 @@ SOVER=0
 DEBUGDIR?=lib/debug/usr/lib
 
 # To statically link the noiseXK library, use these LIBS (and comment out the other LIBS)
-#LIBS=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
+#LIBS=-l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
 
 UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
 ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
@@ -53,6 +52,9 @@ SODIUM_MISSING := $(shell pkgconf --exists libsodium; echo $$?)
 ifneq ($(SODIUM_MISSING),0)
   $(error liboprf: Cannot find libsodium via pkgconf. Check that libsodium has been installed)
 endif
+
+CFLAGS+= $(shell pkgconf --cflags libsodium)
+LIBS+= $(shell pkgconf --libs libsodium)
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifneq ($(SODIUM_NEWER_THAN_1_0_18),0)
