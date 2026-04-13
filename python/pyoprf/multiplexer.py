@@ -425,6 +425,15 @@ class Multiplexer:
         results = await asyncio.gather(
             *[peer.read_async(expected_msg_len) for peer in self.peers], return_exceptions=True
         )
+
+        if n is None:
+            n=len(self.peers)
+
+        misses = [f"{self.peers[i].name} returned {0 if e is None else len(e)}B"
+                  for i, e in enumerate(results) if e is None or len(e)!=expected_msg_len]
+        if (len(self.peers) - len(misses)) < n:
+            raise ValueError(f"not enough responses gathered (needed: {n} x {expected_msg_len}B), failures: {', '.join(misses)}")
+
         for i in range(len(results)):
             if isinstance(results[i], Exception):
                 print(f"client {self.peers[i].name} returned exception: {results[i]}", file=sys.stderr)
@@ -437,10 +446,6 @@ class Multiplexer:
             if tmp is None: continue
             results[i]=tmp
 
-        if n is None:
-            n=len(self.peers)
-        if len([1 for e in results if e is not None]) < n:
-            raise ValueError(f"not enough responses gathered: {results}")
         return results
 
     def gather(self, *args, **kwargs):
