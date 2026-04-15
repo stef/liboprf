@@ -5,9 +5,9 @@ CFLAGS?=-Wall -O2 -g -ffunction-sections -fdata-sections \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS)
+		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS) 
 
-LIBS=-lsodium -loprf-noiseXK -Lnoise_xk
+LIBS=-loprf-noiseXK -Lnoise_xk
 CC?=gcc
 LD?=ld
 OBJCOPY?=objcopy
@@ -18,7 +18,7 @@ SOVER=0
 DEBUGDIR?=lib/debug/usr/lib
 
 # To statically link the noiseXK library, use these LIBS (and comment out the other LIBS)
-#LIBS=-lsodium -l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
+#LIBS=-l:liboprf-noiseXK.a -Wl,--exclude-libs,ALL -Lnoise_xk
 
 UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
 ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
@@ -52,6 +52,9 @@ SODIUM_MISSING := $(shell pkgconf --exists libsodium; echo $$?)
 ifneq ($(SODIUM_MISSING),0)
   $(error liboprf: Cannot find libsodium via pkgconf. Check that libsodium has been installed)
 endif
+
+CFLAGS+= $(shell pkgconf --cflags libsodium)
+LIBS+= $(shell pkgconf --libs libsodium)
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifneq ($(SODIUM_NEWER_THAN_1_0_18),0)
@@ -146,7 +149,7 @@ clean:
 	make -C tests clean
 	make -C noise_xk clean
 
-install: install-oprf install-noiseXK
+install: liboprf.pc install-oprf install-noiseXK
 
 install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
 	$(DESTDIR)$(PREFIX)/$(DEBUGDIR)/liboprf.$(SOEXT).debug \
@@ -163,14 +166,18 @@ install-oprf: $(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT) \
 install-noiseXK:
 	make -C noise_xk install
 
-uninstall: uninstall-oprf uninstall-noiseXK
+uninstall: uninstall-dircheck uninstall-noiseXK uninstall-oprf
 
-uninstall-oprf:
+uninstall-dircheck:
 	@ \
 	if [ ! '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is empty!' && exit 1; fi; \
 	if [ ! -d '$(strip $(DESTDIR)$(PREFIX))' ]; then echo 'liboprf: DESTDIR-PREFIX is not a folder' && exit 1; fi;
 
-	rm -vf  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)'  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT)'
+uninstall-oprf:
+	rm -vf  '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT)' \
+	        '$(DESTDIR)$(PREFIX)/lib/liboprf.$(SOEXT).$(SOVER)' \
+	        '$(DESTDIR)$(PREFIX)/lib/liboprf.$(STATICEXT)'
+
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/oprf.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf.h'
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/dkg.h'  '$(DESTDIR)$(PREFIX)/include/oprf/toprf-update.h'
 	rm -vf  '$(DESTDIR)$(PREFIX)/include/oprf/utils.h' '$(DESTDIR)$(PREFIX)/lib/pkgconfig/liboprf.pc'
@@ -233,4 +240,4 @@ test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
 
-PHONY: clean
+.PHONY: clean liboprf.pc

@@ -1,5 +1,5 @@
 PREFIX?=/usr/local
-LIBS=-lsodium
+LIBS=$(shell pkgconf --libs libsodium)
 SOURCES=src/Noise_XK.c src/XK.c
 INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
 CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
@@ -9,7 +9,8 @@ CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \
-				-ftrapv
+				-ftrapv \
+		  		$(shell pkgconf --cflags libsodium)
 CC?=gcc
 
 SOEXT?=so
@@ -63,8 +64,11 @@ liboprf-noiseXK.$(SOEXT).$(SOVER): liboprf-noiseXK.$(SOEXT)
 
 install: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
 
-uninstall: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
-	rm -rf $^
+uninstall:
+	rm -rf $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) \
+	       $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT).$(SOVER) \
+	       $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) \
+	       $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
 
 $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT): liboprf-noiseXK.$(SOEXT)
 	mkdir -p $(DESTDIR)$(PREFIX)/lib/
