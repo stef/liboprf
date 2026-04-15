@@ -1,5 +1,4 @@
 PREFIX?=/usr/local
-LIBS=-lsodium
 SOURCES=src/Noise_XK.c src/XK.c
 INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
 CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
@@ -15,6 +14,14 @@ CC?=gcc
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
+
+PKGCONF_MISSING := $(shell pkgconf --version >/dev/null; echo $$?)
+ifneq ($(PKGCONF_MISSING),0)
+   $(error liboprf: Cannot find pkgconf)
+endif
+
+LIBS+=$(shell pkgconf --libs libsodium)
+CFLAGS+=$(shell pkgconf --cflags libsodium)
 
 UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
 ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
@@ -63,8 +70,11 @@ liboprf-noiseXK.$(SOEXT).$(SOVER): liboprf-noiseXK.$(SOEXT)
 
 install: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
 
-uninstall: $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
-	rm -rf $^
+uninstall:
+	rm -rf $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT) \
+	       $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT).$(SOVER) \
+	       $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(STATICEXT) \
+	       $(DESTDIR)$(PREFIX)/include/oprf/noiseXK
 
 $(DESTDIR)$(PREFIX)/lib/liboprf-noiseXK.$(SOEXT): liboprf-noiseXK.$(SOEXT)
 	mkdir -p $(DESTDIR)$(PREFIX)/lib/
