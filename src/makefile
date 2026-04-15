@@ -5,7 +5,7 @@ CFLAGS?=-Wall -O2 -g -ffunction-sections -fdata-sections \
 		  -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 		  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 		  -fstack-protector-strong -fasynchronous-unwind-tables -fpic \
-		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS) 
+		  -ftrapv -D_GLIBCXX_ASSERTIONS $(DEFINES) $(EXTRA_CFLAGS)
 
 LIBS=-loprf-noiseXK -Lnoise_xk
 CC?=gcc
@@ -240,4 +240,4 @@ test: liboprf-corrupt-dkg.$(SOEXT) liboprf.$(STATICEXT) noise_xk/liboprf-noiseXK
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC $(INCLUDES) -c $< -o $@
 
-.PHONY: clean liboprf.pc
+.PHONY: clean

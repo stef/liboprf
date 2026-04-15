@@ -1,5 +1,4 @@
 PREFIX?=/usr/local
-LIBS=$(shell pkgconf --libs libsodium)
 SOURCES=src/Noise_XK.c src/XK.c
 INCLUDES= -Iinclude -I include/karmel -I include/karmel/minimal
 CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
@@ -9,13 +8,20 @@ CFLAGS 	?= -Wall -Wextra -Werror -std=c11 -Wno-unused-variable \
 				-O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 				-fasynchronous-unwind-tables -fpic \
 				-Werror=format-security -Werror=implicit-function-declaration \
-				-ftrapv \
-		  		$(shell pkgconf --cflags libsodium)
+				-ftrapv
 CC?=gcc
 
 SOEXT?=so
 STATICEXT?=a
 SOVER=0
+
+PKGCONF_MISSING := $(shell pkgconf --version >/dev/null; echo $$?)
+ifneq ($(PKGCONF_MISSING),0)
+   $(error liboprf: Cannot find pkgconf)
+endif
+
+LIBS+=$(shell pkgconf --libs libsodium)
+CFLAGS+=$(shell pkgconf --cflags libsodium)
 
 UNAME := $(if $(UNAME),$(UNAME),$(shell uname -s))
 ARCH := $(if $(ARCH),$(ARCH),$(shell uname -m))
