@@ -110,6 +110,8 @@ class Peer:
 
 class BLEPeer:
     def __init__(self, name, addr, server_pk, client_sk, device="hci0", timeout=5):
+        if BLE_client is None:
+            raise ImportError("BLE support requires optional dependency 'ble_serial'. Install pyoprf with the 'ble' extra, e.g. 'pip install pyoprf[ble]'.")
         self.name = name
         self.address = addr # the MAC address of the device
         self.server_pk = server_pk
@@ -278,6 +280,8 @@ class Serial(asyncio.Protocol):
 
 class USBPeer:
     def __init__(self, name, serno, server_pk, client_sk, timeout=5):
+        if pyudev is None:
+            raise ImportError("USB support requires optional dependency 'pyudev'. Install pyoprf with the 'usb' extra, e.g. 'pip install pyoprf[usb]'.")
         self.name = name
         self.serno = serno # the serial number of the usb device
         self.server_pk = server_pk

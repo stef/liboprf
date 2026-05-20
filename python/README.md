@@ -16,6 +16,23 @@ pyoprf offers Python bindings for the liboprf library, allowing integration of O
 pip install pyoprf
 ```
 
+If you need optional transport dependencies:
+
+- `ble` installs `ble_serial`
+- `usb` installs `pyudev`
+- `all` installs both `ble_serial` and `pyudev`
+
+```bash
+# Bluetooth support
+pip install "pyoprf[ble]"
+
+# USB support
+pip install "pyoprf[usb]"
+
+# All optional transports
+pip install "pyoprf[all]"
+```
+
 ### Installing from source
 
 ```bash
