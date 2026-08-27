@@ -4,23 +4,26 @@ const fs = std.fs;
 const heap = std.heap;
 const mem = std.mem;
 const Compile = std.Build.Step.Compile;
+const Io = std.Io;
 
 fn initLibConfig(b: *std.Build, lib: *Compile) void {
-    lib.linkLibC();
-    lib.addIncludePath(b.path("src/"));
-    lib.addIncludePath(b.path("src/noise_xk/include"));
-    lib.addIncludePath(b.path("src/noise_xk/include/karmel"));
-    lib.addIncludePath(b.path("src/noise_xk/include/karmel/minimal"));
+    lib.root_module.link_libc = true;
+    lib.root_module.addIncludePath(b.path("src/"));
+    lib.root_module.addIncludePath(b.path("src/noise_xk/include"));
+    lib.root_module.addIncludePath(b.path("src/noise_xk/include/karmel"));
+    lib.root_module.addIncludePath(b.path("src/noise_xk/include/karmel/minimal"));
     //lib.want_lto = false;
 }
 
 pub fn build(b: *std.Build) !void {
     const root_path = b.pathFromRoot(".");
-    var cwd = try fs.openDirAbsolute(root_path, .{});
-    defer cwd.close();
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    var cwd = try std.Io.Dir.openDirAbsolute(io, root_path, .{});
+    defer cwd.close(io);
 
     const src_path = "src/";
-    const src_dir = try fs.Dir.openDir(cwd, src_path, .{ .iterate = true, .no_follow = true });
+    const src_dir = try std.Io.Dir.openDir(cwd, io, src_path, .{ .iterate = true, .follow_symlinks = false });
 
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -41,8 +44,8 @@ pub fn build(b: *std.Build) !void {
         .static = true,
         .shared = false
     });
-    static_lib.linkLibrary(libsodium_package.artifact("sodium"));
-    static_lib.addIncludePath(libsodium_package.path("include"));
+    static_lib.root_module.linkLibrary(libsodium_package.artifact("sodium"));
+    static_lib.root_module.addIncludePath(libsodium_package.path("include"));
 
     b.installArtifact(static_lib);
     initLibConfig(b, static_lib);
@@ -58,7 +61,7 @@ pub fn build(b: *std.Build) !void {
     const allocator = heap.page_allocator;
 
     var walker = try src_dir.walk(allocator);
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         if(mem.startsWith(u8, entry.path, "tests")) continue;
 
         const name = entry.basename;
@@ -67,7 +70,7 @@ pub fn build(b: *std.Build) !void {
 
         if (mem.endsWith(u8, name, ".c")) {
             const full_path = try fmt.allocPrint(allocator, "{s}/{s}", .{ src_path, entry.path });
-            static_lib.addCSourceFile(.{
+            static_lib.root_module.addCSourceFile(.{
                 .file = b.path(full_path),
                 .flags = flags,
             });
