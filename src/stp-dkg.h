@@ -926,6 +926,4 @@ void stp_dkg_peer_free(STP_DKG_PeerState *ctx);
  */
 uint8_t stp_dkg_peer_cheater_msg(const STP_DKG_Cheater *c, char *out, const size_t outlen);
 
-extern FILE* log_file;
-
 #endif //STP_DKG_H
