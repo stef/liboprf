@@ -852,7 +852,7 @@ def tupdate_stp_input_sizes(ctx):
    ret = liboprf.toprf_update_stp_input_sizes(ctx[0], ctypes.byref(sizes))
    return ret, [x for x in sizes]
 
-#size_t tpdkg_tp_output_size(const TP_DKG_TPState *ctx);
+#size_t tpdkg_stp_output_size(const TP_DKG_TPState *ctx);
 def tupdate_stp_output_size(ctx):
    return liboprf.toprf_update_stp_output_size(ctx[0])
 
@@ -865,7 +865,7 @@ def tupdate_stp_next(ctx, msg):
     __check(liboprf.toprf_update_stp_next(ctx[0], msg, ctypes.c_size_t(input_len), output, ctypes.c_size_t(output_len)))
     return output
 
-#int tpdkg_tp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len);
+#int tpdkg_stp_peer_msg(const TP_DKG_TPState *ctx, const uint8_t *base, const size_t base_size, const uint8_t peer, const uint8_t **msg, size_t *len);
 def tupdate_stp_peer_msg(ctx, base, peer):
     msg = ctypes.POINTER(ctypes.c_char)()
     size = ctypes.c_size_t()
@@ -873,23 +873,22 @@ def tupdate_stp_peer_msg(ctx, base, peer):
     msg = b''.join([msg[i] for i in range(size.value)])
     return msg
 
-#int tpdkg_tp_not_done(const TP_DKG_TPState *tp);
+#int tpdkg_stp_not_done(const TP_DKG_TPState *tp);
 def tupdate_stp_not_done(ctx):
     return liboprf.toprf_update_stp_not_done(ctx[0]) == 1
 
-#todo
-#def tupdate_get_cheaters(ctx):
-#    cheats = []
-#    cheaters = set()
-#    for i in range(tupdate_stpstate_cheater_len(ctx)):
-#        err = ctypes.create_string_buffer(tpdkg_max_err_SIZE)
-#        p = liboprf.toprf_update_cheater_msg(ctypes.byref(ctx[1][i]), err, tpdkg_max_err_SIZE)
-#        if 0 >= p > tpdkg_tpstate_n(ctx):
-#            print(f"invalid cheater index: {p}, skipping this entry")
-#            continue
-#        cheaters.add(p)
-#        cheats.append((p, err.raw[:err.raw.find(b'\x00')].decode('utf8')))
-#    return cheaters, cheats
+def tupdate_get_cheaters(ctx):
+    cheats = []
+    cheaters = set()
+    for i in range(tupdate_stpstate_cheater_len(ctx)):
+        err = ctypes.create_string_buffer(tpdkg_max_err_SIZE)
+        p = liboprf.toprf_update_cheater_msg(ctypes.byref(ctx[1][i]), err, tpdkg_max_err_SIZE)
+        if 0 >= p > tupdate_stpstate_n(ctx):
+            print(f"invalid cheater index: {p}, skipping this entry")
+            continue
+        cheaters.add(p)
+        cheats.append((p, err.raw[:err.raw.find(b'\x00')].decode('utf8')))
+    return cheaters, cheats
 
 liboprf.toprf_update_peerstate_n.restype = ctypes.c_uint8
 def tupdate_peerstate_n(ctx):
